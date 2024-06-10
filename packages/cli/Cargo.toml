@@ -1,0 +1,11 @@
+[package]
+name = "nixblitz_cli"
+version = "0.1.0"
+authors 	 = ["fusion44"]
+edition = "2021"
+
+[dependencies]
+material = { version = "0.1.1", features = ["ratatui"] }
+nixbitcoin-config = { path = "../nixbitcoin-config" }
+tui-realm-stdlib = "1.3.2"
+tuirealm = "1.9.2"

@@ -1,0 +1,16 @@
+[package]
+name = "nixbitcfg"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+garde = { version = "0.18.0", features = ["full"] }
+serde = { version = "1.0.199", features = ["derive"] }
+toml = "0.8.12"
+
+# crates.io version is out of date 
+# https://github.com/kamadorueda/alejandra/issues/406
+alejandra = { git = "https://github.com/kamadorueda/alejandra" }
+
