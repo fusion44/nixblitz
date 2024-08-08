@@ -26,6 +26,13 @@
             pre-commit # https://pre-commit.com
             rustPackages.clippy # rust linter
             python3 # to build the xcb Rust library
+            nixd # for the flake files
+            nodePackages.prettier # for the markdown files
+            dbus # needed for an openssl package
+            openssl
+          ];
+          nativeBuildInputs = with pkgs; [
+            pkg-config
           ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
         };
