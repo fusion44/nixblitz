@@ -5,6 +5,7 @@ use crossterm::event::KeyEvent;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::Rect,
+    Frame,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -192,6 +193,45 @@ impl App {
         Ok(())
     }
 
+    fn draw_app_bar(&mut self, frame: &mut Frame, area: Rect) {
+        let menu_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(
+                [
+                    Constraint::Length(APP_TITLE.len().try_into().unwrap()),
+                    Constraint::Min(0),
+                ]
+                .as_ref(),
+            )
+            .split(area);
+
+        // Draw the title
+        let res = self
+            .components_map
+            .get_mut(&ComponentIndex::Title)
+            .unwrap()
+            .draw(frame, menu_layout[0]);
+
+        if let Err(err) = res {
+            let _ = self
+                .action_tx
+                .send(Action::Error(format!("Failed to draw: {:?}", err)));
+        }
+
+        // Draw the menu
+        let res = self
+            .components_map
+            .get_mut(&ComponentIndex::Menu)
+            .unwrap()
+            .draw(frame, menu_layout[1]);
+
+        if let Err(err) = res {
+            let _ = self
+                .action_tx
+                .send(Action::Error(format!("Failed to draw: {:?}", err)));
+        }
+    }
+
     fn render(&mut self, tui: &mut Tui) -> Result<()> {
         tui.draw(|frame| {
             let main_layout = Layout::default()
@@ -206,34 +246,7 @@ impl App {
                 )
                 .split(frame.size());
 
-            let menu_layout = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints(
-                    [
-                        Constraint::Length(APP_TITLE.len().try_into().unwrap()),
-                        Constraint::Min(0),
-                    ]
-                    .as_ref(),
-                )
-                .split(main_layout[0]);
-
-            let _ = self
-                .components_map
-                .get_mut(&ComponentIndex::Title)
-                .unwrap()
-                .draw(frame, menu_layout[0]);
-            let _ = self
-                .components_map
-                .get_mut(&ComponentIndex::Menu)
-                .unwrap()
-                .draw(frame, menu_layout[1]);
-            // for component in self.components.iter_mut() {
-            //     if let Err(err) = component.draw(frame, main_layout[0]) {
-            //         let _ = self
-            //             .action_tx
-            //             .send(Action::Error(format!("Failed to draw: {:?}", err)));
-            //     }
-            // }
+            self.draw_app_bar(frame, main_layout[0]);
         })?;
         Ok(())
     }
