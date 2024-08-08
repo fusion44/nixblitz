@@ -1,6 +1,5 @@
+# cli
 
-### libraries
-- https://github.com/ratatui-org/ratatui
-- https://github.com/veeso/tui-realm
-- https://github.com/azorng/material
+[![CI](https://github.com//cli/workflows/CI/badge.svg)](https://github.com//cli/actions)
 
+A CLI interface to the RaspiBlitz project.
