@@ -1,3 +1,4 @@
+use nixbitcfg::apps::SupportedApps;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -16,4 +17,12 @@ pub enum Action {
     NavSettingsTab,
     NavActionsTab,
     NavHelpTab,
+    NavUp,
+    NavDown,
+    NavLeft,
+    NavRight,
+    Enter,
+
+    // App tab specific actions
+    AppTabAppSelected(SupportedApps),
 }

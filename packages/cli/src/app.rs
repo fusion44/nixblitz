@@ -7,6 +7,7 @@ use ratatui::{
     prelude::Rect,
     Frame,
 };
+use ratatui_macros::constraints;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::{debug, info};
@@ -15,6 +16,7 @@ use crate::{
     action::Action,
     components::{menu::Menu, title::Title, Component},
     config::Config,
+    pages::apps_page::AppsPage,
     tui::{Event, Tui},
 };
 
@@ -43,6 +45,7 @@ pub enum Mode {
 enum ComponentIndex {
     Menu,
     Title,
+    AppsPage,
 }
 
 impl App {
@@ -57,6 +60,7 @@ impl App {
             ComponentIndex::Menu,
             Box::new(Menu::new(APP_TITLE.len() as u16)),
         );
+        map.insert(ComponentIndex::AppsPage, Box::new(AppsPage::new()));
         Ok(Self {
             tick_rate,
             frame_rate,
@@ -232,21 +236,29 @@ impl App {
         }
     }
 
+    fn draw_app_body(&mut self, frame: &mut Frame, area: Rect) {
+        let res = self
+            .components_map
+            .get_mut(&ComponentIndex::AppsPage)
+            .unwrap()
+            .draw(frame, area);
+
+        if let Err(err) = res {
+            let _ = self
+                .action_tx
+                .send(Action::Error(format!("Failed to draw: {:?}", err)));
+        }
+    }
+
     fn render(&mut self, tui: &mut Tui) -> Result<()> {
         tui.draw(|frame| {
             let main_layout = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints(
-                    [
-                        Constraint::Length(3),
-                        Constraint::Min(0),
-                        Constraint::Length(5),
-                    ]
-                    .as_ref(),
-                )
+                .constraints(constraints![==3, *=1, ==5])
                 .split(frame.size());
 
             self.draw_app_bar(frame, main_layout[0]);
+            self.draw_app_body(frame, main_layout[1]);
         })?;
         Ok(())
     }

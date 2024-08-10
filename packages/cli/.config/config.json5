@@ -9,6 +9,15 @@
 		"<Shift-s>": "NavSettingsTab",
 		"<Shift-c>": "NavActionsTab",
 		"<Shift-h>": "NavHelpTab",
+		"<k>": "NavUp",
+      "<j>": "NavDown",
+      "<h>": "NavLeft",
+ 		"<l>": "NavRight",
+		"<Up>": "NavUp",
+      "<Down>": "NavDown",
+      "<Left>": "NavLeft",
+ 		"<Right>": "NavRight",
+		"<Enter>": "Enter",
     },
   }
 }

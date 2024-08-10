@@ -204,8 +204,10 @@ dependencies = [
  "json5",
  "lazy_static",
  "libc",
+ "nixbitcfg",
  "pretty_assertions",
  "ratatui",
+ "ratatui-macros",
  "serde",
  "serde_json",
  "signal-hook",
@@ -1966,6 +1968,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ratatui-macros"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6eb998c66043d39b6e8c1ebb9db7227857eb180263a5f52dba2fafd19e6eb485"
+dependencies = [
+ "ratatui",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2833,7 +2844,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

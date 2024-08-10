@@ -1,2 +1,3 @@
+pub mod apps;
 pub mod bitcoind;
-mod utils;
+pub mod utils;
