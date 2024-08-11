@@ -6,6 +6,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{action::Action, config::Config, tui::Event};
 
 pub mod app_list;
+pub mod app_options;
 pub mod container;
 pub mod menu;
 pub mod title;

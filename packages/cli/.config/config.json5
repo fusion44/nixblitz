@@ -18,6 +18,7 @@
       "<Left>": "NavLeft",
  		"<Right>": "NavRight",
 		"<Enter>": "Enter",
+		"<esc>": "Esc",
     },
   }
 }

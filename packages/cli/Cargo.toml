@@ -37,6 +37,9 @@ tracing = "0.1.37"
 tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter", "serde"] }
 nixbitcfg = { path = "../nixbitcfg" }
+tui-scrollview = "0.3.13"
+tui-prompts = "0.3.22"
+tui-popup = "0.4.7"
 
 [build-dependencies]
 vergen = { version = "8.2.6", features = [ "build", "git", "gitoxide", "cargo" ]}

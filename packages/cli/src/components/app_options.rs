@@ -6,23 +6,23 @@ use crossterm::event::{MouseButton, MouseEventKind};
 use nixbitcfg::apps::SupportedApps;
 use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
+use tui_scrollview::ScrollViewState;
 
-const APP_TITLE: &str = " Apps ";
+const TITLE: &str = " Options ";
 
 #[derive(Default)]
-pub struct AppList {
+pub struct AppOptions {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
-    state: ListState,
     mouse_click_pos: Option<Position>,
     focus: bool,
+    scroll_view_state: ScrollViewState,
+    app: SupportedApps,
 }
 
-impl AppList {
+impl AppOptions {
     pub fn new() -> Self {
-        let mut instance = Self::default();
-        instance.state.select(Some(0));
-        instance
+        Self::default()
     }
 
     fn check_user_mouse_select(&mut self, area: Rect) -> Option<usize> {
@@ -30,74 +30,40 @@ impl AppList {
             self.mouse_click_pos = None;
 
             if area.contains(c) {
-                return Some((c.y - area.y) as usize - 1);
+                return Some((c.y - area.y) as usize);
             }
         }
 
         None
     }
 
-    fn kb_select_item(&mut self, action: Action) {
-        let pos = self.state.selected();
-        if pos.is_none() {
-            self.state.select(Some(0));
-            self.send_selected_action(0);
-        }
+    fn kb_select_item(&mut self, action: Action) {}
 
-        if action == Action::NavUp {
-            self.state.select_previous();
-        } else if action == Action::NavDown {
-            self.state.select_next();
-        }
-
-        if pos != self.state.selected() {
-            self.send_selected_action(self.state.selected().unwrap());
-        }
-    }
-
-    fn mouse_select_item(&mut self, pos: usize) {
-        let old = self.state.selected();
-        if pos == 0 || pos > SupportedApps::as_string_list().len() {
-            return;
-        }
-
-        if Some(pos) != old {
-            self.state.select(Some(pos));
-            self.send_selected_action(pos);
-        }
-    }
-
-    fn send_selected_action(&mut self, pos: usize) {
-        if let Some(tx) = &self.command_tx {
-            let res = SupportedApps::from_id(pos);
-            if let Some(app) = res {
-                let _ = tx.send(Action::AppTabAppSelected(app));
-            }
-        }
-    }
+    fn mouse_select_item(&mut self, pos: usize) {}
 
     fn send_focus_req_action(&mut self) {
         if let Some(tx) = &self.command_tx {
-            let _ = tx.send(Action::FocusRequest(FocusableComponent::AppTabList));
+            let _ = tx.send(Action::FocusRequest(FocusableComponent::AppTabOptions));
         }
     }
 
     fn render_app_list(&mut self, frame: &mut Frame, area: Rect) {
-        let list = List::new(SupportedApps::as_string_list().to_owned())
-            .block(render_container(APP_TITLE, self.focus))
-            .highlight_style(Style::new().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">>")
-            .repeat_highlight_symbol(true);
+        let p = Paragraph::new(format!("Hello {}.", self.app.to_string()))
+            .block(render_container(TITLE, self.focus));
 
-        frame.render_stateful_widget(list, area, &mut self.state);
+        frame.render_widget(p, area);
     }
 
     pub fn set_focus(&mut self, focus: bool) {
         self.focus = focus;
     }
+
+    pub fn set_app(&mut self, app: SupportedApps) {
+        self.app = app;
+    }
 }
 
-impl Component for AppList {
+impl Component for AppOptions {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
         self.command_tx = Some(tx);
         Ok(())

@@ -2,6 +2,8 @@ use nixbitcfg::apps::SupportedApps;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
+use crate::constants::FocusableComponent;
+
 #[derive(Debug, Clone, PartialEq, Eq, Display, Serialize, Deserialize)]
 pub enum Action {
     Tick,
@@ -22,6 +24,8 @@ pub enum Action {
     NavLeft,
     NavRight,
     Enter,
+    Esc,
+    FocusRequest(FocusableComponent),
 
     // App tab specific actions
     AppTabAppSelected(SupportedApps),
