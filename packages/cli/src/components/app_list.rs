@@ -25,12 +25,28 @@ impl AppList {
         instance
     }
 
+    /// Checks if mouse click is within the specified area and returns the index of
+    /// the selected row (zero based), or `None` if not applicable.
+    ///
+    /// # Parameters:
+    /// - `area`: Rectangle representing the check area.
+    ///
+    /// # Returns:
+    /// - The index of the clicked row, with Some(0) being the first item
+    /// - Otherwise, returns `None`.
     fn check_user_mouse_select(&mut self, area: Rect) -> Option<usize> {
         if let Some(c) = self.mouse_click_pos {
             self.mouse_click_pos = None;
 
             if area.contains(c) {
-                return Some((c.y - area.y) as usize - 1);
+                let res = (c.y - area.y) as usize;
+                if res == 0 {
+                    return None;
+                }
+
+                // subtract one to account for the
+                // block decoration
+                return Some(res - 1);
             }
         }
 
@@ -57,7 +73,7 @@ impl AppList {
 
     fn mouse_select_item(&mut self, pos: usize) {
         let old = self.state.selected();
-        if pos == 0 || pos > SupportedApps::as_string_list().len() {
+        if pos > SupportedApps::as_string_list().len() {
             return;
         }
 
@@ -136,5 +152,42 @@ impl Component for AppList {
 
         self.render_app_list(frame, area);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_check_user_mouse_select() {
+        let mut app = AppList::new();
+        app.mouse_click_pos = None;
+        assert_eq!(app.check_user_mouse_select(Rect::default()), None);
+
+        // pub enum SupportedApps {
+        //     #[default]
+        //     BitcoinCore,     index 0
+        //     CoreLightning,   index 1
+        //     ...
+        // }
+
+        // A click to 5, 2 should yield Core Lightning, or index 1
+        // ╭ Apps ────────────╮   (5, 0)
+        // │>>Bitcoin Core    │   (5, 1)
+        // │  Core Lightning  │   (5, 2)
+        // │  LND             │   (5, 3)
+        app.mouse_click_pos = Position::new(5, 2).into();
+        let res = app.check_user_mouse_select(Rect::new(0, 0, 10, 10));
+        assert_eq!(res, Some(1));
+
+        app.mouse_select_item(res.unwrap());
+        let selected_id = app.state.selected().unwrap();
+        assert_eq!(
+            SupportedApps::from_id(selected_id),
+            Some(SupportedApps::CoreLightning)
+        );
     }
 }
