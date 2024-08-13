@@ -14,9 +14,12 @@ use tracing::{debug, info};
 
 use crate::{
     action::Action,
-    components::{menu::Menu, title::Title, Component},
+    components::{container::render_container, menu::Menu, title::Title, Component},
     config::Config,
-    pages::apps_page::AppsPage,
+    pages::{
+        actions_page::ActionsPage, apps_page::AppsPage, help_page::HelpPage,
+        settings_page::SettingsPage,
+    },
     tui::{Event, Tui},
 };
 
@@ -33,6 +36,7 @@ pub struct App {
     last_tick_key_events: Vec<KeyEvent>,
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
+    home_page: ComponentIndex,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -46,6 +50,9 @@ enum ComponentIndex {
     Menu,
     Title,
     AppsPage,
+    SettingsPage,
+    ActionsPage,
+    HelpPage,
 }
 
 impl App {
@@ -61,6 +68,10 @@ impl App {
             Box::new(Menu::new(APP_TITLE.len() as u16)),
         );
         map.insert(ComponentIndex::AppsPage, Box::new(AppsPage::new()));
+        map.insert(ComponentIndex::SettingsPage, Box::new(SettingsPage::new()));
+        map.insert(ComponentIndex::ActionsPage, Box::new(ActionsPage::new()));
+        map.insert(ComponentIndex::HelpPage, Box::new(HelpPage::new()));
+
         Ok(Self {
             tick_rate,
             frame_rate,
@@ -72,6 +83,7 @@ impl App {
             last_tick_key_events: Vec::new(),
             action_tx,
             action_rx,
+            home_page: ComponentIndex::AppsPage,
         })
     }
 
@@ -189,7 +201,15 @@ impl App {
         Ok(())
     }
 
-    fn handle_tab_nav(&mut self, action: &Action) {}
+    fn handle_tab_nav(&mut self, action: &Action) {
+        match action {
+            Action::NavAppsTab => self.home_page = ComponentIndex::AppsPage,
+            Action::NavSettingsTab => self.home_page = ComponentIndex::SettingsPage,
+            Action::NavActionsTab => self.home_page = ComponentIndex::ActionsPage,
+            Action::NavHelpTab => self.home_page = ComponentIndex::HelpPage,
+            _ => (),
+        }
+    }
 
     fn handle_resize(&mut self, tui: &mut Tui, w: u16, h: u16) -> Result<()> {
         tui.resize(Rect::new(0, 0, w, h))?;
@@ -237,11 +257,34 @@ impl App {
     }
 
     fn draw_app_body(&mut self, frame: &mut Frame, area: Rect) {
-        let res = self
-            .components_map
-            .get_mut(&ComponentIndex::AppsPage)
-            .unwrap()
-            .draw(frame, area);
+        let res;
+        if self.home_page == ComponentIndex::AppsPage {
+            res = self
+                .components_map
+                .get_mut(&ComponentIndex::AppsPage)
+                .unwrap()
+                .draw(frame, area);
+        } else if self.home_page == ComponentIndex::SettingsPage {
+            res = self
+                .components_map
+                .get_mut(&ComponentIndex::SettingsPage)
+                .unwrap()
+                .draw(frame, area);
+        } else if self.home_page == ComponentIndex::ActionsPage {
+            res = self
+                .components_map
+                .get_mut(&ComponentIndex::ActionsPage)
+                .unwrap()
+                .draw(frame, area);
+        } else if self.home_page == ComponentIndex::HelpPage {
+            res = self
+                .components_map
+                .get_mut(&ComponentIndex::HelpPage)
+                .unwrap()
+                .draw(frame, area);
+        } else {
+            todo!();
+        }
 
         if let Err(err) = res {
             let _ = self
