@@ -9,6 +9,7 @@ pub mod app_list;
 pub mod app_options;
 pub mod container;
 pub mod menu;
+pub mod option;
 pub mod title;
 
 /// `Component` is a trait that represents a visual and interactive element of the user interface.

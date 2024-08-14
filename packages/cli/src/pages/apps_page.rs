@@ -46,6 +46,8 @@ impl AppsPage {
             Action::NavUp | Action::NavDown => {
                 if self.current_focus == ComponentIndex::List {
                     let _ = self.app_list.update(action);
+                } else if self.current_focus == ComponentIndex::Options {
+                    let _ = self.app_options.update(action);
                 }
             }
             Action::NavLeft => todo!(),
@@ -140,7 +142,7 @@ impl Component for AppsPage {
     fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints(constraints![==20, >=0])
+            .constraints(constraints![==20, >=25])
             .split(area);
 
         let _ = self.app_list.draw(frame, layout[0]);
