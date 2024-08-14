@@ -39,11 +39,13 @@ impl AppOptions {
             .collect();
 
         let cons = (0..items.len()).map(|_| Constraint::Length(2)).collect();
-        Self {
+        let mut item = Self {
             options: items,
             constraints: cons,
             ..Self::default()
-        }
+        };
+        item.select(0);
+        item
     }
 
     fn check_user_mouse_select(&mut self, area: Rect) -> Option<usize> {
@@ -170,6 +172,19 @@ impl AppOptions {
 
     fn update_title(&mut self) {
         self.title = format!(" Options ({}/{}) ", self.selected + 1, self.options.len());
+    }
+
+    fn select(&mut self, item_id: usize) {
+        if item_id > self.options.len() {
+            return;
+        }
+
+        let res = self.options.get_mut(item_id);
+        if let Some(res) = res {
+            res.selected = true;
+            self.selected = item_id;
+            self.update_title();
+        }
     }
 }
 
