@@ -19,6 +19,7 @@
           buildInputs = [
             alejandra # nix formatter
             cargo # rust package manager
+            cargo-deny # Cargo plugin to generate list of all licenses for a crate
             rust-analyzer
             vscode-extensions.vadimcn.vscode-lldb.adapter # for rust debugging
             rustc # rust compiler

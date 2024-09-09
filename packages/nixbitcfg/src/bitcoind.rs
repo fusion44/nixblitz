@@ -32,7 +32,7 @@ pub enum BitcoinNetwork {
 /// - Automatic: Pruning is performed automatically when the blockchain reaches a certain size. ///
 /// # Examples
 /// ```
-/// use nixbitcoin_config::bitcoind::PruneOptions;
+/// use nixbitcfg::bitcoind::PruneOptions;
 ///
 /// let options = PruneOptions::Automatic { prune_at: 1024 };
 /// ```

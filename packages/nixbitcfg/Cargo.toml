@@ -2,6 +2,7 @@
 name = "nixbitcfg"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,4 +14,10 @@ toml = "0.8.12"
 # crates.io version is out of date 
 # https://github.com/kamadorueda/alejandra/issues/406
 alejandra = { git = "https://github.com/kamadorueda/alejandra" }
+include_dir = "0.7.4"
+uuid = "1.10.0"
+handlebars = "6.0.0"
+error-stack = "0.5.0"
+thiserror = "1.0.63"
+sha-crypt = "0.5.0"
 

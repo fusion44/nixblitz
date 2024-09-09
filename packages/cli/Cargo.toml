@@ -1,5 +1,5 @@
 [package]
-name = "blitz_cli"
+name = "blicli"
 version = "0.1.0"
 edition = "2021"
 description = "A CLI interface to the RaspiBlitz project."
@@ -10,11 +10,9 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.86"
 better-panic = "0.3.0"
 clap = { version = "4.4.5", features = ["derive", "cargo", "wrap_help", "unicode", "string", "unstable-styles"] }
-color-eyre = "0.6.2"
-config = "0.14.0"
+config = {version = "0.14.0", features = ["toml"]}
 crossterm = { version = "0.27.0", features = ["serde", "event-stream"] }
 derive_deref = "1.1.1"
 directories = "5.0.1"
@@ -33,13 +31,12 @@ strip-ansi-escapes = "0.2.0"
 strum = { version = "0.26.1", features = ["derive"] }
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-util = "0.7.9"
-tracing = "0.1.37"
-tracing-error = "0.2.0"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter", "serde"] }
 nixbitcfg = { path = "../nixbitcfg" }
-tui-scrollview = "0.3.13"
-tui-prompts = "0.3.22"
-tui-popup = "0.4.7"
+tui-scrollview = "0.4.0"
+tui-prompts = "0.4.0"
+tui-popup = "0.5.0"
+error-stack = "0.5.0"
+thiserror = "1.0.63"
 
 [build-dependencies]
 vergen = { version = "8.2.6", features = [ "build", "git", "gitoxide", "cargo" ]}

@@ -14,7 +14,11 @@ format:
   cd {{rust_src}} && cargo fmt
 
 lint: 
-  cd {{rust_src}} && cargo check
+  cd {{rust_src}} && cargo check && cargo deny check
+
+# runs all tests
+test:
+	cd {{rust_src}} && cargo test
 
 # run the CLI, any args are passed to the CLI unaltered 
 run-cli *args='':
@@ -35,5 +39,4 @@ vm-ssh:
 # resets the vm by deleting the tbnix_vm.qcow2 file
 vm-reset:
 	rm -i tbnix_vm.qcow2
-
 
