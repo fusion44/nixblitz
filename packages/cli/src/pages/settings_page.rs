@@ -53,6 +53,7 @@ impl Component for SettingsPage {
         &mut self,
         mouse: crossterm::event::MouseEvent,
     ) -> Result<Option<Action>, CliError> {
+        let _ = mouse;
         Ok(None)
     }
 

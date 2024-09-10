@@ -88,7 +88,7 @@ impl AppsPage {
                 self.app_list.set_focus(false);
                 self.app_options.set_focus(true);
             }
-            ComponentIndex::Help => todo!(),
+            ComponentIndex::Help => (),
         }
     }
 
@@ -96,7 +96,7 @@ impl AppsPage {
         match c {
             FocusableComponent::AppTabList => self.change_focus(ComponentIndex::List),
             FocusableComponent::AppTabOptions => self.change_focus(ComponentIndex::Options),
-            FocusableComponent::AppTabHelp => todo!(),
+            FocusableComponent::AppTabHelp => self.change_focus(ComponentIndex::Help),
             _ => (),
         }
     }

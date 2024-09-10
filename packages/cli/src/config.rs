@@ -10,18 +10,8 @@ use serde::{de::Deserializer, Deserialize};
 
 const CONFIG: &str = include_str!("../.config/config.json5");
 
-#[derive(Clone, Debug, Deserialize, Default)]
-pub struct AppConfig {
-    #[serde(default)]
-    pub data_dir: PathBuf,
-    #[serde(default)]
-    pub config_dir: PathBuf,
-}
-
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Config {
-    #[serde(default, flatten)]
-    pub config: AppConfig,
     #[serde(default)]
     pub keybindings: KeyBindings,
     #[serde(default)]
@@ -56,15 +46,12 @@ impl Config {
             ("config.toml", config::FileFormat::Toml),
             ("config.ini", config::FileFormat::Ini),
         ];
-        let mut found_config = false;
+
         for (file, format) in &config_files {
             let source = config::File::from(config_dir.join(file))
                 .format(*format)
                 .required(false);
             builder = builder.add_source(source);
-            if config_dir.join(file).exists() {
-                found_config = true
-            }
         }
 
         let mut cfg: Self = builder.build()?.try_deserialize()?;
@@ -218,69 +205,6 @@ fn parse_key_code_with_modifiers(
         _ => return Err(format!("Unable to parse {raw}")),
     };
     Ok(KeyEvent::new(c, modifiers))
-}
-
-pub fn key_event_to_string(key_event: &KeyEvent) -> String {
-    let char;
-    let key_code = match key_event.code {
-        KeyCode::Backspace => "backspace",
-        KeyCode::Enter => "enter",
-        KeyCode::Left => "left",
-        KeyCode::Right => "right",
-        KeyCode::Up => "up",
-        KeyCode::Down => "down",
-        KeyCode::Home => "home",
-        KeyCode::End => "end",
-        KeyCode::PageUp => "pageup",
-        KeyCode::PageDown => "pagedown",
-        KeyCode::Tab => "tab",
-        KeyCode::BackTab => "backtab",
-        KeyCode::Delete => "delete",
-        KeyCode::Insert => "insert",
-        KeyCode::F(c) => {
-            char = format!("f({c})");
-            &char
-        }
-        KeyCode::Char(' ') => "space",
-        KeyCode::Char(c) => {
-            char = c.to_string();
-            &char
-        }
-        KeyCode::Esc => "esc",
-        KeyCode::Null => "",
-        KeyCode::CapsLock => "",
-        KeyCode::Menu => "",
-        KeyCode::ScrollLock => "",
-        KeyCode::Media(_) => "",
-        KeyCode::NumLock => "",
-        KeyCode::PrintScreen => "",
-        KeyCode::Pause => "",
-        KeyCode::KeypadBegin => "",
-        KeyCode::Modifier(_) => "",
-    };
-
-    let mut modifiers = Vec::with_capacity(3);
-
-    if key_event.modifiers.intersects(KeyModifiers::CONTROL) {
-        modifiers.push("ctrl");
-    }
-
-    if key_event.modifiers.intersects(KeyModifiers::SHIFT) {
-        modifiers.push("shift");
-    }
-
-    if key_event.modifiers.intersects(KeyModifiers::ALT) {
-        modifiers.push("alt");
-    }
-
-    let mut key = modifiers.join("-");
-
-    if !key.is_empty() {
-        key.push('-');
-    }
-    key.push_str(key_code);
-
-    key
 }
 
 pub fn parse_key_sequence(raw: &str) -> Result<Vec<KeyEvent>, String> {
@@ -555,17 +479,6 @@ mod tests {
         assert_eq!(
             parse_key_event("ctrl-shift-enter").unwrap(),
             KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-        );
-    }
-
-    #[test]
-    fn test_reverse_multiple_modifiers() {
-        assert_eq!(
-            key_event_to_string(&KeyEvent::new(
-                KeyCode::Char('a'),
-                KeyModifiers::CONTROL | KeyModifiers::ALT
-            )),
-            "ctrl-alt-a".to_string()
         );
     }
 

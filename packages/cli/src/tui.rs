@@ -58,7 +58,7 @@ impl Tui {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         Ok(Self {
             terminal: ratatui::Terminal::new(Backend::new(stdout()))
-                .attach_lazy(|| format!("Unable to open Ratatui terminal"))
+                .attach_lazy(|| "Unable to open Ratatui terminal")
                 .change_context(CliError::Unknown)?,
             task: tokio::spawn(async {}),
             cancellation_token: CancellationToken::new(),
@@ -83,11 +83,6 @@ impl Tui {
 
     pub fn mouse(mut self, mouse: bool) -> Self {
         self.mouse = mouse;
-        self
-    }
-
-    pub fn paste(mut self, paste: bool) -> Self {
-        self.paste = paste;
         self
     }
 
@@ -158,10 +153,9 @@ impl Tui {
                 self.task.abort();
             }
             if counter > 100 {
-                Report::new(CliError::Unknown).attach_printable(
+                return Err(Report::new(CliError::Unknown).attach_printable(
                     "Failed to abort task in 100 milliseconds for unknown reason",
-                );
-                break;
+                ));
             }
         }
         Ok(())
@@ -228,11 +222,6 @@ impl Tui {
             .attach_printable_lazy(|| "Unable to enable bracketed paste")
             .change_context(CliError::Unknown)?;
 
-        Ok(())
-    }
-
-    pub fn resume(&mut self) -> Result<(), CliError> {
-        self.enter()?;
         Ok(())
     }
 

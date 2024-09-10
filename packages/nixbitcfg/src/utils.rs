@@ -1,24 +1,12 @@
-use std::{
-    fs,
-    io::{self, ErrorKind},
-    path::Path,
-    str,
-};
+use std::fmt::Display;
 
-use error_stack::{Report, Result, ResultExt};
+use error_stack::{Report, Result};
 use include_dir::{include_dir, Dir};
-use uuid::Uuid;
 
-use crate::errors::{PasswordError, PathError};
+use crate::errors::PasswordError;
 use sha_crypt::{sha512_simple, Sha512Params};
 
 pub struct AutoLineString(String);
-
-impl std::string::ToString for AutoLineString {
-    fn to_string(&self) -> String {
-        self.0.clone()
-    }
-}
 
 impl AutoLineString {
     pub fn new() -> Self {
@@ -34,6 +22,12 @@ impl AutoLineString {
     pub fn push_line(&mut self, line: &str) {
         self.0.push_str(line);
         self.0.push('\n');
+    }
+}
+
+impl Display for AutoLineString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
     }
 }
 

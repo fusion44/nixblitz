@@ -67,7 +67,9 @@ impl AppOptions {
         }
     }
 
-    fn mouse_select_item(&mut self, pos: usize) {}
+    fn mouse_select_item(&mut self, pos: usize) {
+        let _ = pos;
+    }
 
     fn send_focus_req_action(&mut self) {
         if let Some(tx) = &self.command_tx {

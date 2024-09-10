@@ -178,14 +178,15 @@ impl Component for Menu {
                 for entry in &self.entries {
                     if entry.hitbox.start <= mx && entry.hitbox.end >= mx {
                         if let Some(tx) = &self.command_tx {
-                            tx.send(match entry.item {
-                                MenuItem::Apps => Action::NavAppsTab,
-                                MenuItem::Settings => Action::NavSettingsTab,
-                                MenuItem::Actions => Action::NavActionsTab,
-                                MenuItem::Help => Action::NavHelpTab,
-                            })
-                            .attach_printable_lazy(|| "Unable to send mouse action")
-                            .change_context(CliError::Unknown);
+                            let _ = tx
+                                .send(match entry.item {
+                                    MenuItem::Apps => Action::NavAppsTab,
+                                    MenuItem::Settings => Action::NavSettingsTab,
+                                    MenuItem::Actions => Action::NavActionsTab,
+                                    MenuItem::Help => Action::NavHelpTab,
+                                })
+                                .attach_printable_lazy(|| "Unable to send mouse action")
+                                .change_context(CliError::Unknown);
                         }
                     }
                 }
