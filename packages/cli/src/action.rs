@@ -1,4 +1,4 @@
-use nixbitcfg::apps::SupportedApps;
+use nixblitzlib::apps::SupportedApps;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 

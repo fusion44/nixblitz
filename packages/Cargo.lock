@@ -188,40 +188,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blicli"
-version = "0.1.0"
-dependencies = [
- "better-panic",
- "clap",
- "config",
- "crossterm 0.27.0",
- "derive_deref",
- "directories",
- "error-stack",
- "futures",
- "human-panic",
- "json5",
- "lazy_static",
- "libc",
- "nixbitcfg",
- "pretty_assertions",
- "ratatui 0.27.0",
- "ratatui-macros 0.4.4",
- "serde",
- "serde_json",
- "signal-hook",
- "strip-ansi-escapes",
- "strum",
- "thiserror",
- "tokio",
- "tokio-util",
- "tui-popup",
- "tui-prompts",
- "tui-scrollview",
- "vergen",
-]
-
-[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1797,7 +1763,41 @@ dependencies = [
 ]
 
 [[package]]
-name = "nixbitcfg"
+name = "nixblitz"
+version = "0.1.0"
+dependencies = [
+ "better-panic",
+ "clap",
+ "config",
+ "crossterm 0.27.0",
+ "derive_deref",
+ "directories",
+ "error-stack",
+ "futures",
+ "human-panic",
+ "json5",
+ "lazy_static",
+ "libc",
+ "nixblitzlib",
+ "pretty_assertions",
+ "ratatui 0.27.0",
+ "ratatui-macros 0.4.4",
+ "serde",
+ "serde_json",
+ "signal-hook",
+ "strip-ansi-escapes",
+ "strum",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tui-popup",
+ "tui-prompts",
+ "tui-scrollview",
+ "vergen",
+]
+
+[[package]]
+name = "nixblitzlib"
 version = "0.1.0"
 dependencies = [
  "alejandra",

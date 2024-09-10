@@ -1,4 +1,4 @@
-use nixbitcfg::apps::SupportedApps;
+use nixblitzlib::apps::SupportedApps;
 use ratatui::prelude::*;
 use ratatui_macros::constraints;
 use tokio::sync::mpsc::UnboundedSender;

@@ -6,7 +6,7 @@ use super::{
 use crate::{action::Action, config::Config, constants::FocusableComponent, errors::CliError};
 use crossterm::event::{MouseButton, MouseEventKind};
 
-use nixbitcfg::apps::SupportedApps;
+use nixblitzlib::apps::SupportedApps;
 use ratatui::prelude::*;
 use tokio::sync::mpsc::UnboundedSender;
 

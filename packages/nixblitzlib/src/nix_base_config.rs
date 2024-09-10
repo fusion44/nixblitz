@@ -71,7 +71,7 @@ pub struct NixBaseConfig {
     ///
     /// # Examples
     /// ```
-    /// use nixbitcfg::nix_base_config::NixBaseConfig;
+    /// use nixblitzlib::nix_base_config::NixBaseConfig;
     ///
     /// let config = NixBaseConfig {
     ///   system_packages: vec![String::from("bat"), String::from("yazi")],

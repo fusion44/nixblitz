@@ -37,7 +37,7 @@ impl Default for AutoLineString {
     }
 }
 
-pub static BASE_TEMPLATE: Dir = include_dir!("./nixbitcfg/src/template/");
+pub static BASE_TEMPLATE: Dir = include_dir!("./nixblitzlib/src/template/");
 
 /// Hashes a password using the SHA-512 algorithm.
 ///
