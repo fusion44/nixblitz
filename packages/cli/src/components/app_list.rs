@@ -1,6 +1,5 @@
 use super::{container::render_container, Component};
-use crate::{action::Action, config::Config, constants::FocusableComponent};
-use color_eyre::Result;
+use crate::{action::Action, config::Config, constants::FocusableComponent, errors::CliError};
 use crossterm::event::{MouseButton, MouseEventKind};
 
 use nixbitcfg::apps::SupportedApps;
@@ -114,12 +113,12 @@ impl AppList {
 }
 
 impl Component for AppList {
-    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
+    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
         self.command_tx = Some(tx);
         Ok(())
     }
 
-    fn register_config_handler(&mut self, config: Config) -> Result<()> {
+    fn register_config_handler(&mut self, config: Config) -> Result<(), CliError> {
         self.config = config;
         Ok(())
     }
@@ -127,7 +126,7 @@ impl Component for AppList {
     fn handle_mouse_event(
         &mut self,
         mouse: crossterm::event::MouseEvent,
-    ) -> Result<Option<Action>> {
+    ) -> Result<Option<Action>, CliError> {
         if mouse.kind == MouseEventKind::Up(MouseButton::Left) {
             self.mouse_click_pos = Some(Position::new(mouse.column, mouse.row));
         }
@@ -135,7 +134,7 @@ impl Component for AppList {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action) -> Result<Option<Action>> {
+    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
         match action {
             Action::NavUp | Action::NavDown => self.kb_select_item(action),
             _ => (),
@@ -143,7 +142,7 @@ impl Component for AppList {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
         let res = self.check_user_mouse_select(area);
         if let Some(pos) = res {
             self.send_focus_req_action();

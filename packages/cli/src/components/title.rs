@@ -1,5 +1,6 @@
-use color_eyre::Result;
 use ratatui::{prelude::*, widgets::*};
+
+use crate::errors::CliError;
 
 use super::Component;
 
@@ -15,7 +16,7 @@ impl Title {
 }
 
 impl Component for Title {
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
         frame.render_widget(Paragraph::new(self.title.clone()), area);
         Ok(())
     }

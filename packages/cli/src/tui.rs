@@ -4,7 +4,6 @@ use std::{
     time::Duration,
 };
 
-use color_eyre::Result;
 use crossterm::{
     cursor,
     event::{
@@ -13,6 +12,7 @@ use crossterm::{
     },
     terminal::{EnterAlternateScreen, LeaveAlternateScreen},
 };
+use error_stack::{Report, Result, ResultExt};
 use futures::{FutureExt, StreamExt};
 use ratatui::backend::CrosstermBackend as Backend;
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,8 @@ use tokio::{
     time::interval,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::error;
+
+use crate::errors::CliError;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Event {
@@ -53,10 +54,12 @@ pub struct Tui {
 }
 
 impl Tui {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Self, CliError> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
         Ok(Self {
-            terminal: ratatui::Terminal::new(Backend::new(stdout()))?,
+            terminal: ratatui::Terminal::new(Backend::new(stdout()))
+                .attach_lazy(|| format!("Unable to open Ratatui terminal"))
+                .change_context(CliError::Unknown)?,
             task: tokio::spawn(async {}),
             cancellation_token: CancellationToken::new(),
             event_rx,
@@ -145,7 +148,7 @@ impl Tui {
         cancellation_token.cancel();
     }
 
-    pub fn stop(&self) -> Result<()> {
+    pub fn stop(&self) -> Result<(), CliError> {
         self.cancel();
         let mut counter = 0;
         while !self.task.is_finished() {
@@ -155,38 +158,61 @@ impl Tui {
                 self.task.abort();
             }
             if counter > 100 {
-                error!("Failed to abort task in 100 milliseconds for unknown reason");
+                Report::new(CliError::Unknown).attach_printable(
+                    "Failed to abort task in 100 milliseconds for unknown reason",
+                );
                 break;
             }
         }
         Ok(())
     }
 
-    pub fn enter(&mut self) -> Result<()> {
-        crossterm::terminal::enable_raw_mode()?;
-        crossterm::execute!(stdout(), EnterAlternateScreen, cursor::Hide)?;
+    pub fn enter(&mut self) -> Result<(), CliError> {
+        crossterm::terminal::enable_raw_mode()
+            .attach_printable_lazy(|| "Unable to enable terminal raw mode")
+            .change_context(CliError::Unknown)?;
+        crossterm::execute!(stdout(), EnterAlternateScreen, cursor::Hide)
+            .attach_printable_lazy(|| "Unable to enter alternat screen")
+            .change_context(CliError::Unknown)?;
         if self.mouse {
-            crossterm::execute!(stdout(), EnableMouseCapture)?;
+            crossterm::execute!(stdout(), EnableMouseCapture)
+                .attach_printable_lazy(|| "Unable to enable mouse capture")
+                .change_context(CliError::Unknown)?;
         }
         if self.paste {
-            crossterm::execute!(stdout(), EnableBracketedPaste)?;
+            crossterm::execute!(stdout(), EnableBracketedPaste)
+                .attach_printable_lazy(|| "Unable to enable bracketed paste")
+                .change_context(CliError::Unknown)?;
         }
         self.start();
         Ok(())
     }
 
-    pub fn exit(&mut self) -> Result<()> {
+    pub fn exit(&mut self) -> Result<(), CliError> {
         self.stop()?;
-        if crossterm::terminal::is_raw_mode_enabled()? {
-            self.flush()?;
+        if crossterm::terminal::is_raw_mode_enabled()
+            .attach_printable_lazy(|| "Unable to enable bracketed paste")
+            .change_context(CliError::Unknown)?
+        {
+            self.flush()
+                .attach_printable_lazy(|| "Unable to enable bracketed paste")
+                .change_context(CliError::Unknown)?;
             if self.paste {
-                crossterm::execute!(stdout(), DisableBracketedPaste)?;
+                crossterm::execute!(stdout(), DisableBracketedPaste)
+                    .attach_printable_lazy(|| "Unable to enable bracketed paste")
+                    .change_context(CliError::Unknown)?;
             }
             if self.mouse {
-                crossterm::execute!(stdout(), DisableMouseCapture)?;
+                crossterm::execute!(stdout(), DisableMouseCapture)
+                    .attach_printable_lazy(|| "Unable to enable bracketed paste")
+                    .change_context(CliError::Unknown)?;
             }
-            crossterm::execute!(stdout(), LeaveAlternateScreen, cursor::Show)?;
-            crossterm::terminal::disable_raw_mode()?;
+            crossterm::execute!(stdout(), LeaveAlternateScreen, cursor::Show)
+                .attach_printable_lazy(|| "Unable to enable bracketed paste")
+                .change_context(CliError::Unknown)?;
+            crossterm::terminal::disable_raw_mode()
+                .attach_printable_lazy(|| "Unable to enable bracketed paste")
+                .change_context(CliError::Unknown)?;
         }
         Ok(())
     }
@@ -195,14 +221,17 @@ impl Tui {
         self.cancellation_token.cancel();
     }
 
-    pub fn suspend(&mut self) -> Result<()> {
+    pub fn suspend(&mut self) -> Result<(), CliError> {
         self.exit()?;
         #[cfg(not(windows))]
-        signal_hook::low_level::raise(signal_hook::consts::signal::SIGTSTP)?;
+        signal_hook::low_level::raise(signal_hook::consts::signal::SIGTSTP)
+            .attach_printable_lazy(|| "Unable to enable bracketed paste")
+            .change_context(CliError::Unknown)?;
+
         Ok(())
     }
 
-    pub fn resume(&mut self) -> Result<()> {
+    pub fn resume(&mut self) -> Result<(), CliError> {
         self.enter()?;
         Ok(())
     }

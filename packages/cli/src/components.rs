@@ -1,9 +1,8 @@
-use color_eyre::Result;
 use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{action::Action, config::Config, tui::Event};
+use crate::{action::Action, config::Config, errors::CliError, tui::Event};
 
 pub mod app_list;
 pub mod app_options;
@@ -25,8 +24,8 @@ pub trait Component {
     ///
     /// # Returns
     ///
-    /// * `Result<()>` - An Ok result or an error.
-    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
+    /// * `Result<(), TempGenericError>` - An Ok result or an error.
+    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
         let _ = tx; // to appease clippy
         Ok(())
     }
@@ -38,8 +37,8 @@ pub trait Component {
     ///
     /// # Returns
     ///
-    /// * `Result<()>` - An Ok result or an error.
-    fn register_config_handler(&mut self, config: Config) -> Result<()> {
+    /// * `Result<(), TempGenericError>` - An Ok result or an error.
+    fn register_config_handler(&mut self, config: Config) -> Result<(), CliError> {
         let _ = config; // to appease clippy
         Ok(())
     }
@@ -51,8 +50,8 @@ pub trait Component {
     ///
     /// # Returns
     ///
-    /// * `Result<()>` - An Ok result or an error.
-    fn init(&mut self, area: Rect) -> Result<()> {
+    /// * `Result<(), TempGenericError>` - An Ok result or an error.
+    fn init(&mut self, area: Rect) -> Result<(), CliError> {
         let _ = area; // to appease clippy
         Ok(())
     }
@@ -65,7 +64,7 @@ pub trait Component {
     /// # Returns
     ///
     /// * `Result<Option<Action>>` - An action to be processed or none.
-    fn handle_events(&mut self, event: Option<Event>) -> Result<Option<Action>> {
+    fn handle_events(&mut self, event: Option<Event>) -> Result<Option<Action>, CliError> {
         let action = match event {
             Some(Event::Key(key_event)) => self.handle_key_event(key_event)?,
             Some(Event::Mouse(mouse_event)) => self.handle_mouse_event(mouse_event)?,
@@ -82,7 +81,7 @@ pub trait Component {
     /// # Returns
     ///
     /// * `Result<Option<Action>>` - An action to be processed or none.
-    fn handle_key_event(&mut self, key: KeyEvent) -> Result<Option<Action>> {
+    fn handle_key_event(&mut self, key: KeyEvent) -> Result<Option<Action>, CliError> {
         let _ = key; // to appease clippy
         Ok(None)
     }
@@ -95,7 +94,7 @@ pub trait Component {
     /// # Returns
     ///
     /// * `Result<Option<Action>>` - An action to be processed or none.
-    fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<Option<Action>> {
+    fn handle_mouse_event(&mut self, mouse: MouseEvent) -> Result<Option<Action>, CliError> {
         let _ = mouse; // to appease clippy
         Ok(None)
     }
@@ -108,7 +107,7 @@ pub trait Component {
     /// # Returns
     ///
     /// * `Result<Option<Action>>` - An action to be processed or none.
-    fn update(&mut self, action: Action) -> Result<Option<Action>> {
+    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
         let _ = action; // to appease clippy
         Ok(None)
     }
@@ -121,6 +120,6 @@ pub trait Component {
     ///
     /// # Returns
     ///
-    /// * `Result<()>` - An Ok result or an error.
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()>;
+    /// * `Result<(), TempGenericError>` - An Ok result or an error.
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError>;
 }

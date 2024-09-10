@@ -1,4 +1,3 @@
-use color_eyre::Result;
 use ratatui::prelude::*;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -6,6 +5,7 @@ use crate::{
     action::Action,
     components::{container::render_container, Component},
     config::Config,
+    errors::CliError,
 };
 
 #[derive(Default)]
@@ -39,12 +39,12 @@ impl SettingsPage {
 }
 
 impl Component for SettingsPage {
-    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
+    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
         self.command_tx = Some(tx);
         Ok(())
     }
 
-    fn register_config_handler(&mut self, config: Config) -> Result<()> {
+    fn register_config_handler(&mut self, config: Config) -> Result<(), CliError> {
         self.config = config;
         Ok(())
     }
@@ -52,11 +52,11 @@ impl Component for SettingsPage {
     fn handle_mouse_event(
         &mut self,
         mouse: crossterm::event::MouseEvent,
-    ) -> Result<Option<Action>> {
+    ) -> Result<Option<Action>, CliError> {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action) -> Result<Option<Action>> {
+    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
         match action {
             Action::NavUp
             | Action::NavDown
@@ -69,7 +69,7 @@ impl Component for SettingsPage {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
         let c = render_container(" Settings ", true);
         frame.render_widget(c, area);
 

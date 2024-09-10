@@ -1,4 +1,3 @@
-use color_eyre::Result;
 use nixbitcfg::apps::SupportedApps;
 use ratatui::prelude::*;
 use ratatui_macros::constraints;
@@ -9,6 +8,7 @@ use crate::{
     components::{app_list::AppList, app_options::AppOptions, Component},
     config::Config,
     constants::FocusableComponent,
+    errors::CliError,
 };
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
@@ -103,14 +103,14 @@ impl AppsPage {
 }
 
 impl Component for AppsPage {
-    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
+    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
         self.app_list.register_action_handler(tx.clone())?;
         self.app_options.register_action_handler(tx.clone())?;
         self.command_tx = Some(tx);
         Ok(())
     }
 
-    fn register_config_handler(&mut self, config: Config) -> Result<()> {
+    fn register_config_handler(&mut self, config: Config) -> Result<(), CliError> {
         self.config = config;
         Ok(())
     }
@@ -118,13 +118,13 @@ impl Component for AppsPage {
     fn handle_mouse_event(
         &mut self,
         mouse: crossterm::event::MouseEvent,
-    ) -> Result<Option<Action>> {
+    ) -> Result<Option<Action>, CliError> {
         self.app_list.handle_mouse_event(mouse)?;
         self.app_options.handle_mouse_event(mouse)?;
         Ok(None)
     }
 
-    fn update(&mut self, action: Action) -> Result<Option<Action>> {
+    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
         match action {
             Action::NavUp
             | Action::NavDown
@@ -139,7 +139,7 @@ impl Component for AppsPage {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(constraints![==20, >=25])

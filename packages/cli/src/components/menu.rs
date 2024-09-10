@@ -1,6 +1,5 @@
-use color_eyre::Result;
-
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use error_stack::ResultExt;
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -10,7 +9,7 @@ use ratatui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{action::Action, config::Config, constants::HIGHLIGHT_COLOR};
+use crate::{action::Action, config::Config, constants::HIGHLIGHT_COLOR, errors::CliError};
 
 use super::Component;
 
@@ -103,12 +102,12 @@ impl Menu {
 }
 
 impl Component for Menu {
-    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<()> {
+    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
         self.command_tx = Some(tx);
         Ok(())
     }
 
-    fn register_config_handler(&mut self, config: Config) -> Result<()> {
+    fn register_config_handler(&mut self, config: Config) -> Result<(), CliError> {
         self.config = config;
         Ok(())
     }
@@ -116,12 +115,12 @@ impl Component for Menu {
     fn handle_mouse_event(
         &mut self,
         mouse: crossterm::event::MouseEvent,
-    ) -> Result<Option<Action>> {
+    ) -> Result<Option<Action>, CliError> {
         self.event = Some(mouse);
         Ok(None)
     }
 
-    fn update(&mut self, action: Action) -> Result<Option<Action>> {
+    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
         match action {
             Action::NavAppsTab => self.set_active_item(MenuItem::Apps),
             Action::NavSettingsTab => self.set_active_item(MenuItem::Settings),
@@ -133,7 +132,7 @@ impl Component for Menu {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> color_eyre::eyre::Result<()> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
         let menu: Vec<_> = self
             .entries
             .iter()
@@ -184,7 +183,9 @@ impl Component for Menu {
                                 MenuItem::Settings => Action::NavSettingsTab,
                                 MenuItem::Actions => Action::NavActionsTab,
                                 MenuItem::Help => Action::NavHelpTab,
-                            })?;
+                            })
+                            .attach_printable_lazy(|| "Unable to send mouse action")
+                            .change_context(CliError::Unknown);
                         }
                     }
                 }

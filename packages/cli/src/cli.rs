@@ -1,17 +1,15 @@
 use clap::Parser;
 
-use crate::config::{get_config_dir, get_data_dir};
+use crate::{
+    commands::Commands,
+    config::{get_config_dir, get_data_dir},
+};
 
 #[derive(Parser, Debug)]
 #[command(author, version = version(), about)]
 pub struct Cli {
-    /// Tick rate, i.e. number of ticks per second
-    #[arg(short, long, value_name = "FLOAT", default_value_t = 4.0)]
-    pub tick_rate: f64,
-
-    /// Frame rate, i.e. number of frames per second
-    #[arg(short, long, value_name = "FLOAT", default_value_t = 60.0)]
-    pub frame_rate: f64,
+    #[command(subcommand)]
+    pub command: Option<Commands>,
 }
 
 const VERSION_MESSAGE: &str = concat!(

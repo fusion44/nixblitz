@@ -1,15 +1,12 @@
 use std::{collections::HashMap, env, path::PathBuf};
 
-use color_eyre::Result;
+use crate::{action::Action, app::Mode};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use derive_deref::{Deref, DerefMut};
 use directories::ProjectDirs;
 use lazy_static::lazy_static;
 use ratatui::style::{Color, Modifier, Style};
 use serde::{de::Deserializer, Deserialize};
-use tracing::error;
-
-use crate::{action::Action, app::Mode};
 
 const CONFIG: &str = include_str!("../.config/config.json5");
 
@@ -68,9 +65,6 @@ impl Config {
             if config_dir.join(file).exists() {
                 found_config = true
             }
-        }
-        if !found_config {
-            error!("No configuration file found. Application may not behave as expected");
         }
 
         let mut cfg: Self = builder.build()?.try_deserialize()?;
@@ -447,9 +441,9 @@ fn parse_color(s: &str) -> Option<Color> {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
-
     use super::*;
+    use config::ConfigError;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_parse_style_default() {
@@ -499,7 +493,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config() -> Result<()> {
+    fn test_config() -> Result<(), ConfigError> {
         let c = Config::new()?;
         assert_eq!(
             c.keybindings

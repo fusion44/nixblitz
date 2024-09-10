@@ -1,10 +1,11 @@
-use color_eyre::{owo_colors::OwoColorize, Result};
 use ratatui::{
     layout::{Direction, Layout, Rect},
     text::Line,
     Frame,
 };
 use ratatui_macros::constraints;
+
+use crate::errors::CliError;
 
 use super::Component;
 
@@ -49,7 +50,7 @@ impl ListOption {
 }
 
 impl Component for ListOption {
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<()> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
         // ╭ Options ────────────────────────────────────────────╮
         // ││T: 21 4                                             │
         // ││s:                                                  │

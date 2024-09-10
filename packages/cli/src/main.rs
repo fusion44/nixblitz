@@ -1,27 +1,30 @@
 use clap::Parser;
 use cli::Cli;
-use color_eyre::Result;
-
-use crate::app::App;
+use commands::gui::start_gui;
+use error_stack::Result;
+use errors::CliError;
 
 mod action;
 mod app;
 mod cli;
+mod commands;
 mod components;
 mod config;
 mod constants;
 mod errors;
-mod logging;
 mod pages;
 mod tui;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    crate::errors::init()?;
-    crate::logging::init()?;
+async fn main() -> Result<(), CliError> {
+    let cli = Cli::parse();
+    match &cli.command {
+        Some(commands::Commands::Gui {
+            tick_rate,
+            frame_rate,
+        }) => start_gui(*tick_rate, *frame_rate).await?,
+        None => {}
+    }
 
-    let args = Cli::parse();
-    let mut app = App::new(args.tick_rate, args.frame_rate)?;
-    app.run().await?;
     Ok(())
 }
