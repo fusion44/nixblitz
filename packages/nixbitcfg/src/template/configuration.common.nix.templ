@@ -1,0 +1,44 @@
+{pkgs, ...}: {
+  nixpkgs.config.allowUnfree = {{ allow_unfree }};
+  time.timeZone = "{{ time_zone }}";
+  i18n.defaultLocale = "{{ default_locale }}";
+
+  console = {
+    font = "Lat2-Terminus16";
+    useXkbConfig = true; # use xkb.options in tty.
+  };
+
+  users = {
+    defaultUserShell = pkgs.nushell;
+    users.{{ username }} = {
+      isNormalUser = true;
+      extraGroups = ["wheel"]; # Enable ‘sudo’ for the user.
+      hashedPassword = "{{ initial_password }}";
+      openssh.authorizedKeys.keys = [
+		  {{ openssh_auth_keys }}
+      ];
+    };
+  };
+
+  environment.systemPackages = with pkgs; [
+    {{ system_packages }}
+  ];
+
+  services = {
+    openssh = {
+      enable = true;
+      ports = [22];
+      settings = {
+        PasswordAuthentication = {{ ssh_password_auth }};
+        AllowUsers = ["{{ username }}"];
+        UseDns = true;
+        X11Forwarding = false;
+        PermitRootLogin = "prohibit-password";
+      };
+    };
+
+    redis.servers."".enable = true;
+  };
+
+  networking.firewall.allowedTCPPorts = [22];
+}

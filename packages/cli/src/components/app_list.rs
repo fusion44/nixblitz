@@ -168,16 +168,18 @@ mod tests {
 
         // pub enum SupportedApps {
         //     #[default]
-        //     BitcoinCore,     index 0
-        //     CoreLightning,   index 1
+        //     NixOS,           index 0
+        //     BitcoinCore,     index 1
+        //     CoreLightning,   index 2
         //     ...
         // }
 
-        // A click to 5, 2 should yield Core Lightning, or index 1
+        // A click to 5, 2 should yield Bitcoin Core, or index 2
         // ╭ Apps ────────────╮   (5, 0)
-        // │>>Bitcoin Core    │   (5, 1)
-        // │  Core Lightning  │   (5, 2)
-        // │  LND             │   (5, 3)
+        // │>>NixOS           │   (5, 1)
+        // │  Bitcoin Core    │   (5, 2)
+        // │  Core Lightning  │   (5, 3)
+        // │  LND             │   (5, 4)
         app.mouse_click_pos = Position::new(5, 2).into();
         let res = app.check_user_mouse_select(Rect::new(0, 0, 10, 10));
         assert_eq!(res, Some(1));
@@ -186,7 +188,7 @@ mod tests {
         let selected_id = app.state.selected().unwrap();
         assert_eq!(
             SupportedApps::from_id(selected_id),
-            Some(SupportedApps::CoreLightning)
+            Some(SupportedApps::BitcoinCore)
         );
     }
 }
