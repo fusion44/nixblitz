@@ -1806,6 +1806,7 @@ dependencies = [
  "handlebars",
  "include_dir",
  "serde",
+ "serde_json",
  "sha-crypt",
  "thiserror",
  "toml",

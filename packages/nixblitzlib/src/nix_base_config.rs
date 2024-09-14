@@ -54,8 +54,10 @@ pub struct NixBaseConfig {
     /// The initial password that will be used.
     /// Use the [`crate::utils::unix_hash_password`] utility fn to generate the hash.
     ///
+    /// Default: nixblitz
+    ///
     /// [nixos.org:users.users.\<name\>.hashedPassword](https://search.nixos.org/options?show=users.users.<name>.hashedPassword)
-    pub hashed_password: Option<String>,
+    pub hashed_password: String,
 
     /// SSH authentication keys to allow for SSH connection attempts.
     ///
@@ -89,7 +91,8 @@ impl Default for NixBaseConfig {
             default_locale: String::from("en_US.UTF-8"),
             username: String::from("admin"),
             ssh_password_auth: false,
-            hashed_password: None,
+            // default password: "nixblitz"
+            hashed_password: "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.".into(),
             openssh_auth_keys: vec![],
             system_packages: vec![
                 String::from("bat"),
@@ -134,7 +137,7 @@ impl NixBaseConfig {
         default_locale: String,
         username: String,
         ssh_password_auth: bool,
-        hashed_password: Option<String>,
+        hashed_password: String,
         openssh_auth_keys: Vec<String>,
         system_packages: Vec<String>,
     ) -> Self {
@@ -151,15 +154,6 @@ impl NixBaseConfig {
     }
 
     pub fn render(&self, template: NixBaseConfigsTemplates) -> Result<String, TemplatingError> {
-        let pw = match &self.hashed_password {
-            Some(v) => v,
-            None => {
-                return Err(Report::new(PasswordError::IsNone)
-                    .change_context(TemplatingError::Render)
-                    .attach_printable("Password is not set"))
-            }
-        };
-
         let mut handlebars = Handlebars::new();
         handlebars.register_escape_fn(no_escape);
 
@@ -194,7 +188,7 @@ impl NixBaseConfig {
             ("default_locale", self.default_locale.clone()),
             ("username", self.username.clone()),
             ("ssh_password_auth", format!("{}", self.ssh_password_auth)),
-            ("initial_password", pw.to_string()),
+            ("initial_password", self.hashed_password.clone()),
             (
                 "openssh_auth_keys",
                 self.openssh_auth_keys
@@ -219,6 +213,10 @@ impl NixBaseConfig {
                 }),
             _ => Ok(text),
         }
+    }
+
+    pub(crate) fn to_json_string(&self) -> Result<String, TemplatingError> {
+        Ok(serde_json::to_string(self).change_context(TemplatingError::JsonRenderError)?)
     }
 }
 
@@ -301,7 +299,7 @@ mod tests {
             default_locale: String::from("de_DE.UTF-8"),
             username: String::from("myUserName"),
             ssh_password_auth: true,
-            hashed_password: Some(pw),
+            hashed_password: pw,
             system_packages: vec![String::from("bat"), String::from("yazi")],
         };
 
