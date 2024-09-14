@@ -20,12 +20,20 @@ pub enum TemplatingError {
     Format,
     #[error("Unable to find the template file")]
     FileNotFound,
+    #[error("Unable to generate the json string")]
+    JsonRenderError,
 }
 
 #[derive(Debug, Error)]
-pub enum PathError {
-    #[error("Unable to create the path")]
-    CreatePathError,
-    #[error("Unable to read the path")]
-    PathUnreadable,
+pub enum SystemError {
+    #[error("Unable to generate the files system files")]
+    GenFilesError,
+    #[error("Unable to read the system files")]
+    ParseError,
+    #[error("No system files where found in the given directory")]
+    NoSystemFound,
+    #[error("Unable to create the path: {:?}", .0)]
+    CreatePathError(String),
+    #[error("Unable to crate the base system")]
+    CreateBaseFiles(String),
 }

@@ -22,7 +22,9 @@ async fn main() -> Result<(), CliError> {
         Some(commands::Commands::Gui {
             tick_rate,
             frame_rate,
-        }) => start_gui(*tick_rate, *frame_rate).await?,
+            path,
+            init,
+        }) => start_gui(*tick_rate, *frame_rate, path.clone(), *init).await?,
         None => {}
     }
 
