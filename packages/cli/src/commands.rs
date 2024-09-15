@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Subcommand;
 
 pub mod gui;
+pub mod init;
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
@@ -15,12 +16,17 @@ pub enum Commands {
         #[arg(short, long, value_name = "FLOAT", default_value_t = 60.0)]
         frame_rate: f64,
 
-        /// The path to the system files
+        /// The working directory to operate on
         #[arg(short, long, value_name = "PATH", default_value = ".")]
-        path: PathBuf,
+        work_dir: PathBuf,
+    },
+    Init {
+        /// The working directory to operate on
+        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        work_dir: PathBuf,
 
-        /// Whether to initialize a new system at the given path
+        /// Whether to force overwrite existing files
         #[arg(short, long)]
-        init: bool,
+        force: bool,
     },
 }

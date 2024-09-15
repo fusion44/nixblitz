@@ -4,10 +4,7 @@ use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display};
 
-use crate::{
-    errors::{PasswordError, TemplatingError},
-    utils::BASE_TEMPLATE,
-};
+use crate::{errors::TemplatingError, utils::BASE_TEMPLATE};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NixBaseConfig {
@@ -216,7 +213,7 @@ impl NixBaseConfig {
     }
 
     pub(crate) fn to_json_string(&self) -> Result<String, TemplatingError> {
-        Ok(serde_json::to_string(self).change_context(TemplatingError::JsonRenderError)?)
+        serde_json::to_string(self).change_context(TemplatingError::JsonRenderError)
     }
 }
 

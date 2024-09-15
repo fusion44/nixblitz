@@ -1,6 +1,6 @@
 use clap::Parser;
 use cli::Cli;
-use commands::gui::start_gui;
+use commands::{gui::start_gui, init::init_default_system_cmd};
 use error_stack::Result;
 use errors::CliError;
 
@@ -22,9 +22,11 @@ async fn main() -> Result<(), CliError> {
         Some(commands::Commands::Gui {
             tick_rate,
             frame_rate,
-            path,
-            init,
-        }) => start_gui(*tick_rate, *frame_rate, path.clone(), *init).await?,
+            work_dir,
+        }) => start_gui(*tick_rate, *frame_rate, work_dir.clone()).await?,
+        Some(commands::Commands::Init { work_dir, force }) => {
+            init_default_system_cmd(work_dir, *force)?
+        }
         None => {}
     }
 

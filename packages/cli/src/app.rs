@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use crossterm::event::KeyEvent;
 use error_stack::{Result, ResultExt};
+use nixblitzlib::system::System;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::Rect,
@@ -37,6 +38,7 @@ pub struct App {
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
     home_page: ComponentIndex,
+    system: System,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -56,7 +58,9 @@ enum ComponentIndex {
 }
 
 impl App {
-    pub fn new(tick_rate: f64, frame_rate: f64) -> Result<Self, CliError> {
+    pub fn new(tick_rate: f64, frame_rate: f64, work_dir: PathBuf) -> Result<Self, CliError> {
+        let system = System::new(work_dir);
+
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let mut map: HashMap<ComponentIndex, Box<dyn Component>> = HashMap::new();
         map.insert(
@@ -86,6 +90,7 @@ impl App {
             action_tx,
             action_rx,
             home_page: ComponentIndex::AppsPage,
+            system,
         })
     }
 
@@ -111,6 +116,8 @@ impl App {
                     .change_context(CliError::Unknown)?,
             )?;
         }
+
+        self.system.init().change_context(CliError::Unknown)?;
 
         let action_tx = self.action_tx.clone();
         loop {

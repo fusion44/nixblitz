@@ -1,6 +1,12 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+pub enum GenerateDefaultSystemError {
+    #[error("")]
+    ToShort,
+}
+
+#[derive(Debug, Error)]
 pub enum PasswordError {
     #[error("Password to short")]
     ToShort,
@@ -26,7 +32,7 @@ pub enum TemplatingError {
 
 #[derive(Debug, Error)]
 pub enum SystemError {
-    #[error("Unable to generate the files system files")]
+    #[error("Unable to generate the system files")]
     GenFilesError,
     #[error("Unable to read the system files")]
     ParseError,
