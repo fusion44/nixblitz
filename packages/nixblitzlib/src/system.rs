@@ -39,7 +39,7 @@ impl System {
             let item = items.next();
             if item.is_none() {
                 return Err(Report::new(SystemError::ParseError).attach_printable(
-                    "Given folder is empty, use --init to initialize a new system",
+                    "Given folder is empty, use the init command first to initialize a new system",
                 ));
             }
 
@@ -47,7 +47,8 @@ impl System {
             return Ok(());
         }
 
-        Err(Report::new(SystemError::ParseError)
-            .attach_printable("Given folder is empty, use --init to initialize a new system"))
+        Err(Report::new(SystemError::ParseError).attach_printable(
+            "Given folder is empty, use the init command first to initialize a new system",
+        ))
     }
 }

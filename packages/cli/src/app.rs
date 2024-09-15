@@ -117,7 +117,9 @@ impl App {
             )?;
         }
 
-        self.system.init().change_context(CliError::Unknown)?;
+        self.system
+            .init()
+            .change_context(CliError::UnableToInitSystemStruct)?;
 
         let action_tx = self.action_tx.clone();
         loop {

@@ -6,6 +6,6 @@ pub enum CliError {
     Unknown,
     #[error("Unable to start the GUI")]
     UnableToStartGui,
-    #[error("Unable to initialize the system")]
-    UnableToInitializeSystem,
+    #[error("Unable to initialize the System struct")]
+    UnableToInitSystemStruct,
 }

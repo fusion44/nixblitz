@@ -1,5 +1,6 @@
 use clap::Parser;
 use cli::Cli;
+use cli_log::init_cli_log;
 use commands::{gui::start_gui, init::init_default_system_cmd};
 use error_stack::Result;
 use errors::CliError;
@@ -17,6 +18,8 @@ mod tui;
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
+    init_cli_log!();
+
     let cli = Cli::parse();
     match &cli.command {
         Some(commands::Commands::Gui {
