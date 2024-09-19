@@ -8,6 +8,7 @@ use errors::CliError;
 mod action;
 mod app;
 mod cli;
+mod colors;
 mod commands;
 mod components;
 mod config;
