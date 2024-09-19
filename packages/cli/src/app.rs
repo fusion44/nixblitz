@@ -111,11 +111,12 @@ impl App {
             component.1.register_config_handler(self.config.clone())?;
         }
         for component in self.components_map.iter_mut() {
-            component.1.init(
-                tui.size()
-                    .attach_printable_lazy(|| "Unable to init the first component")
-                    .change_context(CliError::Unknown)?,
-            )?;
+            let size = tui
+                .size()
+                .attach_printable_lazy(|| "Unable to init the first component")
+                .change_context(CliError::Unknown)?;
+            let r = Rect::new(0, 0, size.width, size.height);
+            component.1.init(r)?;
         }
 
         self.system
