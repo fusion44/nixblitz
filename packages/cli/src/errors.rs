@@ -8,4 +8,6 @@ pub enum CliError {
     UnableToStartGui,
     #[error("Unable to initialize the System struct")]
     UnableToInitSystemStruct,
+    #[error("Unable to draw a component")]
+    UnableToDrawComponent,
 }

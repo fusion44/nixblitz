@@ -1,8 +1,3 @@
-use nixblitzlib::apps::SupportedApps;
-use ratatui::prelude::*;
-use ratatui_macros::constraints;
-use tokio::sync::mpsc::UnboundedSender;
-
 use crate::{
     action::Action,
     components::{app_list::AppList, app_options::AppOptions, Component},
@@ -10,6 +5,12 @@ use crate::{
     constants::FocusableComponent,
     errors::CliError,
 };
+
+use error_stack::Result;
+use nixblitzlib::apps::SupportedApps;
+use ratatui::prelude::*;
+use ratatui_macros::constraints;
+use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 enum ComponentIndex {

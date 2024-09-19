@@ -1,5 +1,5 @@
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
-use error_stack::ResultExt;
+use error_stack::{Result, ResultExt};
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},

@@ -1,12 +1,12 @@
-use ratatui::prelude::*;
-use tokio::sync::mpsc::UnboundedSender;
-
 use crate::{
     action::Action,
     components::{container::render_container, Component},
     config::Config,
     errors::CliError,
 };
+use error_stack::Result;
+use ratatui::prelude::*;
+use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Default)]
 pub struct SettingsPage {

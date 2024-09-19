@@ -43,7 +43,6 @@ impl System {
                 ));
             }
 
-            println!("TODO: read files here!");
             return Ok(());
         }
 

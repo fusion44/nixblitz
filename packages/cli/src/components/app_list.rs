@@ -1,6 +1,7 @@
 use super::{container::render_container, Component};
 use crate::{action::Action, config::Config, constants::FocusableComponent, errors::CliError};
 use crossterm::event::{MouseButton, MouseEventKind};
+use error_stack::Result;
 
 use nixblitzlib::apps::SupportedApps;
 use ratatui::{prelude::*, widgets::*};

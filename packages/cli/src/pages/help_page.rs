@@ -1,3 +1,4 @@
+use error_stack::Result;
 use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 

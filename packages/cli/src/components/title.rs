@@ -1,6 +1,7 @@
-use ratatui::{prelude::*, widgets::*};
-
 use crate::errors::CliError;
+use error_stack::Result;
+
+use ratatui::{prelude::*, widgets::*};
 
 use super::Component;
 

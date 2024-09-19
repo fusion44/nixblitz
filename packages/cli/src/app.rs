@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
+use cli_log::error;
 use crossterm::event::KeyEvent;
 use error_stack::{Result, ResultExt};
 use nixblitzlib::system::System;
@@ -249,7 +250,7 @@ impl App {
         Ok(())
     }
 
-    fn draw_app_bar(&mut self, frame: &mut Frame, area: Rect) {
+    fn draw_app_bar(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
         let menu_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(
@@ -262,67 +263,46 @@ impl App {
             .split(area);
 
         // Draw the title
-        let res = self
-            .components_map
+        self.components_map
             .get_mut(&ComponentIndex::Title)
             .unwrap()
-            .draw(frame, menu_layout[0]);
+            .draw(frame, menu_layout[0])?;
 
-        if let Err(err) = res {
-            let _ = self
-                .action_tx
-                .send(Action::Error(format!("Failed to draw: {:?}", err)));
-        }
-
-        // Draw the menu
-        let res = self
-            .components_map
+        // Draw the menu{
+        self.components_map
             .get_mut(&ComponentIndex::Menu)
             .unwrap()
-            .draw(frame, menu_layout[1]);
+            .draw(frame, menu_layout[1])?;
 
-        if let Err(err) = res {
-            let _ = self
-                .action_tx
-                .send(Action::Error(format!("Failed to draw: {:?}", err)));
-        }
+        Ok(())
     }
 
-    fn draw_app_body(&mut self, frame: &mut Frame, area: Rect) {
-        let res;
+    fn draw_app_body(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
         if self.home_page == ComponentIndex::AppsPage {
-            res = self
-                .components_map
+            self.components_map
                 .get_mut(&ComponentIndex::AppsPage)
                 .unwrap()
-                .draw(frame, area);
+                .draw(frame, area)?;
         } else if self.home_page == ComponentIndex::SettingsPage {
-            res = self
-                .components_map
+            self.components_map
                 .get_mut(&ComponentIndex::SettingsPage)
                 .unwrap()
-                .draw(frame, area);
+                .draw(frame, area)?;
         } else if self.home_page == ComponentIndex::ActionsPage {
-            res = self
-                .components_map
+            self.components_map
                 .get_mut(&ComponentIndex::ActionsPage)
                 .unwrap()
-                .draw(frame, area);
+                .draw(frame, area)?;
         } else if self.home_page == ComponentIndex::HelpPage {
-            res = self
-                .components_map
+            self.components_map
                 .get_mut(&ComponentIndex::HelpPage)
                 .unwrap()
-                .draw(frame, area);
+                .draw(frame, area)?;
         } else {
             todo!();
         }
 
-        if let Err(err) = res {
-            let _ = self
-                .action_tx
-                .send(Action::Error(format!("Failed to draw: {:?}", err)));
-        }
+        Ok(())
     }
 
     fn render(&mut self, tui: &mut Tui) -> Result<(), CliError> {
@@ -332,11 +312,19 @@ impl App {
                 .constraints(constraints![==3, *=1, ==5])
                 .split(frame.size());
 
-            self.draw_app_bar(frame, main_layout[0]);
-            self.draw_app_body(frame, main_layout[1]);
+            let res = self.draw_app_bar(frame, main_layout[0]);
+            if let Err(e) = res {
+                error!("{}", e);
+            }
+
+            let res = self.draw_app_body(frame, main_layout[1]);
+            if let Err(e) = res {
+                error!("{}", e);
+            }
         })
         .attach_printable_lazy(|| "Unable to draw the frame")
         .change_context(CliError::Unknown)?;
+
         Ok(())
     }
 }
