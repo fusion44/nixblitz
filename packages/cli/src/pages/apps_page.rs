@@ -65,6 +65,8 @@ impl AppsPage {
 
         if self.current_focus == ComponentIndex::List {
             self.change_focus(ComponentIndex::Options);
+        } else if self.current_focus == ComponentIndex::Options {
+            let _res = self.app_options.on_enter();
         }
     }
 
@@ -146,8 +148,8 @@ impl Component for AppsPage {
             .constraints(constraints![==20, >=25])
             .split(area);
 
-        let _ = self.app_list.draw(frame, layout[0]);
-        let _ = self.app_options.draw(frame, layout[1]);
+        self.app_list.draw(frame, layout[0])?;
+        self.app_options.draw(frame, layout[1])?;
 
         Ok(())
     }

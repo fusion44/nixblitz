@@ -1,10 +1,11 @@
 use super::{
     container::render_container,
-    option::{ListOption, OptionType},
+    list_options::{base_option::OptionListItem, bool::BoolOptionListItem},
     Component,
 };
 use crate::{action::Action, config::Config, constants::FocusableComponent, errors::CliError};
 use crossterm::event::{MouseButton, MouseEventKind};
+use error_stack::Result;
 
 use nixblitzlib::apps::SupportedApps;
 use ratatui::prelude::*;
@@ -16,7 +17,7 @@ pub struct AppOptions {
     config: Config,
     mouse_click_pos: Option<Position>,
     focus: bool,
-    options: Vec<ListOption>,
+    options: Vec<Box<dyn OptionListItem>>,
     constraints: Vec<Constraint>,
     app: SupportedApps,
     selected: usize,
@@ -27,24 +28,16 @@ pub struct AppOptions {
 
 impl AppOptions {
     pub fn new() -> Self {
-        let items: Vec<ListOption> = (0..35)
-            .map(|i| {
-                ListOption::new(
-                    format!("Test {}", i).to_string(),
-                    OptionType::Bool(true),
-                    false,
-                )
-            })
-            .collect();
+        let cons = (0..2).map(|_| Constraint::Length(2)).collect();
 
-        let cons = (0..items.len()).map(|_| Constraint::Length(2)).collect();
-        let mut item = Self {
-            options: items,
+        Self {
+            options: vec![
+                Box::new(BoolOptionListItem::new("bool one", false, true)),
+                Box::new(BoolOptionListItem::new("bool two", true, false)),
+            ],
             constraints: cons,
-            ..Self::default()
-        };
-        item.select(0);
-        item
+            ..AppOptions::default()
+        }
     }
 
     fn check_user_mouse_select(&mut self, area: Rect) -> Option<usize> {
@@ -77,7 +70,7 @@ impl AppOptions {
         }
     }
 
-    fn render_options_list(&mut self, frame: &mut Frame, area: Rect) {
+    fn render_options_list(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
         let block = render_container(&self.title, self.focus);
         let total_height = block.inner(area).height;
         self.max_num_items = (total_height / 2) as usize;
@@ -107,8 +100,10 @@ impl AppOptions {
             .enumerate()
             .take(self.max_num_items)
         {
-            let _ = value.draw(frame, layout[index]);
+            value.draw(frame, layout[index])?;
         }
+
+        Ok(())
     }
 
     pub fn set_focus(&mut self, focus: bool) {
@@ -134,12 +129,12 @@ impl AppOptions {
         // Get the old selected item
         let res = self.options.get_mut(self.selected);
         if let Some(res) = res {
-            res.selected = false
+            res.set_selected(false);
         }
         // Get the new selected item
         let res = self.options.get_mut(new_selected);
         if let Some(res) = res {
-            res.selected = true
+            res.set_selected(true);
         }
 
         self.selected = new_selected;
@@ -160,12 +155,12 @@ impl AppOptions {
         // Get the old selected item
         let res = self.options.get_mut(self.selected);
         if let Some(res) = res {
-            res.selected = false;
+            res.set_selected(false);
         }
         // Get the new selected item
         let res = self.options.get_mut(new_selected);
         if let Some(res) = res {
-            res.selected = true;
+            res.set_selected(true);
         }
         self.selected = new_selected;
         self.update_title();
@@ -182,10 +177,18 @@ impl AppOptions {
 
         let res = self.options.get_mut(item_id);
         if let Some(res) = res {
-            res.selected = true;
+            res.set_selected(true);
             self.selected = item_id;
             self.update_title();
         }
+    }
+
+    pub fn on_enter(&mut self) -> Result<(), CliError> {
+        let option = self.options.get_mut(self.selected);
+        let option = option.unwrap();
+        let _ = option.on_edit();
+
+        Ok(())
     }
 }
 
@@ -214,6 +217,7 @@ impl Component for AppOptions {
     fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
         match action {
             Action::NavUp | Action::NavDown => self.kb_select_item(action),
+            Action::Enter => self.on_enter()?,
             _ => (),
         }
         Ok(None)
@@ -226,7 +230,8 @@ impl Component for AppOptions {
             self.mouse_select_item(pos);
         }
 
-        self.render_options_list(frame, area);
+        self.render_options_list(frame, area)?;
+
         Ok(())
     }
 }
