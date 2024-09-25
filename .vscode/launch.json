@@ -2,11 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug TUI in /tmp/something",
+      "name": "Attach to Rust Process - pick PID",
       "type": "codelldb",
-      "request": "launch",
+      "request": "attach",
       "program": "${workspaceFolder}/packages/target/debug/nixblitz",
-      "args": ["gui", "-w", "/tmp/something"]
+      "processId": "${command:pickProcess}"
     }
   ]
 }
