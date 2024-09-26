@@ -113,7 +113,7 @@ pub enum NixBaseConfigsTemplates {
 impl NixBaseConfigsTemplates {
     fn file(&self) -> &str {
         match self {
-            NixBaseConfigsTemplates::Common => "configuration.common.nix.templ",
+            NixBaseConfigsTemplates::Common => "src/configuration.common.nix.templ",
         }
     }
 }

@@ -2,6 +2,13 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Launch init in /tmp/something/",
+      "type": "codelldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/target/debug/nixblitz",
+      "args": ["init", "-w", "/tmp/something/"]
+    },
+    {
       "name": "Attach to Rust Process - pick PID",
       "type": "codelldb",
       "request": "attach",
