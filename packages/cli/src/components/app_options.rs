@@ -1,20 +1,23 @@
 use super::{
     container::render_container,
-    list_options::{base_option::OptionListItem, bool::BoolOptionListItem},
+    list_options::{
+        base_option::OptionListItem,
+        bool::BoolOptionComponent,
+        string_list::{StringListOption, StringListOptionComponent},
+    },
     Component,
 };
-use crate::{action::Action, config::Config, constants::FocusableComponent, errors::CliError};
+use crate::{action::Action, constants::FocusableComponent, errors::CliError};
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::Result;
 
-use nixblitzlib::apps::SupportedApps;
+use nixblitzlib::{apps::SupportedApps, timezones::TIMEZONES};
 use ratatui::prelude::*;
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Default)]
 pub struct AppOptions {
     command_tx: Option<UnboundedSender<Action>>,
-    config: Config,
     mouse_click_pos: Option<Position>,
     focus: bool,
     options: Vec<Box<dyn OptionListItem>>,
@@ -24,16 +27,32 @@ pub struct AppOptions {
     offset: usize,
     max_num_items: usize,
     title: String,
+    modal_open: bool,
 }
 
 impl AppOptions {
     pub fn new() -> Self {
-        let cons = (0..2).map(|_| Constraint::Length(2)).collect();
+        let cons = (0..3).map(|_| Constraint::Length(2)).collect();
 
         Self {
             options: vec![
-                Box::new(BoolOptionListItem::new("bool one", false, true)),
-                Box::new(BoolOptionListItem::new("bool two", true, false)),
+                Box::new(BoolOptionComponent::new("bool one", false, true)),
+                Box::new(BoolOptionComponent::new("bool two", true, false)),
+                Box::new(StringListOptionComponent::new(
+                    "system timezone".into(),
+                    TIMEZONES[169].to_owned(),
+                    false,
+                    TIMEZONES
+                        .iter()
+                        .map(|tz| {
+                            StringListOption::new(
+                                tz.to_string(),
+                                *tz == TIMEZONES[169],
+                                tz.to_string(),
+                            )
+                        })
+                        .collect(),
+                )),
             ],
             constraints: cons,
             ..AppOptions::default()
@@ -70,8 +89,13 @@ impl AppOptions {
         }
     }
 
-    fn render_options_list(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
-        let block = render_container(&self.title, self.focus);
+    fn render_options_list(
+        &mut self,
+        frame: &mut Frame,
+        area: Rect,
+        modal_open: bool,
+    ) -> Result<(), CliError> {
+        let block = render_container(&self.title, if modal_open { false } else { self.focus });
         let total_height = block.inner(area).height;
         self.max_num_items = (total_height / 2) as usize;
 
@@ -100,7 +124,7 @@ impl AppOptions {
             .enumerate()
             .take(self.max_num_items)
         {
-            value.draw(frame, layout[index])?;
+            value.draw(frame, layout[index], modal_open)?;
         }
 
         Ok(())
@@ -170,23 +194,10 @@ impl AppOptions {
         self.title = format!(" Options ({}/{}) ", self.selected + 1, self.options.len());
     }
 
-    fn select(&mut self, item_id: usize) {
-        if item_id > self.options.len() {
-            return;
-        }
-
-        let res = self.options.get_mut(item_id);
-        if let Some(res) = res {
-            res.set_selected(true);
-            self.selected = item_id;
-            self.update_title();
-        }
-    }
-
     pub fn on_enter(&mut self) -> Result<(), CliError> {
         let option = self.options.get_mut(self.selected);
         let option = option.unwrap();
-        let _ = option.on_edit();
+        option.on_edit()?;
 
         Ok(())
     }
@@ -194,12 +205,11 @@ impl AppOptions {
 
 impl Component for AppOptions {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
-        self.command_tx = Some(tx);
-        Ok(())
-    }
+        self.command_tx = Some(tx.clone());
+        for o in &mut self.options {
+            o.register_action_handler(tx.clone())?;
+        }
 
-    fn register_config_handler(&mut self, config: Config) -> Result<(), CliError> {
-        self.config = config;
         Ok(())
     }
 
@@ -214,23 +224,32 @@ impl Component for AppOptions {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
-        match action {
-            Action::NavUp | Action::NavDown => self.kb_select_item(action),
-            Action::Enter => self.on_enter()?,
-            _ => (),
+    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
+        self.modal_open = modal_open;
+
+        if !modal_open {
+            match action {
+                Action::NavUp | Action::NavDown => self.kb_select_item(action),
+                Action::Enter => self.on_enter()?,
+                _ => (),
+            }
+        } else {
+            let option = self.options.get_mut(self.selected);
+            let option = option.unwrap();
+            let _ = option.update(action.clone(), modal_open);
         }
+
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
         let res = self.check_user_mouse_select(area);
         if let Some(pos) = res {
             self.send_focus_req_action();
             self.mouse_select_item(pos);
         }
 
-        self.render_options_list(frame, area)?;
+        self.render_options_list(frame, area, modal_open)?;
 
         Ok(())
     }

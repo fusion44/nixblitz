@@ -58,7 +58,8 @@ impl Component for HelpPage {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
+    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
+        let _ = modal_open;
         match action {
             Action::NavUp
             | Action::NavDown
@@ -71,7 +72,8 @@ impl Component for HelpPage {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
+        let _ = modal_open;
         let c = render_container(" Help ", true);
         frame.render_widget(c, area);
 

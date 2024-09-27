@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use cli_log::error;
 use crossterm::event::KeyEvent;
-use error_stack::{Result, ResultExt};
+use error_stack::{Report, Result, ResultExt};
 use nixblitzlib::system::System;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
@@ -40,6 +40,10 @@ pub struct App {
     action_rx: mpsc::UnboundedReceiver<Action>,
     home_page: ComponentIndex,
     system: System,
+
+    /// Tracks how many modals are open at any given time
+    /// Used to send the actions {Actions::ModalOpen} and {Actions::ModalsClosed}
+    modals_open: u8,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -92,6 +96,7 @@ impl App {
             action_rx,
             home_page: ComponentIndex::AppsPage,
             system,
+            modals_open: 0,
         })
     }
 
@@ -179,13 +184,14 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) -> Result<(), CliError> {
-        let action_tx = self.action_tx.clone();
         let Some(keymap) = self.config.keybindings.get(&self.mode) else {
             return Ok(());
         };
+
         match keymap.get(&vec![key]) {
             Some(action) => {
-                action_tx
+                self.action_tx
+                    .clone()
                     .send(action.clone())
                     .change_context(CliError::Unknown)?;
             }
@@ -196,7 +202,8 @@ impl App {
 
                 // Check for multi-key combinations
                 if let Some(action) = keymap.get(&self.last_tick_key_events) {
-                    action_tx
+                    self.action_tx
+                        .clone()
                         .send(action.clone())
                         .change_context(CliError::Unknown)?;
                 }
@@ -207,6 +214,11 @@ impl App {
 
     fn handle_actions(&mut self, tui: &mut Tui) -> Result<(), CliError> {
         while let Ok(action) = self.action_rx.try_recv() {
+            if action == Action::Render {
+                self.render(tui)?;
+                continue;
+            }
+
             match action {
                 Action::Tick => {
                     self.last_tick_key_events.drain(..);
@@ -220,11 +232,11 @@ impl App {
                 | Action::NavSettingsTab
                 | Action::NavActionsTab
                 | Action::NavHelpTab => self.handle_tab_nav(&action),
-                Action::Render => self.render(tui)?,
+                Action::PushModal | Action::PopModal => self.handle_modal_change(&action)?,
                 _ => {}
             }
             for component in self.components_map.iter_mut() {
-                if let Some(action) = component.1.update(action.clone())? {
+                if let Some(action) = component.1.update(action.clone(), self.modals_open > 0)? {
                     self.action_tx
                         .send(action)
                         .change_context(CliError::Unknown)?
@@ -267,13 +279,13 @@ impl App {
         self.components_map
             .get_mut(&ComponentIndex::Title)
             .unwrap()
-            .draw(frame, menu_layout[0])?;
+            .draw(frame, menu_layout[0], self.modals_open > 0)?;
 
         // Draw the menu{
         self.components_map
             .get_mut(&ComponentIndex::Menu)
             .unwrap()
-            .draw(frame, menu_layout[1])?;
+            .draw(frame, menu_layout[1], self.modals_open > 0)?;
 
         Ok(())
     }
@@ -283,22 +295,22 @@ impl App {
             self.components_map
                 .get_mut(&ComponentIndex::AppsPage)
                 .unwrap()
-                .draw(frame, area)?;
+                .draw(frame, area, self.modals_open > 0)?;
         } else if self.home_page == ComponentIndex::SettingsPage {
             self.components_map
                 .get_mut(&ComponentIndex::SettingsPage)
                 .unwrap()
-                .draw(frame, area)?;
+                .draw(frame, area, self.modals_open > 0)?;
         } else if self.home_page == ComponentIndex::ActionsPage {
             self.components_map
                 .get_mut(&ComponentIndex::ActionsPage)
                 .unwrap()
-                .draw(frame, area)?;
+                .draw(frame, area, self.modals_open > 0)?;
         } else if self.home_page == ComponentIndex::HelpPage {
             self.components_map
                 .get_mut(&ComponentIndex::HelpPage)
                 .unwrap()
-                .draw(frame, area)?;
+                .draw(frame, area, self.modals_open > 0)?;
         } else {
             todo!();
         }
@@ -325,6 +337,27 @@ impl App {
         })
         .attach_printable_lazy(|| "Unable to draw the frame")
         .change_context(CliError::Unknown)?;
+
+        Ok(())
+    }
+
+    fn handle_modal_change(&mut self, action: &Action) -> Result<(), CliError> {
+        match action {
+            Action::PushModal => {
+                if self.modals_open == u8::MAX {
+                    Err(Report::new(CliError::MaxModalComponentReached))?;
+                }
+                self.modals_open += 1;
+            }
+            Action::PopModal => {
+                if self.modals_open == 0 {
+                    Err(Report::new(CliError::NumModalComponentNegative))?;
+                }
+                self.modals_open -= 1;
+            }
+            _ => Err(Report::new(CliError::Unknown)
+                .attach_printable(format!("Receives action wrong {}", action)))?,
+        }
 
         Ok(())
     }

@@ -25,7 +25,7 @@ pub trait Component {
     ///
     /// # Returns
     ///
-    /// * `Result<(), TempGenericError>` - An Ok result or an error.
+    /// * `Result<(), CliError>` - An Ok result or an error.
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
         let _ = tx; // to appease clippy
         Ok(())
@@ -108,8 +108,10 @@ pub trait Component {
     /// # Returns
     ///
     /// * `Result<Option<Action>>` - An action to be processed or none.
-    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
-        let _ = action; // to appease clippy
+    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
+        // to appease clippy
+        let _ = modal_open;
+        let _ = action;
         Ok(None)
     }
     /// Render the component on the screen. (REQUIRED)
@@ -122,5 +124,5 @@ pub trait Component {
     /// # Returns
     ///
     /// * `Result<(), TempGenericError>` - An Ok result or an error.
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError>;
+    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError>;
 }

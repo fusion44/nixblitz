@@ -19,6 +19,8 @@
  		"<Right>": "NavRight",
 		"<Enter>": "Enter",
 		"<esc>": "Esc",
+		"<PageUp>": "PageUp",
+		"<PageDown>": "PageDown",
     },
   }
 }

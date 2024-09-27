@@ -17,7 +17,7 @@ impl Title {
 }
 
 impl Component for Title {
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, _: bool) -> Result<(), CliError> {
         frame.render_widget(Paragraph::new(self.title.clone()), area);
         Ok(())
     }

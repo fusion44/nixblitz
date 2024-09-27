@@ -12,21 +12,14 @@ use ratatui::prelude::*;
 use ratatui_macros::constraints;
 use tokio::sync::mpsc::UnboundedSender;
 
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-enum ComponentIndex {
-    #[default]
-    List,
-    Options,
-    Help,
-}
-
 #[derive(Default)]
 pub struct AppsPage {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     app_list: AppList,
     app_options: AppOptions,
-    current_focus: ComponentIndex,
+    last_focus: FocusableComponent,
+    current_focus: FocusableComponent,
 }
 
 impl AppsPage {
@@ -36,70 +29,30 @@ impl AppsPage {
             config: Config::default(),
             app_list: AppList::new(),
             app_options: AppOptions::new(),
-            current_focus: ComponentIndex::List,
+            current_focus: FocusableComponent::AppTabList,
+            ..Default::default()
         };
-        instance.change_focus(ComponentIndex::List);
+        instance.on_focus_req(FocusableComponent::AppTabList);
         instance
-    }
-
-    fn nav(&mut self, action: Action) {
-        match action {
-            Action::NavUp | Action::NavDown => {
-                if self.current_focus == ComponentIndex::List {
-                    let _ = self.app_list.update(action);
-                } else if self.current_focus == ComponentIndex::Options {
-                    let _ = self.app_options.update(action);
-                }
-            }
-            Action::NavLeft => todo!(),
-            Action::NavRight => todo!(),
-            Action::Enter => self.on_enter(),
-            Action::Esc => self.on_esc(),
-            _ => (),
-        }
-    }
-
-    fn on_enter(&mut self) {
-        // When the user hits enter and the App List is selected
-        // then we'll focus on the options part of the page
-
-        if self.current_focus == ComponentIndex::List {
-            self.change_focus(ComponentIndex::Options);
-        } else if self.current_focus == ComponentIndex::Options {
-            let _res = self.app_options.on_enter();
-        }
-    }
-
-    fn on_esc(&mut self) {
-        if self.current_focus == ComponentIndex::Options {
-            self.change_focus(ComponentIndex::List);
-        }
     }
 
     fn on_app_selected(&mut self, app: SupportedApps) {
         self.app_options.set_app(app);
     }
 
-    fn change_focus(&mut self, index: ComponentIndex) {
-        self.current_focus = index;
-        match index {
-            ComponentIndex::List => {
+    fn on_focus_req(&mut self, c: FocusableComponent) {
+        self.last_focus = self.current_focus;
+        self.current_focus = c;
+        match c {
+            FocusableComponent::AppTabList => {
                 self.app_list.set_focus(true);
                 self.app_options.set_focus(false);
             }
-            ComponentIndex::Options => {
+            FocusableComponent::AppTabOptions => {
                 self.app_list.set_focus(false);
                 self.app_options.set_focus(true);
             }
-            ComponentIndex::Help => (),
-        }
-    }
-
-    fn on_focus_req(&mut self, c: FocusableComponent) {
-        match c {
-            FocusableComponent::AppTabList => self.change_focus(ComponentIndex::List),
-            FocusableComponent::AppTabOptions => self.change_focus(ComponentIndex::Options),
-            FocusableComponent::AppTabHelp => self.change_focus(ComponentIndex::Help),
+            FocusableComponent::AppTabHelp => (),
             _ => (),
         }
     }
@@ -127,29 +80,54 @@ impl Component for AppsPage {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
+    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
         match action {
-            Action::NavUp
-            | Action::NavDown
-            | Action::NavLeft
-            | Action::NavRight
-            | Action::Enter
-            | Action::Esc => self.nav(action),
+            Action::NavUp | Action::NavDown | Action::PageUp | Action::PageDown => {
+                if modal_open {
+                    return self.app_options.update(action.clone(), modal_open);
+                }
+
+                if self.current_focus == FocusableComponent::AppTabList {
+                    return self.app_list.update(action, modal_open);
+                } else if self.current_focus == FocusableComponent::AppTabOptions {
+                    return self.app_options.update(action, modal_open);
+                }
+            }
+            Action::NavLeft | Action::NavRight => todo!(),
+            Action::Enter => {
+                // When the user hits enter and the App List is selected
+                // then we'll focus on the options part of the page
+                if self.current_focus == FocusableComponent::AppTabList {
+                    self.on_focus_req(FocusableComponent::AppTabOptions);
+                } else if self.current_focus == FocusableComponent::AppTabOptions {
+                    let _res = self.app_options.on_enter();
+                }
+            }
+            Action::Esc => {
+                if modal_open {
+                    return self.app_options.update(action, modal_open);
+                }
+
+                if self.current_focus == FocusableComponent::AppTabOptions {
+                    self.on_focus_req(FocusableComponent::AppTabList);
+                }
+            }
             Action::AppTabAppSelected(app) => self.on_app_selected(app),
             Action::FocusRequest(r) => self.on_focus_req(r),
             _ => (),
         }
+
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(constraints![==20, >=25])
             .split(area);
 
-        self.app_list.draw(frame, layout[0])?;
-        self.app_options.draw(frame, layout[1])?;
+        self.app_list.draw(frame, layout[0], modal_open)?;
+        self.app_options.draw(frame, layout[1], modal_open)?;
 
         Ok(())
     }

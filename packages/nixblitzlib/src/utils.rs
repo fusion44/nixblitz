@@ -1,5 +1,4 @@
 use std::{
-    alloc::System,
     fmt::Display,
     fs::{self, File},
     io::Write,

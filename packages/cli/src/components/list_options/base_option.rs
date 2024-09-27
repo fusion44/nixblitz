@@ -56,17 +56,23 @@ pub fn draw_item(
         frame.render_widget(Line::from("│"), deco_split[1]);
     }
 
+    // Render the title
     let appendix = if dirty { " *" } else { "" };
     let t = format!("{}{}", title, appendix).to_string().to_uppercase();
-    frame.render_widget(
-        Line::from(t).add_modifier(Modifier::BOLD | Modifier::ITALIC),
-        layout_options[0],
-    );
+    let mut modifiers = Modifier::BOLD | Modifier::ITALIC;
+    if selected {
+        modifiers |= Modifier::REVERSED;
+    }
+    frame.render_widget(Line::from(t).add_modifier(modifiers), layout_options[0]);
 
-    frame.render_widget(
-        Line::from(subtitle).fg(if dirty { colors::RED_200 } else { Color::Reset }),
-        layout_options[1],
-    );
+    // Render the subtitle
+    if !selected {
+        let line = Line::from(subtitle).fg(if dirty { colors::RED_200 } else { Color::Reset });
+        frame.render_widget(line, layout_options[1]);
+    } else {
+        let line = Line::from(subtitle).reversed();
+        frame.render_widget(line, layout_options[1]);
+    }
 
     Ok(())
 }

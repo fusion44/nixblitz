@@ -1,11 +1,12 @@
 use error_stack::{Report, Result, ResultExt};
+use ratatui::{layout::Rect, Frame};
 
 use crate::{components::Component, errors::CliError};
 
 use super::base_option::{draw_item, OptionListItem};
 
 #[derive(Debug, Default)]
-pub struct BoolOptionListItem {
+pub struct BoolOptionComponent {
     title: String,
     subtitle: String,
     value: bool,
@@ -14,7 +15,7 @@ pub struct BoolOptionListItem {
     original: bool,
 }
 
-impl BoolOptionListItem {
+impl BoolOptionComponent {
     pub fn new(title: &str, initial_value: bool, selected: bool) -> Self {
         Self {
             title: String::from(title),
@@ -35,7 +36,7 @@ impl BoolOptionListItem {
     }
 }
 
-impl OptionListItem for BoolOptionListItem {
+impl OptionListItem for BoolOptionComponent {
     fn selected(&self) -> bool {
         self.selected
     }
@@ -57,12 +58,8 @@ impl OptionListItem for BoolOptionListItem {
     }
 }
 
-impl Component for BoolOptionListItem {
-    fn draw(
-        &mut self,
-        frame: &mut ratatui::Frame,
-        area: ratatui::prelude::Rect,
-    ) -> Result<(), CliError> {
+impl Component for BoolOptionComponent {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, _: bool) -> Result<(), CliError> {
         draw_item(
             self.selected,
             &self.title,

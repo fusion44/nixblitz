@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
 pub enum SupportedApps {
     #[default]
     NixOS,

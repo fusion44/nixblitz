@@ -120,7 +120,7 @@ impl Component for Menu {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
+    fn update(&mut self, action: Action, _: bool) -> Result<Option<Action>, CliError> {
         match action {
             Action::NavAppsTab => self.set_active_item(MenuItem::Apps),
             Action::NavSettingsTab => self.set_active_item(MenuItem::Settings),
@@ -132,7 +132,7 @@ impl Component for Menu {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, _: bool) -> Result<(), CliError> {
         let menu: Vec<_> = self
             .entries
             .iter()

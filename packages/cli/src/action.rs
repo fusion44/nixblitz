@@ -25,7 +25,15 @@ pub enum Action {
     NavRight,
     Enter,
     Esc,
+    PageUp,
+    PageDown,
     FocusRequest(FocusableComponent),
+
+    /// A new modal is opened
+    PushModal,
+
+    /// A modal is closed
+    PopModal,
 
     // App tab specific actions
     AppTabAppSelected(SupportedApps),

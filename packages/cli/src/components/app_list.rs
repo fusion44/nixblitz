@@ -98,11 +98,14 @@ impl AppList {
         }
     }
 
-    fn render_app_list(&mut self, frame: &mut Frame, area: Rect) {
+    fn render_app_list(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) {
         let list = List::new(SupportedApps::as_string_list().to_owned())
-            .block(render_container(APP_TITLE, self.focus))
+            .block(render_container(
+                APP_TITLE,
+                if modal_open { false } else { self.focus },
+            ))
             .highlight_style(Style::new().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">>")
+            .highlight_symbol(">")
             .repeat_highlight_symbol(true);
 
         frame.render_stateful_widget(list, area, &mut self.state);
@@ -135,22 +138,23 @@ impl Component for AppList {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action) -> Result<Option<Action>, CliError> {
+    fn update(&mut self, action: Action, _: bool) -> Result<Option<Action>, CliError> {
         match action {
             Action::NavUp | Action::NavDown => self.kb_select_item(action),
-            _ => (),
+            _ => {}
         }
+
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
         let res = self.check_user_mouse_select(area);
         if let Some(pos) = res {
             self.send_focus_req_action();
             self.mouse_select_item(pos);
         }
 
-        self.render_app_list(frame, area);
+        self.render_app_list(frame, area, modal_open);
         Ok(())
     }
 }
