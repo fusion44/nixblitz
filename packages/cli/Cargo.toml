@@ -3,6 +3,7 @@ name = "nixblitz"
 version = "0.1.0"
 edition = "2021"
 description = "A CLI interface to the RaspiBlitz project."
+resolver = "2"
 
 authors = ["fusion44 <some.fusion@gmail.com>"]
 build = "build.rs"
