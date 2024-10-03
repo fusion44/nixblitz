@@ -8,6 +8,7 @@ use super::{
     Component,
 };
 use crate::{action::Action, constants::FocusableComponent, errors::CliError};
+use cli_log::warn;
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::Result;
 
@@ -28,6 +29,7 @@ pub struct AppOptions {
     max_num_items: usize,
     title: String,
     modal_open: bool,
+    is_even_warning_printed: bool,
 }
 
 impl AppOptions {
@@ -97,14 +99,22 @@ impl AppOptions {
     ) -> Result<(), CliError> {
         let block = render_container(&self.title, if modal_open { false } else { self.focus });
         let total_height = block.inner(area).height;
-        self.max_num_items = (total_height / 2) as usize;
 
-        assert!(
-            total_height % 2 == 0,
+        let is_even = total_height % 2 == 0;
+        if !is_even && !self.is_even_warning_printed {
+            self.is_even_warning_printed = true;
+            warn!(
             "Area height must be a multiple of two for now.\ntotal_height: {}\nmax_num_items: {}",
             total_height,
             self.max_num_items
         );
+        }
+
+        self.max_num_items = (if is_even {
+            total_height / 2
+        } else {
+            (total_height - 1) / 2
+        }) as usize;
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
