@@ -134,34 +134,39 @@ pub fn init_default_system(work_dir: &Path, force: Option<bool>) -> Result<(), S
                 .unwrap_or_default()
                 .to_str()
                 .unwrap_or_default();
-            if ext == "templ" {
-                let path_str = path.to_str().unwrap_or_default().replace(".templ", "");
-                if path_str.contains("configuration.common.nix") {
-                    let nix_base_config = NixBaseConfig::default();
-                    let rendered_json = nix_base_config
-                        .to_json_string()
-                        .change_context(SystemError::GenFilesError)?;
-                    let rendered_nix = nix_base_config
-                        .render(NixBaseConfigsTemplates::Common)
-                        .change_context(SystemError::CreateBaseFiles(
-                            "Failed at rendering base config".to_string(),
-                        ))?;
-                    create_file(Path::new(&path_str), rendered_nix.as_bytes(), force)?;
-                    create_file(
-                        Path::new(&format!("{}.json", &path_str)),
-                        rendered_json.as_bytes(),
-                        force,
-                    )?;
-                }
-
-                continue;
+            if ext != "templ" {
+                create_file(&path, contents, force)?;
             }
-
-            create_file(&path, contents, force)?;
         }
     }
 
-    Ok(())
+    render_template_files(work_dir, force)
+}
+
+fn render_template_files(work_dir: &Path, force: Option<bool>) -> Result<(), SystemError> {
+    let nix_base_config = NixBaseConfig::default();
+    let rendered_json = nix_base_config
+        .to_json_string()
+        .change_context(SystemError::GenFilesError)?;
+    let rendered_nix = nix_base_config
+        .render(NixBaseConfigsTemplates::Common)
+        .change_context(SystemError::CreateBaseFiles(
+            "Failed at rendering base config".to_string(),
+        ))?;
+
+    for (key, val) in rendered_nix.iter() {
+        create_file(
+            Path::new(&work_dir.join(key.replace(".templ", ""))),
+            val.as_bytes(),
+            force,
+        )?;
+    }
+
+    create_file(
+        Path::new(&work_dir.join("src/nix_base_config.json")),
+        rendered_json.as_bytes(),
+        force,
+    )
 }
 
 fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), SystemError> {

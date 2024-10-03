@@ -1,4 +1,13 @@
 {pkgs, ...}: {
+  imports = [
+    ./apps/bitcoind.nix
+    ./apps/lnd.nix
+    ./apps/blitz_api.nix
+    ./apps/blitz_web.nix
+  ];
+
+  boot.loader.grub.enable = false;
+
   nixpkgs.config.allowUnfree = {{ allow_unfree }};
   time.timeZone = "{{ time_zone }}";
   i18n.defaultLocale = "{{ default_locale }}";
@@ -10,14 +19,25 @@
 
   users = {
     defaultUserShell = pkgs.nushell;
-    users.{{ username }} = {
+    users."{{ username }}" = {
       isNormalUser = true;
-      extraGroups = ["wheel"]; # Enable ‘sudo’ for the user.
+      extraGroups = ["wheel"];
       hashedPassword = "{{ initial_password }}";
       openssh.authorizedKeys.keys = [
-		  {{ openssh_auth_keys }}
+        {{ openssh_auth_keys }}
       ];
     };
+  };
+
+  home-manager.users."{{ username }}" = {pkgs, ...}: {
+    home.packages = [];
+    programs.nushell = {
+	   enable = true;
+		configFile.source = ./configs/nushell/config.nu;
+		envFile.source = ./configs/nushell/env.nu;
+	 };
+
+    home.stateVersion = "24.05";
   };
 
   environment.systemPackages = with pkgs; [
@@ -40,5 +60,6 @@
     redis.servers."".enable = true;
   };
 
-  networking.firewall.allowedTCPPorts = [22];
+  networking.firewall.allowedTCPPorts = [ {{ ports }} ];
+  system.stateVersion = "24.05";
 }

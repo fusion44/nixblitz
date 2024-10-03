@@ -78,6 +78,31 @@ pub struct NixBaseConfig {
     /// };
     /// ```
     pub system_packages: Vec<String>,
+
+    /// Additional ports to open.
+    ///
+    /// [nixos.org:networking.firewall.allowedTCPPorts](https://search.nixos.org/options?show=networking.firewall.allowedTCPPorts)
+    ///
+    /// # Examples
+    /// ```
+    /// use nixblitzlib::nix_base_config::NixBaseConfig;
+    ///
+    /// let config = NixBaseConfig {
+    ///   ports: vec![22, 1337],
+    ///   ..NixBaseConfig::default()
+    /// };
+    /// ```
+    pub ports: Vec<usize>,
+
+    /// Hostname of the system when started as a virtual machine
+    ///
+    /// [nisos.org:networking.hostName](https://search.nixos.org/options?show=networking.hostName)
+    pub hostname_vm: String,
+
+    /// Hostname of the system when started as a virtual machine
+    ///
+    /// [nisos.org:networking.hostName](https://search.nixos.org/options?show=networking.hostName)
+    pub hostname_pi: String,
 }
 
 impl Default for NixBaseConfig {
@@ -99,21 +124,30 @@ impl Default for NixBaseConfig {
                 String::from("neovim"),
                 String::from("ripgrep"),
                 String::from("bandwhich"),
+                String::from("yazi"),
             ],
+            ports: vec![22],
+            hostname_vm: "nixblitzvm".to_string(),
+            hostname_pi: "nixblitzpi".to_string(),
         }
     }
 }
 
 #[derive(Debug)]
 pub enum NixBaseConfigsTemplates {
-    /// configuration.common.nix.templ
     Common,
 }
 
+const _FILES: [&str; 3] = [
+    "src/configuration.common.nix.templ",
+    "src/vm/configuration.nix.templ",
+    "src/pi/configuration.nix.templ",
+];
+
 impl NixBaseConfigsTemplates {
-    fn file(&self) -> &str {
+    fn files(&self) -> [&str; 3] {
         match self {
-            NixBaseConfigsTemplates::Common => "src/configuration.common.nix.templ",
+            NixBaseConfigsTemplates::Common => _FILES,
         }
     }
 }
@@ -121,7 +155,10 @@ impl NixBaseConfigsTemplates {
 impl Display for NixBaseConfigsTemplates {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NixBaseConfigsTemplates::Common => f.write_str(NixBaseConfigsTemplates::Common.file()),
+            NixBaseConfigsTemplates::Common => {
+                let debug_string = NixBaseConfigsTemplates::Common.files().join("\n");
+                f.write_str(&debug_string)
+            }
         }
     }
 }
@@ -137,6 +174,9 @@ impl NixBaseConfig {
         hashed_password: String,
         openssh_auth_keys: Vec<String>,
         system_packages: Vec<String>,
+        ports: Vec<usize>,
+        hostname_vm: String,
+        hostname_pi: String,
     ) -> Self {
         Self {
             allow_unfree,
@@ -147,69 +187,103 @@ impl NixBaseConfig {
             hashed_password,
             openssh_auth_keys,
             system_packages,
+            ports,
+            hostname_vm,
+            hostname_pi,
         }
     }
 
-    pub fn render(&self, template: NixBaseConfigsTemplates) -> Result<String, TemplatingError> {
+    pub fn render(
+        &self,
+        template: NixBaseConfigsTemplates,
+    ) -> Result<HashMap<String, String>, TemplatingError> {
+        // TODO: I'd like to return a &str key here, as it is always a 'static
+        //       reference to the _FILES array. Why no workey?
         let mut handlebars = Handlebars::new();
         handlebars.register_escape_fn(no_escape);
 
-        let file = match template {
-            NixBaseConfigsTemplates::Common => BASE_TEMPLATE.get_file(template.file()),
-        };
+        let mut rendered_contents = HashMap::new();
+        for file_name in template.files() {
+            let file = match template {
+                NixBaseConfigsTemplates::Common => BASE_TEMPLATE.get_file(file_name),
+            };
+            let file = match file {
+                Some(f) => f,
+                None => {
+                    return Err(Report::new(TemplatingError::FileNotFound)
+                        .attach_printable(format!("File {file_name} for {template} not found")))
+                }
+            };
 
-        let file = match file {
-            Some(f) => f,
-            None => {
-                return Err(Report::new(TemplatingError::FileNotFound)
-                    .attach_printable(format!("File for {template} not found")))
+            let file = match file.contents_utf8() {
+                Some(f) => f,
+                None => {
+                    return Err(Report::new(TemplatingError::FileNotFound)
+                        .attach_printable(format!("Unable to read file contents of {template}")))
+                }
+            };
+
+            handlebars
+                .register_template_string(file_name, file)
+                .attach_printable_lazy(|| format!("{handlebars:?} could not register the template"))
+                .change_context(TemplatingError::Register)?;
+
+            // TODO: de-hardcode this
+            let mut data = HashMap::new();
+            if file_name == "src/configuration.common.nix.templ" {
+                data = HashMap::from([
+                    ("allow_unfree", format!("{}", self.allow_unfree)),
+                    ("time_zone", self.time_zone.clone()),
+                    ("default_locale", self.default_locale.clone()),
+                    ("username", self.username.clone()),
+                    ("ssh_password_auth", format!("{}", self.ssh_password_auth)),
+                    ("initial_password", self.hashed_password.clone()),
+                    (
+                        "openssh_auth_keys",
+                        self.openssh_auth_keys
+                            .iter()
+                            .map(|s| format!("\"{}\"", s))
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    ),
+                    ("system_packages", self.system_packages.join(" ")),
+                    (
+                        "ports",
+                        self.ports
+                            .iter()
+                            .map(|&p| p.to_string())
+                            .collect::<Vec<String>>()
+                            .join(" "),
+                    ),
+                ]);
+            } else if file_name == "src/vm/configuration.nix.templ" {
+                data = HashMap::from([("hostname", self.hostname_vm.clone())]);
+            } else if file_name == "src/pi/configuration.nix.templ" {
+                data = HashMap::from([("hostname", self.hostname_pi.clone())]);
+            } else {
+                Err(
+                    Report::new(TemplatingError::FileNotFound).attach_printable(format!(
+                        "Couldn't process file {file_name} for template {template}"
+                    )),
+                )?
             }
-        };
 
-        let file = match file.contents_utf8() {
-            Some(f) => f,
-            None => {
-                return Err(Report::new(TemplatingError::FileNotFound)
-                    .attach_printable(format!("Unable to read file contents of {template}")))
-            }
-        };
+            let res = handlebars
+                .render(file_name, &data)
+                .attach_printable(format!("Failed to render template {template}"))
+                .change_context(TemplatingError::Render)?;
+            let (status, text) = format::in_memory("<convert nix base>".to_string(), res);
 
-        handlebars
-            .register_template_string("nix_base_cfg", file)
-            .attach_printable_lazy(|| format!("{handlebars:?} could not register the template"))
-            .change_context(TemplatingError::Register)?;
-
-        let data = HashMap::from([
-            ("allow_unfree", format!("{}", self.allow_unfree)),
-            ("time_zone", self.time_zone.clone()),
-            ("default_locale", self.default_locale.clone()),
-            ("username", self.username.clone()),
-            ("ssh_password_auth", format!("{}", self.ssh_password_auth)),
-            ("initial_password", self.hashed_password.clone()),
-            (
-                "openssh_auth_keys",
-                self.openssh_auth_keys
-                    .iter()
-                    .map(|s| format!("\"{}\"", s))
-                    .collect::<Vec<_>>()
-                    .join("\n"),
-            ),
-            ("system_packages", self.system_packages.join(" ")),
-        ]);
-
-        let res = handlebars
-            .render("nix_base_cfg", &data)
-            .attach_printable(format!("Failed to render template {template}"))
-            .change_context(TemplatingError::Render)?;
-
-        let (status, text) = format::in_memory("<convert nix base>".to_string(), res);
-        match status {
-            format::Status::Error(e) => Err(Report::new(TemplatingError::Format))
-                .attach_printable_lazy(|| {
+            if let format::Status::Error(e) = status {
+                Err(Report::new(TemplatingError::Format)).attach_printable_lazy(|| {
                     format!("Could not format the template file due to error: {e}")
-                }),
-            _ => Ok(text),
+                })?
+            } else {
+                rendered_contents.insert(file_name.to_string(), text);
+            }
         }
+
+        Ok(rendered_contents)
     }
 
     pub(crate) fn to_json_string(&self) -> Result<String, TemplatingError> {
@@ -232,14 +306,64 @@ mod tests {
         assert_eq!(config.username, "admin");
         assert!(!config.ssh_password_auth);
         assert_eq!(config.openssh_auth_keys.len(), 0);
-        assert_eq!(config.system_packages.len(), 7);
+        assert_eq!(config.system_packages.len(), 8);
     }
 
     #[test]
     fn test_render_valid_input() {
         let pw = unix_hash_password("testPW").unwrap();
-        let valid_input_res: String = String::from(
-            "{pkgs, ...}: {
+        let templates = NixBaseConfigsTemplates::Common.files();
+
+        let config = NixBaseConfig {
+            allow_unfree: true,
+            time_zone: "Europe/London".into(),
+            openssh_auth_keys: vec![String::from("123"), String::from("234")],
+            default_locale: String::from("de_DE.UTF-8"),
+            username: String::from("myUserName"),
+            ssh_password_auth: true,
+            hashed_password: pw.clone(),
+            system_packages: vec![String::from("bat"), String::from("yazi")],
+            ports: vec![22, 1337],
+            hostname_vm: String::from("nixblitzvm"),
+            hostname_pi: String::from("nixblitzpi"),
+        };
+
+        let result = config.render(NixBaseConfigsTemplates::Common);
+        assert!(result.is_ok());
+
+        let texts = result.unwrap();
+        #[allow(clippy::unnecessary_to_owned)]
+        let res_base = texts.get(&templates.first().unwrap().to_string());
+        assert!(res_base.is_some());
+        assert_eq!(
+            res_base.unwrap().trim(),
+            OK_OUTPUT_BASE.replace("testPWhere", &pw).trim()
+        );
+
+        #[allow(clippy::unnecessary_to_owned)]
+        let res_vm = texts.get(&templates.get(1).unwrap().to_string());
+        assert!(res_vm.is_some());
+        assert_eq!(res_vm.unwrap().trim(), OK_OUTPUT_VM.trim());
+
+        #[allow(clippy::unnecessary_to_owned)]
+        let res_pi = texts.get(&templates.get(2).unwrap().to_string());
+        println!("{}", res_pi.unwrap().trim());
+        println!("{}", OK_OUTPUT_PI.trim());
+        assert!(res_pi.is_some());
+        assert_eq!(res_pi.unwrap().trim(), OK_OUTPUT_PI.trim());
+    }
+
+    const OK_OUTPUT_BASE: &str = "
+{pkgs, ...}: {
+  imports = [
+    ./apps/bitcoind.nix
+    ./apps/lnd.nix
+    ./apps/blitz_api.nix
+    ./apps/blitz_web.nix
+  ];
+
+  boot.loader.grub.enable = false;
+
   nixpkgs.config.allowUnfree = true;
   time.timeZone = \"Europe/London\";
   i18n.defaultLocale = \"de_DE.UTF-8\";
@@ -251,15 +375,26 @@ mod tests {
 
   users = {
     defaultUserShell = pkgs.nushell;
-    users.myUserName = {
+    users.\"myUserName\" = {
       isNormalUser = true;
-      extraGroups = [\"wheel\"]; # Enable ‘sudo’ for the user.
+      extraGroups = [\"wheel\"];
       hashedPassword = \"testPWhere\";
       openssh.authorizedKeys.keys = [
         \"123\"
         \"234\"
       ];
     };
+  };
+
+  home-manager.users.\"myUserName\" = {pkgs, ...}: {
+    home.packages = [];
+    programs.nushell = {
+      enable = true;
+      configFile.source = ./configs/nushell/config.nu;
+      envFile.source = ./configs/nushell/env.nu;
+    };
+
+    home.stateVersion = \"24.05\";
   };
 
   environment.systemPackages = with pkgs; [
@@ -283,27 +418,46 @@ mod tests {
     redis.servers.\"\".enable = true;
   };
 
-  networking.firewall.allowedTCPPorts = [22];
+  networking.firewall.allowedTCPPorts = [22 1337];
+  system.stateVersion = \"24.05\";
 }
-",
-        );
-        let valid_input_res = valid_input_res.replace("testPWhere", &pw);
+";
 
-        let config = NixBaseConfig {
-            allow_unfree: true,
-            time_zone: "Europe/London".into(),
-            openssh_auth_keys: vec![String::from("123"), String::from("234")],
-            default_locale: String::from("de_DE.UTF-8"),
-            username: String::from("myUserName"),
-            ssh_password_auth: true,
-            hashed_password: pw,
-            system_packages: vec![String::from("bat"), String::from("yazi")],
-        };
+    const OK_OUTPUT_VM: &str = "
+{...}: {
+  imports = [
+    ./hardware-configuration.nix
+    ../configuration.common.nix
+  ];
 
-        let result = config.render(NixBaseConfigsTemplates::Common);
-        assert!(result.is_ok());
+  boot.loader.generic-extlinux-compatible.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
 
-        let text = result.unwrap();
-        assert_eq!(text.trim(), valid_input_res.trim());
-    }
+  virtualisation.vmVariant = {
+    # following configuration is added only when building VM with build-vm
+    virtualisation = {
+      memorySize = 2048; # Use 2048MiB memory.
+      diskSize = 10240;
+      cores = 3;
+      graphics = false;
+    };
+  };
+
+  services.qemuGuest.enable = true;
+
+  networking.hostName = \"nixblitzvm\";
+}";
+
+    const OK_OUTPUT_PI: &str = "
+{...}: {
+  imports = [
+    ./hardware-configuration.nix
+    ../configuration.common.nix
+  ];
+
+  boot.loader.generic-extlinux-compatible.enable = true;
+
+  networking.hostName = \"nixblitzpi\";
+}
+";
 }
