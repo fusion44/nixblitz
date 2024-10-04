@@ -31,6 +31,9 @@ async fn main() -> Result<(), CliError> {
         Some(commands::Commands::Init { work_dir, force }) => {
             init_default_system_cmd(work_dir, *force)?
         }
+        Some(commands::Commands::Doctor {}) => {
+            println!("We haven't quite figured out how to implement this yet. Maybe try asking a magic 8-ball instead?")
+        }
         None => println!("Please use --help to find the available commands."),
     }
 

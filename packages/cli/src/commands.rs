@@ -7,6 +7,7 @@ pub mod init;
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Opens the TUI in the given work dir
     Gui {
         /// Tick rate, i.e. number of ticks per second
         #[arg(short, long, value_name = "FLOAT", default_value_t = 4.0)]
@@ -20,6 +21,7 @@ pub enum Commands {
         #[arg(short, long, value_name = "PATH", default_value = ".")]
         work_dir: PathBuf,
     },
+    /// Initializes a new system in the given work dir
     Init {
         /// The working directory to operate on
         #[arg(short, long, value_name = "PATH", default_value = ".")]
@@ -29,4 +31,6 @@ pub enum Commands {
         #[arg(short, long)]
         force: bool,
     },
+    /// Analyze the system for common problems
+    Doctor {},
 }
