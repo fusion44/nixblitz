@@ -20,6 +20,7 @@
             alejandra # nix formatter
             qemu
             just
+            nushell
           ];
         };
     });

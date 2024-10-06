@@ -1,4 +1,4 @@
-{...}: {
+{self, ...}: {
   imports = [
     ./hardware-configuration.nix
     ../configuration.common.nix
@@ -7,4 +7,12 @@
   boot.loader.generic-extlinux-compatible.enable = true;
 
   networking.hostName = "{{ hostname }}";
+
+  # https://github.com/NixOS/nixpkgs/issues/126755#issuecomment-869149243
+  nixpkgs.overlays = [
+    (self: super: {
+      makeModulesClosure = x:
+        super.makeModulesClosure (x // {allowMissing = true;});
+    })
+  ];
 }

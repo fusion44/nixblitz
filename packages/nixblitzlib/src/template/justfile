@@ -3,10 +3,17 @@ set positional-arguments
 default:
 	just --list
 
-# builds the current config as a qemu vm
-vm-build:
-	cd src && nixos-rebuild build-vm --flake .#nixblitzvm
-
+# Build the current configuration (args: nixos-vm, pi-image)
+build target="nixos-vm":
+	#!/usr/bin/env bash
+	if [[ "{{target}}" == "nixos-vm" ]] ; then
+		cd src && nixos-rebuild build-vm --flake .#nixblitzvm 
+	elif [[ "{{target}}" == "pi-image" ]] ; then
+		cd src && nix build .#images.pi
+	else
+		echo "Invalid environment. Please specify 'production' or 'staging'."
+	fi
+   
 # runs the current qemu vm
 vm-run:
 	export QEMU_NET_OPTS="hostfwd=tcp::18444-:18444,hostfwd=tcp::10022-:22,hostfwd=tcp::8080-:80,hostfwd=tcp::9735-:9735" && ./src/result/bin/run-nixblitzvm-vm
