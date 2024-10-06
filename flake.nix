@@ -31,6 +31,9 @@
             nodePackages.prettier # for the markdown files
             dbus # needed for an openssl package
             openssl
+            just # the command runner
+            nushell # alternative to Bash
+            typos # code spell checker
           ];
           nativeBuildInputs = with pkgs; [
             pkg-config

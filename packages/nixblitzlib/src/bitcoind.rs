@@ -180,14 +180,14 @@ pub(crate) fn clean_string(value: &str) -> Result<String, String> {
     }
 
     Err(format!(
-        "Unable to detemine string type of string: {}",
+        "Unable to determine string type of string: {}",
         value
     ))
 }
 
-fn parse_multiline_string(beginn: usize, data: &str) -> Result<String, String> {
+fn parse_multiline_string(begin: usize, data: &str) -> Result<String, String> {
     let mut new_str = String::from("");
-    for line in data.lines().skip(beginn + 1) {
+    for line in data.lines().skip(begin + 1) {
         if line.contains("'';") {
             return Ok(new_str.trim().to_string());
         }

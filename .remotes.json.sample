@@ -1,0 +1,7 @@
+{
+  "remotename": {
+    "user": "username",
+    "host": "host_ip",
+    "path": "/target/path/on/host"
+  }
+}

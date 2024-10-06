@@ -4,6 +4,8 @@
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
+.remotes.json
+
 packages/cli/target
 packages/target
 packages/nixblitz.log
