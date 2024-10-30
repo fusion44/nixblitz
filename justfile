@@ -38,9 +38,9 @@ lint fix="":
 test:
 	cd {{rust_src}}; cargo test
 
-# run the CLI, any args are passed to the CLI unaltered 
+# run the CLI with debug log enabled, any args are passed to the CLI unaltered
 run-cli *args='':
-  cd {{rust_src}}; cargo run {{args}}
+  cd {{rust_src}}; $env.NIXBLITZ_LOG = "trace"; cargo run {{args}}
 
 # shorthand for rsync this source directory to a remote node.
 rsync target:
@@ -71,4 +71,3 @@ rsync target:
     let cmd = $data.user + "@" + $data.host + ":" + $data.path
     rsync -rvz --exclude .git --exclude docs/ --exclude packages/target/ . $cmd
   }
-
