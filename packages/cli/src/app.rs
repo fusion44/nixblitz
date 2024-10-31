@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use cli_log::{error, info, trace};
+use cli_log::{error, trace};
 use crossterm::event::KeyEvent;
 use error_stack::{Report, Result, ResultExt};
 use nixblitzlib::system::System;
@@ -40,6 +40,7 @@ pub struct App {
     action_rx: mpsc::UnboundedReceiver<Action>,
     home_page: ComponentIndex,
     system: System,
+    dirty: bool,
 
     /// Tracks if a modal is open
     modal_open: bool,
@@ -101,6 +102,7 @@ impl App {
             system,
             modal_open: false,
             exclusive_input_component_shown: false,
+            dirty: true,
         })
     }
 
@@ -188,6 +190,7 @@ impl App {
     }
 
     fn handle_key_event(&mut self, key: KeyEvent) -> Result<(), CliError> {
+        self.dirty = true;
         let Some(keymap) = self.config.keybindings.get(&self.mode) else {
             return Ok(());
         };
@@ -218,8 +221,9 @@ impl App {
 
     fn handle_actions(&mut self, tui: &mut Tui) -> Result<(), CliError> {
         while let Ok(action) = self.action_rx.try_recv() {
-            if action == Action::Render {
+            if action == Action::Render && self.dirty {
                 self.render(tui)?;
+                self.dirty = false;
                 continue;
             }
 
