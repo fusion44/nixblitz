@@ -4,6 +4,7 @@ use super::{
         base_option::OptionListItem,
         bool::BoolOptionComponent,
         string_list::{StringListOption, StringListOptionComponent},
+        text::TextOptionComponent,
     },
     Component,
 };
@@ -33,10 +34,10 @@ pub struct AppOptions {
 }
 
 impl AppOptions {
-    pub fn new() -> Self {
-        let cons = (0..3).map(|_| Constraint::Length(2)).collect();
+    pub fn new() -> Result<Self, CliError> {
+        let cons = (0..6).map(|_| Constraint::Length(2)).collect();
 
-        Self {
+        Ok(Self {
             options: vec![
                 Box::new(BoolOptionComponent::new("bool one", false, true)),
                 Box::new(BoolOptionComponent::new("bool two", true, false)),
@@ -55,10 +56,28 @@ impl AppOptions {
                         })
                         .collect(),
                 )),
+                Box::new(TextOptionComponent::new(
+                    "one liner",
+                    "name of the node".into(),
+                    false,
+                    1,
+                )?),
+                Box::new(TextOptionComponent::new(
+                    "5 lines",
+                    "name of the node\n2\n3\n4\n5".into(),
+                    false,
+                    5,
+                )?),
+                Box::new(TextOptionComponent::new(
+                    "max",
+                    "name of the node".into(),
+                    false,
+                    u16::MAX,
+                )?),
             ],
             constraints: cons,
             ..AppOptions::default()
-        }
+        })
     }
 
     fn check_user_mouse_select(&mut self, area: Rect) -> Option<usize> {
@@ -134,7 +153,16 @@ impl AppOptions {
             .enumerate()
             .take(self.max_num_items)
         {
+            if index == self.selected {
+                // defer drawing. The selected option might show a popup,
+                // which must be drawn last to make sure it is not overdrawn
+                // by options listed later
+                continue;
+            }
             value.draw(frame, layout[index], modal_open)?;
+        }
+        if let Some(opt) = self.options.get_mut(self.selected) {
+            opt.draw(frame, layout[self.selected], modal_open)?;
         }
 
         Ok(())
@@ -234,10 +262,21 @@ impl Component for AppOptions {
         Ok(None)
     }
 
+    fn handle_key_event(
+        &mut self,
+        key: crossterm::event::KeyEvent,
+    ) -> Result<Option<Action>, CliError> {
+        let option = self.options.get_mut(self.selected);
+        let option = option.unwrap();
+        option.handle_key_event(key)?;
+
+        Ok(None)
+    }
+
     fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
         self.modal_open = modal_open;
 
-        if !modal_open {
+        if !modal_open && action != Action::PopModal(false) && action != Action::PopModal(true) {
             match action {
                 Action::NavUp | Action::NavDown => self.kb_select_item(action),
                 Action::Enter => self.on_enter()?,

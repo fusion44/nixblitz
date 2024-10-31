@@ -1,6 +1,6 @@
 use error_stack::{Report, Result};
 use ratatui::{
-    layout::{Constraint, Flex, Layout, Rect},
+    layout::Rect,
     style::{Modifier, Style},
     text::Line,
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Padding},
@@ -11,7 +11,7 @@ use ratatui_macros::constraint;
 use crate::{
     action::{self, Action},
     colors,
-    components::Component,
+    components::{list_options::popup::center, Component},
     errors::CliError,
 };
 
@@ -138,15 +138,6 @@ impl Component for StringListPopup {
 
         Ok(())
     }
-}
-
-fn center(area: Rect, horizontal: Constraint, vertical: Constraint) -> Rect {
-    let [area] = Layout::horizontal([horizontal])
-        .flex(Flex::Center)
-        .areas(area);
-    let [area] = Layout::vertical([vertical]).flex(Flex::Center).areas(area);
-
-    area
 }
 
 impl From<&PopupItem> for ListItem<'_> {

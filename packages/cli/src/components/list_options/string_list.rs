@@ -107,7 +107,7 @@ impl OptionListItem for StringListOptionComponent {
         if self.editing {
             self.build_popup()?;
             if let Some(tx) = &self.action_tx {
-                let _ = tx.send(Action::PushModal);
+                let _ = tx.send(Action::PushModal(false));
             }
         } else {
             if let Some(p) = &self.string_list_popup {
@@ -121,7 +121,7 @@ impl OptionListItem for StringListOptionComponent {
             }
             self.reset_popup();
             if let Some(tx) = &self.action_tx {
-                let _ = tx.send(Action::PopModal);
+                let _ = tx.send(Action::PopModal(true));
             }
         }
 
@@ -140,7 +140,7 @@ impl Component for StringListOptionComponent {
             self.editing = false;
             self.reset_popup();
             if let Some(tx) = &self.action_tx {
-                let _ = tx.send(Action::PopModal);
+                let _ = tx.send(Action::PopModal(true));
             }
         } else if action == Action::NavUp
             || action == Action::NavDown

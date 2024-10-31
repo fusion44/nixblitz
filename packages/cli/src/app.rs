@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use cli_log::error;
+use cli_log::{error, info, trace};
 use crossterm::event::KeyEvent;
 use error_stack::{Report, Result, ResultExt};
 use nixblitzlib::system::System;
@@ -41,9 +41,12 @@ pub struct App {
     home_page: ComponentIndex,
     system: System,
 
-    /// Tracks how many modals are open at any given time
-    /// Used to send the actions {Actions::ModalOpen} and {Actions::ModalsClosed}
-    modals_open: u8,
+    /// Tracks if a modal is open
+    modal_open: bool,
+
+    /// Tracks whether this modal has a text area
+    /// this will direct all input to this modal
+    exclusive_input_component_shown: bool,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -76,7 +79,7 @@ impl App {
             ComponentIndex::Menu,
             Box::new(Menu::new(APP_TITLE.len() as u16)),
         );
-        map.insert(ComponentIndex::AppsPage, Box::new(AppsPage::new()));
+        map.insert(ComponentIndex::AppsPage, Box::new(AppsPage::new()?));
         map.insert(ComponentIndex::SettingsPage, Box::new(SettingsPage::new()));
         map.insert(ComponentIndex::ActionsPage, Box::new(ActionsPage::new()));
         map.insert(ComponentIndex::HelpPage, Box::new(HelpPage::new()));
@@ -96,7 +99,8 @@ impl App {
             action_rx,
             home_page: ComponentIndex::AppsPage,
             system,
-            modals_open: 0,
+            modal_open: false,
+            exclusive_input_component_shown: false,
         })
     }
 
@@ -223,7 +227,7 @@ impl App {
                 Action::Tick => {
                     self.last_tick_key_events.drain(..);
                 }
-                Action::Quit => self.should_quit = true,
+                Action::Quit => self.on_quit(),
                 Action::Suspend => self.should_suspend = true,
                 Action::Resume => self.should_suspend = false,
                 Action::ClearScreen => tui.terminal.clear().change_context(CliError::Unknown)?,
@@ -231,12 +235,29 @@ impl App {
                 Action::NavAppsTab
                 | Action::NavSettingsTab
                 | Action::NavActionsTab
-                | Action::NavHelpTab => self.handle_tab_nav(&action),
-                Action::PushModal | Action::PopModal => self.handle_modal_change(&action)?,
+                | Action::NavHelpTab => {
+                    // Don't navigate or forward the event if a modal is opened
+                    if self.modal_open {
+                        continue;
+                    }
+
+                    self.handle_tab_nav(&action);
+                }
+                Action::PushModal(_) | Action::PopModal(_) => self.handle_modal_change(&action)?,
                 _ => {}
             }
+
+            if self.exclusive_input_component_shown {
+                match action {
+                    Action::Esc | Action::PopModal(_) => {}
+                    _ => {
+                        continue;
+                    }
+                }
+            }
+
             for component in self.components_map.iter_mut() {
-                if let Some(action) = component.1.update(action.clone(), self.modals_open > 0)? {
+                if let Some(action) = component.1.update(action.clone(), self.modal_open)? {
                     self.action_tx
                         .send(action)
                         .change_context(CliError::Unknown)?
@@ -244,6 +265,14 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    fn on_quit(&mut self) {
+        if self.modal_open {
+            return;
+        }
+
+        self.should_quit = true;
     }
 
     fn handle_tab_nav(&mut self, action: &Action) {
@@ -279,13 +308,13 @@ impl App {
         self.components_map
             .get_mut(&ComponentIndex::Title)
             .unwrap()
-            .draw(frame, menu_layout[0], self.modals_open > 0)?;
+            .draw(frame, menu_layout[0], self.modal_open)?;
 
         // Draw the menu{
         self.components_map
             .get_mut(&ComponentIndex::Menu)
             .unwrap()
-            .draw(frame, menu_layout[1], self.modals_open > 0)?;
+            .draw(frame, menu_layout[1], self.modal_open)?;
 
         Ok(())
     }
@@ -295,22 +324,22 @@ impl App {
             self.components_map
                 .get_mut(&ComponentIndex::AppsPage)
                 .unwrap()
-                .draw(frame, area, self.modals_open > 0)?;
+                .draw(frame, area, self.modal_open)?;
         } else if self.home_page == ComponentIndex::SettingsPage {
             self.components_map
                 .get_mut(&ComponentIndex::SettingsPage)
                 .unwrap()
-                .draw(frame, area, self.modals_open > 0)?;
+                .draw(frame, area, self.modal_open)?;
         } else if self.home_page == ComponentIndex::ActionsPage {
             self.components_map
                 .get_mut(&ComponentIndex::ActionsPage)
                 .unwrap()
-                .draw(frame, area, self.modals_open > 0)?;
+                .draw(frame, area, self.modal_open)?;
         } else if self.home_page == ComponentIndex::HelpPage {
             self.components_map
                 .get_mut(&ComponentIndex::HelpPage)
                 .unwrap()
-                .draw(frame, area, self.modals_open > 0)?;
+                .draw(frame, area, self.modal_open)?;
         } else {
             todo!();
         }
@@ -343,21 +372,26 @@ impl App {
 
     fn handle_modal_change(&mut self, action: &Action) -> Result<(), CliError> {
         match action {
-            Action::PushModal => {
-                if self.modals_open == u8::MAX {
-                    Err(Report::new(CliError::MaxModalComponentReached))?;
+            Action::PushModal(v) => {
+                if self.modal_open {
+                    Err(Report::new(CliError::MultipleModalsOpened))?;
                 }
-                self.modals_open += 1;
+                self.modal_open = true;
+                self.exclusive_input_component_shown = *v;
             }
-            Action::PopModal => {
-                if self.modals_open == 0 {
-                    Err(Report::new(CliError::NumModalComponentNegative))?;
-                }
-                self.modals_open -= 1;
+            Action::PopModal(_success) => {
+                self.modal_open = false;
+                self.exclusive_input_component_shown = false;
             }
             _ => Err(Report::new(CliError::Unknown)
                 .attach_printable(format!("Receives action wrong {}", action)))?,
         }
+
+        trace!(
+            "Handle modal change. Modals open: {}; has_text_area: {}",
+            self.modal_open,
+            self.exclusive_input_component_shown
+        );
 
         Ok(())
     }

@@ -16,10 +16,12 @@ pub enum CliError {
     UnableToDrawComponent,
     #[error("Length of display name to long")]
     MaxDisplayNameLengthReached,
-    #[error("Negative number of modals reached (below 0)")]
-    NumModalComponentNegative,
-    #[error("Maximum number of modals reached (Max: u8::MAX)")]
-    MaxModalComponentReached,
+    #[error("More than one modal not allowed")]
+    MultipleModalsOpened,
+    #[error("Invalid argument provided")]
+    ArgumentError,
+}
+
 pub fn init_error_handlers() {
     panic::set_hook(Box::new(move |panic_info| {
         let message = panic_info.to_string();

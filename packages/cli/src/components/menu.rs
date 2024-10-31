@@ -46,6 +46,7 @@ impl From<&str> for MenuItem {
         }
     }
 }
+
 // We know that the height of a hitbox of a menu entry is only
 // one line, so we store only the start and the end of the entry
 //
@@ -166,7 +167,7 @@ impl Component for Menu {
             .collect();
 
         let tabs = Tabs::new(menu)
-            .select(self.active_item.into())
+            .select(usize::from(self.active_item))
             .divider(Span::raw("|"));
 
         if let Some(mouse) = self.event {

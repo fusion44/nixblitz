@@ -23,17 +23,17 @@ pub struct AppsPage {
 }
 
 impl AppsPage {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, CliError> {
         let mut instance = Self {
             command_tx: None,
             config: Config::default(),
             app_list: AppList::new(),
-            app_options: AppOptions::new(),
+            app_options: AppOptions::new()?,
             current_focus: FocusableComponent::AppTabList,
             ..Default::default()
         };
         instance.on_focus_req(FocusableComponent::AppTabList);
-        instance
+        Ok(instance)
     }
 
     fn on_app_selected(&mut self, app: SupportedApps) {
@@ -80,6 +80,13 @@ impl Component for AppsPage {
         Ok(None)
     }
 
+    fn handle_key_event(
+        &mut self,
+        key: crossterm::event::KeyEvent,
+    ) -> Result<Option<Action>, CliError> {
+        self.app_options.handle_key_event(key)
+    }
+
     fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
         match action {
             Action::NavUp | Action::NavDown | Action::PageUp | Action::PageDown => {
@@ -114,6 +121,9 @@ impl Component for AppsPage {
             }
             Action::AppTabAppSelected(app) => self.on_app_selected(app),
             Action::FocusRequest(r) => self.on_focus_req(r),
+            Action::PopModal(_) => {
+                self.app_options.update(action, modal_open)?;
+            }
             _ => (),
         }
 
