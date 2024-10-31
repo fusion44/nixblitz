@@ -40,7 +40,7 @@ test:
 
 # run the CLI with debug log enabled, any args are passed to the CLI unaltered
 run-cli *args='':
-  cd {{rust_src}}; $env.NIXBLITZ_LOG = "trace"; cargo run {{args}}
+  cd {{rust_src}}; $env.RUST_BACKTRACE = 1; $env.NIXBLITZ_LOG = "trace"; cargo run {{args}}
 
 # shorthand for rsync this source directory to a remote node.
 rsync target:
