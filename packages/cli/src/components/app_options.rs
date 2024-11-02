@@ -8,7 +8,12 @@ use super::{
     },
     Component,
 };
-use crate::{action::Action, constants::FocusableComponent, errors::CliError};
+use crate::{
+    action::Action,
+    app_contexts::{RenderContext, UpdateContext},
+    constants::FocusableComponent,
+    errors::CliError,
+};
 use cli_log::warn;
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::Result;
@@ -92,7 +97,7 @@ impl AppOptions {
         None
     }
 
-    fn kb_select_item(&mut self, action: Action) {
+    fn kb_select_item(&mut self, action: &Action) {
         match action {
             Action::NavUp => self.select_previous(),
             Action::NavDown => self.select_next(),
@@ -114,9 +119,9 @@ impl AppOptions {
         &mut self,
         frame: &mut Frame,
         area: Rect,
-        modal_open: bool,
+        ctx: &RenderContext,
     ) -> Result<(), CliError> {
-        let block = render_container(&self.title, if modal_open { false } else { self.focus });
+        let block = render_container(&self.title, if ctx.modal_open { false } else { self.focus });
         let total_height = block.inner(area).height;
 
         let is_even = total_height % 2 == 0;
@@ -159,10 +164,10 @@ impl AppOptions {
                 // by options listed later
                 continue;
             }
-            value.draw(frame, layout[index], modal_open)?;
+            value.draw(frame, layout[index], ctx)?;
         }
         if let Some(opt) = self.options.get_mut(self.selected) {
-            opt.draw(frame, layout[self.selected], modal_open)?;
+            opt.draw(frame, layout[self.selected], ctx)?;
         }
 
         Ok(())
@@ -273,32 +278,35 @@ impl Component for AppOptions {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
-        self.modal_open = modal_open;
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
+        self.modal_open = ctx.modal_open;
 
-        if !modal_open && action != Action::PopModal(false) && action != Action::PopModal(true) {
-            match action {
-                Action::NavUp | Action::NavDown => self.kb_select_item(action),
+        if !self.modal_open
+            && ctx.action != Action::PopModal(false)
+            && ctx.action != Action::PopModal(true)
+        {
+            match ctx.action {
+                Action::NavUp | Action::NavDown => self.kb_select_item(&ctx.action),
                 Action::Enter => self.on_enter()?,
                 _ => (),
             }
         } else {
             let option = self.options.get_mut(self.selected);
             let option = option.unwrap();
-            let _ = option.update(action.clone(), modal_open);
+            let _ = option.update(ctx);
         }
 
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         let res = self.check_user_mouse_select(area);
         if let Some(pos) = res {
             self.send_focus_req_action();
             self.mouse_select_item(pos);
         }
 
-        self.render_options_list(frame, area, modal_open)?;
+        self.render_options_list(frame, area, ctx)?;
 
         Ok(())
     }

@@ -2,7 +2,12 @@ use error_stack::{Report, Result, ResultExt};
 use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{action::Action, components::Component, errors::CliError};
+use crate::{
+    action::Action,
+    app_contexts::{RenderContext, UpdateContext},
+    components::Component,
+    errors::CliError,
+};
 
 use super::{
     base_option::{draw_item, OptionListItem},
@@ -100,12 +105,12 @@ impl<'a> OptionListItem for TextOptionComponent<'a> {
 }
 
 impl<'a> Component for TextOptionComponent<'a> {
-    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
-        if action == Action::Esc && self.editing {
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
+        if ctx.action == Action::Esc && self.editing {
             if let Some(ref mut p) = self.popup {
-                p.update(action, modal_open)?;
+                p.update(ctx)?;
             }
-        } else if action == Action::PopModal(true) && self.editing {
+        } else if ctx.action == Action::PopModal(true) && self.editing {
             self.editing = false;
             if let Some(ref mut p) = self.popup {
                 match self.max_lines {
@@ -123,7 +128,7 @@ impl<'a> Component for TextOptionComponent<'a> {
             self.update_subtitle();
             self.check_dirty();
             self.reset_popup();
-        } else if action == Action::PopModal(false) && self.editing {
+        } else if ctx.action == Action::PopModal(false) && self.editing {
             self.editing = false;
             self.reset_popup();
         }
@@ -150,7 +155,7 @@ impl<'a> Component for TextOptionComponent<'a> {
 
         Ok(None)
     }
-    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         draw_item(
             self.selected,
             self.title,
@@ -163,7 +168,7 @@ impl<'a> Component for TextOptionComponent<'a> {
         .attach_printable_lazy(|| format!("Drawing list item titled {}", self.title))?;
 
         if let Some(ref mut p) = self.popup {
-            p.draw(frame, area, modal_open)?;
+            p.draw(frame, area, ctx)?;
         }
 
         Ok(())

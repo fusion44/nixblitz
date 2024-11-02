@@ -3,7 +3,13 @@ use error_stack::Result;
 use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{action::Action, config::Config, errors::CliError, tui::Event};
+use crate::{
+    action::Action,
+    app_contexts::{RenderContext, UpdateContext},
+    config::Config,
+    errors::CliError,
+    tui::Event,
+};
 
 pub mod app_list;
 pub mod app_options;
@@ -108,10 +114,9 @@ pub trait Component {
     /// # Returns
     ///
     /// * `Result<Option<Action>>` - An action to be processed or none.
-    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
         // to appease clippy
-        let _ = modal_open;
-        let _ = action;
+        let _ = ctx;
         Ok(None)
     }
     /// Render the component on the screen. (REQUIRED)
@@ -124,5 +129,5 @@ pub trait Component {
     /// # Returns
     ///
     /// * `Result<(), TempGenericError>` - An Ok result or an error.
-    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError>;
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError>;
 }

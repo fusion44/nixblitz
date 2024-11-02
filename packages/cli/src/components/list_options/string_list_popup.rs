@@ -10,6 +10,7 @@ use ratatui_macros::constraint;
 
 use crate::{
     action::{self, Action},
+    app_contexts::{RenderContext, UpdateContext},
     colors,
     components::{list_options::popup::center, Component},
     errors::CliError,
@@ -90,17 +91,13 @@ impl StringListPopup {
 }
 
 impl Component for StringListPopup {
-    fn update(
-        &mut self,
-        action: action::Action,
-        _: bool,
-    ) -> Result<Option<action::Action>, CliError> {
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<action::Action>, CliError> {
         let pos = self.state.selected();
         if pos.is_none() {
             self.state.select(Some(0));
         }
 
-        match action {
+        match ctx.action {
             Action::NavUp => self.state.select_previous(),
             Action::NavDown => self.state.select_next(),
             Action::PageUp => self.state.scroll_up_by(10),
@@ -111,7 +108,12 @@ impl Component for StringListPopup {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, _: Rect, _: bool) -> error_stack::Result<(), CliError> {
+    fn draw(
+        &mut self,
+        frame: &mut Frame,
+        _: Rect,
+        _: &RenderContext,
+    ) -> error_stack::Result<(), CliError> {
         assert!(u16::try_from(self.options.len()).is_ok());
 
         let height: u16 = self.options.len() as u16 + 2;

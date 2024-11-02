@@ -1,4 +1,4 @@
-use crate::errors::CliError;
+use crate::{app_contexts::RenderContext, errors::CliError};
 use error_stack::Result;
 
 use ratatui::{prelude::*, widgets::*};
@@ -17,7 +17,7 @@ impl Title {
 }
 
 impl Component for Title {
-    fn draw(&mut self, frame: &mut Frame, area: Rect, _: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
         frame.render_widget(Paragraph::new(self.title.clone()), area);
         Ok(())
     }

@@ -10,7 +10,13 @@ use ratatui_macros::constraint;
 use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::TextArea;
 
-use crate::{action::Action, colors, components::Component, errors::CliError};
+use crate::{
+    action::Action,
+    app_contexts::{RenderContext, UpdateContext},
+    colors,
+    components::Component,
+    errors::CliError,
+};
 
 use super::{popup::center, popup_confirm_btn_bar::PopupConfirmButtonBar};
 
@@ -76,8 +82,8 @@ impl<'a> TextInputPopup<'a> {
 }
 
 impl Component for TextInputPopup<'_> {
-    fn update(&mut self, action: Action, _: bool) -> Result<Option<Action>, CliError> {
-        if action == Action::Esc {
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
+        if ctx.action == Action::Esc {
             if let Some(action_tx) = &self.action_tx {
                 let _ = action_tx.send(Action::PopModal(false));
             }
@@ -122,7 +128,7 @@ impl Component for TextInputPopup<'_> {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, _: Rect, modal_open: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, _: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         let rect = frame.area();
         // calculate the max height we can use as a base
         let mut height: u16 = frame.area().height - 4;
@@ -196,7 +202,7 @@ impl Component for TextInputPopup<'_> {
                 width: poparea.width,
                 height: 1,
             },
-            modal_open,
+            ctx,
         )?;
 
         Ok(())

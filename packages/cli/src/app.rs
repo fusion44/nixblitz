@@ -15,6 +15,7 @@ use tokio::sync::mpsc;
 
 use crate::{
     action::Action,
+    app_contexts::{RenderContext, UpdateContext},
     components::{menu::Menu, title::Title, Component},
     config::Config,
     errors::CliError,
@@ -260,8 +261,9 @@ impl App {
                 }
             }
 
+            let ctx = UpdateContext::new(action.clone(), self.modal_open);
             for component in self.components_map.iter_mut() {
-                if let Some(action) = component.1.update(action.clone(), self.modal_open)? {
+                if let Some(action) = component.1.update(&ctx)? {
                     self.action_tx
                         .send(action)
                         .change_context(CliError::Unknown)?
@@ -296,7 +298,12 @@ impl App {
         Ok(())
     }
 
-    fn draw_app_bar(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
+    fn draw_app_bar(
+        &mut self,
+        frame: &mut Frame,
+        area: Rect,
+        ctx: &RenderContext,
+    ) -> Result<(), CliError> {
         let menu_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(
@@ -312,38 +319,43 @@ impl App {
         self.components_map
             .get_mut(&ComponentIndex::Title)
             .unwrap()
-            .draw(frame, menu_layout[0], self.modal_open)?;
+            .draw(frame, menu_layout[0], ctx)?;
 
         // Draw the menu{
         self.components_map
             .get_mut(&ComponentIndex::Menu)
             .unwrap()
-            .draw(frame, menu_layout[1], self.modal_open)?;
+            .draw(frame, menu_layout[1], ctx)?;
 
         Ok(())
     }
 
-    fn draw_app_body(&mut self, frame: &mut Frame, area: Rect) -> Result<(), CliError> {
+    fn draw_app_body(
+        &mut self,
+        frame: &mut Frame,
+        area: Rect,
+        ctx: &RenderContext,
+    ) -> Result<(), CliError> {
         if self.home_page == ComponentIndex::AppsPage {
             self.components_map
                 .get_mut(&ComponentIndex::AppsPage)
                 .unwrap()
-                .draw(frame, area, self.modal_open)?;
+                .draw(frame, area, ctx)?;
         } else if self.home_page == ComponentIndex::SettingsPage {
             self.components_map
                 .get_mut(&ComponentIndex::SettingsPage)
                 .unwrap()
-                .draw(frame, area, self.modal_open)?;
+                .draw(frame, area, ctx)?;
         } else if self.home_page == ComponentIndex::ActionsPage {
             self.components_map
                 .get_mut(&ComponentIndex::ActionsPage)
                 .unwrap()
-                .draw(frame, area, self.modal_open)?;
+                .draw(frame, area, ctx)?;
         } else if self.home_page == ComponentIndex::HelpPage {
             self.components_map
                 .get_mut(&ComponentIndex::HelpPage)
                 .unwrap()
-                .draw(frame, area, self.modal_open)?;
+                .draw(frame, area, ctx)?;
         } else {
             todo!();
         }
@@ -352,18 +364,20 @@ impl App {
     }
 
     fn render(&mut self, tui: &mut Tui) -> Result<(), CliError> {
+        let ctx = RenderContext::new(self.modal_open);
+
         tui.draw(|frame| {
             let main_layout = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints(constraints![==3, *=1, ==5])
-                .split(frame.size());
+                .split(frame.area());
 
-            let res = self.draw_app_bar(frame, main_layout[0]);
+            let res = self.draw_app_bar(frame, main_layout[0], &ctx);
             if let Err(e) = res {
                 error!("{}", e);
             }
 
-            let res = self.draw_app_body(frame, main_layout[1]);
+            let res = self.draw_app_body(frame, main_layout[1], &ctx);
             if let Err(e) = res {
                 error!("{}", e);
             }

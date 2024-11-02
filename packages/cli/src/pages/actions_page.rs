@@ -1,5 +1,6 @@
 use crate::{
     action::Action,
+    app_contexts::{RenderContext, UpdateContext},
     components::{container::render_container, Component},
     config::Config,
     errors::CliError,
@@ -22,7 +23,7 @@ impl ActionsPage {
         }
     }
 
-    fn nav(&mut self, action: Action) {
+    fn nav(&mut self, action: &Action) {
         match action {
             Action::NavUp | Action::NavDown => {}
             Action::NavLeft => todo!(),
@@ -57,22 +58,20 @@ impl Component for ActionsPage {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
-        let _ = modal_open;
-        match action {
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
+        match ctx.action {
             Action::NavUp
             | Action::NavDown
             | Action::NavLeft
             | Action::NavRight
             | Action::Enter
-            | Action::Esc => self.nav(action),
+            | Action::Esc => self.nav(&ctx.action),
             _ => (),
         }
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
-        let _ = modal_open;
+    fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
         let c = render_container(" Actions ", true);
         frame.render_widget(c, area);
 

@@ -2,7 +2,12 @@ use error_stack::{Result, ResultExt};
 use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{action::Action, components::Component, errors::CliError};
+use crate::{
+    action::Action,
+    app_contexts::{RenderContext, UpdateContext},
+    components::Component,
+    errors::CliError,
+};
 
 use super::{
     base_option::{draw_item, OptionListItem},
@@ -135,27 +140,27 @@ impl Component for StringListOptionComponent {
         Ok(())
     }
 
-    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
-        if action == Action::Esc && self.editing {
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
+        if ctx.action == Action::Esc && self.editing {
             self.editing = false;
             self.reset_popup();
             if let Some(tx) = &self.action_tx {
                 let _ = tx.send(Action::PopModal(true));
             }
-        } else if action == Action::NavUp
-            || action == Action::NavDown
-            || action == Action::PageUp
-            || action == Action::PageDown && self.editing
+        } else if ctx.action == Action::NavUp
+            || ctx.action == Action::NavDown
+            || ctx.action == Action::PageUp
+            || ctx.action == Action::PageDown && self.editing
         {
             if let Some(p) = &mut self.string_list_popup {
-                return p.update(action, modal_open);
+                return p.update(ctx);
             }
         }
 
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         draw_item(
             self.selected,
             &self.title,
@@ -168,7 +173,7 @@ impl Component for StringListOptionComponent {
         .attach_printable_lazy(|| format!("Drawing list item titled {}", self.title))?;
 
         if let Some(ref mut p) = self.string_list_popup {
-            let _ = p.draw(frame, area, modal_open);
+            let _ = p.draw(frame, area, ctx);
         }
 
         Ok(())

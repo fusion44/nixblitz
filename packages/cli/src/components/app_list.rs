@@ -1,5 +1,11 @@
 use super::{container::render_container, Component};
-use crate::{action::Action, config::Config, constants::FocusableComponent, errors::CliError};
+use crate::{
+    action::Action,
+    app_contexts::{RenderContext, UpdateContext},
+    config::Config,
+    constants::FocusableComponent,
+    errors::CliError,
+};
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::Result;
 
@@ -53,16 +59,16 @@ impl AppList {
         None
     }
 
-    fn kb_select_item(&mut self, action: Action) {
+    fn kb_select_item(&mut self, action: &Action) {
         let pos = self.state.selected();
         if pos.is_none() {
             self.state.select(Some(0));
             self.send_selected_action(0);
         }
 
-        if action == Action::NavUp {
+        if *action == Action::NavUp {
             self.state.select_previous();
-        } else if action == Action::NavDown {
+        } else if *action == Action::NavDown {
             self.state.select_next();
         }
 
@@ -98,11 +104,11 @@ impl AppList {
         }
     }
 
-    fn render_app_list(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) {
+    fn render_app_list(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) {
         let list = List::new(SupportedApps::as_string_list().to_owned())
             .block(render_container(
                 APP_TITLE,
-                if modal_open { false } else { self.focus },
+                if ctx.modal_open { false } else { self.focus },
             ))
             .highlight_style(Style::new().add_modifier(Modifier::REVERSED))
             .highlight_symbol(">")
@@ -138,23 +144,23 @@ impl Component for AppList {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action, _: bool) -> Result<Option<Action>, CliError> {
-        match action {
-            Action::NavUp | Action::NavDown => self.kb_select_item(action),
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
+        match ctx.action {
+            Action::NavUp | Action::NavDown => self.kb_select_item(&ctx.action),
             _ => {}
         }
 
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         let res = self.check_user_mouse_select(area);
         if let Some(pos) = res {
             self.send_focus_req_action();
             self.mouse_select_item(pos);
         }
 
-        self.render_app_list(frame, area, modal_open);
+        self.render_app_list(frame, area, ctx);
         Ok(())
     }
 }

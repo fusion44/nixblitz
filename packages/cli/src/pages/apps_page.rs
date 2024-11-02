@@ -1,5 +1,6 @@
 use crate::{
     action::Action,
+    app_contexts::{RenderContext, UpdateContext},
     components::{app_list::AppList, app_options::AppOptions, Component},
     config::Config,
     constants::FocusableComponent,
@@ -87,17 +88,17 @@ impl Component for AppsPage {
         self.app_options.handle_key_event(key)
     }
 
-    fn update(&mut self, action: Action, modal_open: bool) -> Result<Option<Action>, CliError> {
-        match action {
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
+        match ctx.action {
             Action::NavUp | Action::NavDown | Action::PageUp | Action::PageDown => {
-                if modal_open {
-                    return self.app_options.update(action.clone(), modal_open);
+                if ctx.modal_open {
+                    return self.app_options.update(ctx);
                 }
 
                 if self.current_focus == FocusableComponent::AppTabList {
-                    return self.app_list.update(action, modal_open);
+                    return self.app_list.update(ctx);
                 } else if self.current_focus == FocusableComponent::AppTabOptions {
-                    return self.app_options.update(action, modal_open);
+                    return self.app_options.update(ctx);
                 }
             }
             Action::NavLeft | Action::NavRight => todo!(),
@@ -111,8 +112,8 @@ impl Component for AppsPage {
                 }
             }
             Action::Esc => {
-                if modal_open {
-                    return self.app_options.update(action, modal_open);
+                if ctx.modal_open {
+                    return self.app_options.update(ctx);
                 }
 
                 if self.current_focus == FocusableComponent::AppTabOptions {
@@ -122,7 +123,7 @@ impl Component for AppsPage {
             Action::AppTabAppSelected(app) => self.on_app_selected(app),
             Action::FocusRequest(r) => self.on_focus_req(r),
             Action::PopModal(_) => {
-                self.app_options.update(action, modal_open)?;
+                self.app_options.update(ctx)?;
             }
             _ => (),
         }
@@ -130,14 +131,14 @@ impl Component for AppsPage {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect, modal_open: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(constraints![==20, >=25])
             .split(area);
 
-        self.app_list.draw(frame, layout[0], modal_open)?;
-        self.app_options.draw(frame, layout[1], modal_open)?;
+        self.app_list.draw(frame, layout[0], ctx)?;
+        self.app_options.draw(frame, layout[1], ctx)?;
 
         Ok(())
     }

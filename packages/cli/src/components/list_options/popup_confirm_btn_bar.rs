@@ -8,11 +8,7 @@ use ratatui::{
 };
 use ratatui_macros::constraints;
 
-use crate::{
-    colors::{self},
-    components::Component,
-    errors::CliError,
-};
+use crate::{app_contexts::RenderContext, colors, components::Component, errors::CliError};
 
 #[derive(Debug)]
 pub struct PopupConfirmButtonBar {
@@ -43,7 +39,7 @@ impl PopupConfirmButtonBar {
 }
 
 impl Component for PopupConfirmButtonBar {
-    fn draw(&mut self, frame: &mut Frame, area: Rect, _: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(constraints![==self.button_length,==self.button_length])

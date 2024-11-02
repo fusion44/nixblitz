@@ -1,7 +1,7 @@
 use error_stack::{Report, Result, ResultExt};
 use ratatui::{layout::Rect, Frame};
 
-use crate::{components::Component, errors::CliError};
+use crate::{app_contexts::RenderContext, components::Component, errors::CliError};
 
 use super::base_option::{draw_item, OptionListItem};
 
@@ -59,7 +59,7 @@ impl OptionListItem for BoolOptionComponent {
 }
 
 impl Component for BoolOptionComponent {
-    fn draw(&mut self, frame: &mut Frame, area: Rect, _: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
         draw_item(
             self.selected,
             &self.title,

@@ -7,6 +7,7 @@ use errors::CliError;
 
 mod action;
 mod app;
+mod app_contexts;
 mod cli;
 mod colors;
 mod commands;

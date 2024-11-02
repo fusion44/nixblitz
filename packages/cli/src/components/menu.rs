@@ -9,7 +9,12 @@ use ratatui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{action::Action, config::Config, constants::HIGHLIGHT_COLOR, errors::CliError};
+use crate::{
+    action::Action,
+    app_contexts::{RenderContext, UpdateContext},
+    config::Config,
+    errors::CliError,
+};
 
 use super::Component;
 
@@ -121,8 +126,8 @@ impl Component for Menu {
         Ok(None)
     }
 
-    fn update(&mut self, action: Action, _: bool) -> Result<Option<Action>, CliError> {
-        match action {
+    fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
+        match ctx.action {
             Action::NavAppsTab => self.set_active_item(MenuItem::Apps),
             Action::NavSettingsTab => self.set_active_item(MenuItem::Settings),
             Action::NavActionsTab => self.set_active_item(MenuItem::Actions),
@@ -133,7 +138,7 @@ impl Component for Menu {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect, _: bool) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
         let menu: Vec<_> = self
             .entries
             .iter()
@@ -146,7 +151,7 @@ impl Component for Menu {
                         Span::styled(
                             "c",
                             Style::default()
-                                .fg(HIGHLIGHT_COLOR)
+                                .fg(Color::Yellow)
                                 .add_modifier(Modifier::UNDERLINED),
                         ),
                         Span::styled(spl[1], Style::default().fg(Color::White)),
@@ -157,7 +162,7 @@ impl Component for Menu {
                         Span::styled(
                             first,
                             Style::default()
-                                .fg(HIGHLIGHT_COLOR)
+                                .fg(Color::Yellow)
                                 .add_modifier(Modifier::UNDERLINED),
                         ),
                         Span::styled(rest, Style::default().fg(Color::White)),
