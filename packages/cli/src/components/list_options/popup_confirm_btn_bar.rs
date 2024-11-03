@@ -2,13 +2,19 @@ use error_stack::{Report, Result};
 use ratatui::{
     layout::{Direction, Flex, Layout, Rect},
     style::Stylize,
-    text::Span,
-    widgets::{Clear, Paragraph},
+    widgets::{Block, Clear},
     Frame,
 };
 use ratatui_macros::constraints;
 
-use crate::{app_contexts::RenderContext, colors, components::Component, errors::CliError};
+use crate::{
+    app_contexts::RenderContext,
+    components::{
+        theme::{button, popup},
+        Component,
+    },
+    errors::CliError,
+};
 
 #[derive(Debug)]
 pub struct PopupConfirmButtonBar {
@@ -39,7 +45,7 @@ impl PopupConfirmButtonBar {
 }
 
 impl Component for PopupConfirmButtonBar {
-    fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(constraints![==self.button_length,==self.button_length])
@@ -52,17 +58,14 @@ impl Component for PopupConfirmButtonBar {
         };
 
         frame.render_widget(Clear, area);
+        frame.render_widget(
+            Block::new().bg(ctx.theme_data.colors.surface_container_high),
+            area,
+        );
         for (index, button) in self.buttons.iter().enumerate() {
             let p = match btn == index as u16 {
-                true => Paragraph::new(Span::from(button))
-                    .centered()
-                    .bold()
-                    .bg(colors::DEEP_PURPLE_600)
-                    .fg(colors::WHITE),
-                false => Paragraph::new(Span::from(button))
-                    .centered()
-                    .bg(colors::TEAL_700)
-                    .fg(colors::WHITE),
+                true => popup::button::focused(button, ctx),
+                false => popup::button::default(button, ctx),
             };
 
             frame.render_widget(p, layout[index]);

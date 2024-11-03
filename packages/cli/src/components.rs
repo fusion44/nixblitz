@@ -13,9 +13,10 @@ use crate::{
 
 pub mod app_list;
 pub mod app_options;
-pub mod container;
+pub mod default_theme;
 pub mod list_options;
 pub mod menu;
+pub mod theme;
 pub mod title;
 
 /// `Component` is a trait that represents a visual and interactive element of the user interface.
@@ -123,7 +124,6 @@ pub trait Component {
     ///
     /// # Arguments
     ///
-    /// * `f` - A frame used for rendering.
     /// * `area` - The area in which the component should be drawn.
     ///
     /// # Returns

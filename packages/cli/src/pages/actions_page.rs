@@ -1,7 +1,7 @@
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{container::render_container, Component},
+    components::{theme, Component},
     config::Config,
     errors::CliError,
 };
@@ -71,8 +71,8 @@ impl Component for ActionsPage {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
-        let c = render_container(" Actions ", true);
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
+        let c = theme::block::default(" Actions ", ctx);
         frame.render_widget(c, area);
 
         Ok(())

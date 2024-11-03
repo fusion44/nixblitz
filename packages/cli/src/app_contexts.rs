@@ -1,13 +1,17 @@
-use crate::action::Action;
+use crate::{action::Action, components::theme::ThemeData};
 
 #[derive(Debug)]
-pub struct RenderContext {
+pub struct RenderContext<'a> {
     pub modal_open: bool,
+    pub theme_data: &'a ThemeData,
 }
 
-impl RenderContext {
-    pub fn new(modal_open: bool) -> Self {
-        Self { modal_open }
+impl<'a> RenderContext<'a> {
+    pub fn new(modal_open: bool, color_data: &'a ThemeData) -> Self {
+        Self {
+            modal_open,
+            theme_data: color_data,
+        }
     }
 }
 

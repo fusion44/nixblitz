@@ -5,13 +5,13 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::Component,
+    components::{theme::list::SelectableListItem, Component},
     errors::CliError,
 };
 
 use super::{
     base_option::{draw_item, OptionListItem},
-    string_list_popup::{PopupItem, StringListPopup},
+    string_list_popup::StringListPopup,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -81,7 +81,7 @@ impl StringListOptionComponent {
             &self.title,
             self.options
                 .iter()
-                .map(|i| PopupItem {
+                .map(|i| SelectableListItem {
                     value: i.value.clone(),
                     selected: i.selected,
                     display_title: i.display_name.clone(),

@@ -1,4 +1,4 @@
-use super::{container::render_container, Component};
+use super::{theme::list, Component};
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
@@ -105,14 +105,13 @@ impl AppList {
     }
 
     fn render_app_list(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) {
-        let list = List::new(SupportedApps::as_string_list().to_owned())
-            .block(render_container(
-                APP_TITLE,
-                if ctx.modal_open { false } else { self.focus },
-            ))
-            .highlight_style(Style::new().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">")
-            .repeat_highlight_symbol(true);
+        let list: List = if ctx.modal_open {
+            list::dimmed(APP_TITLE, SupportedApps::as_string_list(), ctx)
+        } else if self.focus {
+            list::focused(APP_TITLE, SupportedApps::as_string_list(), ctx)
+        } else {
+            list::default(APP_TITLE, SupportedApps::as_string_list(), ctx)
+        };
 
         frame.render_stateful_widget(list, area, &mut self.state);
     }

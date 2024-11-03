@@ -1,11 +1,11 @@
 use super::{
-    container::render_container,
     list_options::{
         base_option::OptionListItem,
         bool::BoolOptionComponent,
         string_list::{StringListOption, StringListOptionComponent},
         text::TextOptionComponent,
     },
+    theme::block,
     Component,
 };
 use crate::{
@@ -121,7 +121,17 @@ impl AppOptions {
         area: Rect,
         ctx: &RenderContext,
     ) -> Result<(), CliError> {
-        let block = render_container(&self.title, if ctx.modal_open { false } else { self.focus });
+        let block = if ctx.modal_open {
+            block::dimmed(&self.title, ctx)
+        } else if self.focus {
+            block::focused(&self.title, ctx)
+        } else {
+            block::default(&self.title, ctx)
+        };
+        let block = block
+            .bg(ctx.theme_data.colors.surface)
+            .fg(ctx.theme_data.colors.on_surface_var);
+
         let total_height = block.inner(area).height;
 
         let is_even = total_height % 2 == 0;

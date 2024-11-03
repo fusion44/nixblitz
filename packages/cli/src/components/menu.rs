@@ -1,12 +1,6 @@
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use error_stack::{Result, ResultExt};
-use ratatui::{
-    layout::Rect,
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::Tabs,
-    Frame,
-};
+use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
@@ -16,7 +10,7 @@ use crate::{
     errors::CliError,
 };
 
-use super::Component;
+use super::{theme::menu, Component};
 
 const MARGIN: u16 = 2;
 
@@ -138,43 +132,21 @@ impl Component for Menu {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
-        let menu: Vec<_> = self
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
+        let items: Vec<_> = self
             .entries
             .iter()
             .enumerate()
             .map(|(index, t)| {
                 if index == 2 {
-                    let spl: Vec<_> = t.title.split('c').collect();
-                    Line::from(vec![
-                        Span::styled(spl[0], Style::default().fg(Color::White)),
-                        Span::styled(
-                            "c",
-                            Style::default()
-                                .fg(Color::Yellow)
-                                .add_modifier(Modifier::UNDERLINED),
-                        ),
-                        Span::styled(spl[1], Style::default().fg(Color::White)),
-                    ])
+                    menu::item(t.title.as_str(), 2, ctx)
                 } else {
-                    let (first, rest) = t.title.split_at(1);
-                    Line::from(vec![
-                        Span::styled(
-                            first,
-                            Style::default()
-                                .fg(Color::Yellow)
-                                .add_modifier(Modifier::UNDERLINED),
-                        ),
-                        Span::styled(rest, Style::default().fg(Color::White)),
-                    ])
+                    menu::item(t.title.as_str(), 1, ctx)
                 }
             })
             .collect();
 
-        let tabs = Tabs::new(menu)
-            .select(usize::from(self.active_item))
-            .divider(Span::raw("|"));
-
+        let tabs = menu::tab_bar(items, self.active_item.into(), ctx);
         if let Some(mouse) = self.event {
             if mouse.kind == MouseEventKind::Up(MouseButton::Left)
                 && mouse.row == area.y

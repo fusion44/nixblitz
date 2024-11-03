@@ -16,7 +16,12 @@ use tokio::sync::mpsc;
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{menu::Menu, title::Title, Component},
+    components::{
+        menu::Menu,
+        theme::{self, ThemeData},
+        title::Title,
+        Component,
+    },
     config::Config,
     errors::CliError,
     pages::{
@@ -42,6 +47,7 @@ pub struct App {
     home_page: ComponentIndex,
     system: System,
     dirty: bool,
+    theme: ThemeData,
 
     /// Tracks if a modal is open
     modal_open: bool,
@@ -104,10 +110,13 @@ impl App {
             modal_open: false,
             exclusive_input_component_shown: false,
             dirty: true,
+            theme: ThemeData::default(),
         })
     }
 
     pub async fn run(&mut self) -> Result<(), CliError> {
+        self.theme.set_theme("pale-green", "dark")?;
+
         let mut tui = Tui::new()?
             .mouse(true)
             .tick_rate(self.tick_rate)
@@ -364,12 +373,15 @@ impl App {
     }
 
     fn render(&mut self, tui: &mut Tui) -> Result<(), CliError> {
-        let ctx = RenderContext::new(self.modal_open);
+        // TODO: try not to clone this, but pass a reference.
+        //       maybe include the frame in the context object
+        let t = self.theme.clone();
+        let ctx = RenderContext::new(self.modal_open, &t);
 
         tui.draw(|frame| {
             let main_layout = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints(constraints![==3, *=1, ==5])
+                .constraints(constraints![==1, *=1, ==2])
                 .split(frame.area());
 
             let res = self.draw_app_bar(frame, main_layout[0], &ctx);
@@ -381,6 +393,7 @@ impl App {
             if let Err(e) = res {
                 error!("{}", e);
             }
+            frame.render_widget(theme::block::no_border(&ctx), main_layout[2]);
         })
         .attach_printable_lazy(|| "Unable to draw the frame")
         .change_context(CliError::Unknown)?;

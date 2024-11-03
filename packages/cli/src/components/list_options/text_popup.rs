@@ -2,8 +2,7 @@ use crossterm::event::KeyCode;
 use error_stack::{Result, ResultExt};
 use ratatui::{
     layout::{Margin, Rect},
-    style::Style,
-    widgets::{Block, Borders, Clear, Padding, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Clear, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
 use ratatui_macros::constraint;
@@ -13,8 +12,7 @@ use tui_textarea::TextArea;
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    colors,
-    components::Component,
+    components::{theme::popup, Component},
     errors::CliError,
 };
 
@@ -43,10 +41,9 @@ pub struct TextInputPopup<'a> {
 
 impl<'a> TextInputPopup<'a> {
     pub fn new(title: &str, lines: Vec<String>, max_lines: u16) -> Result<Self, CliError> {
-        let ta = TextArea::new(lines.clone());
         Ok(Self {
             title: format!(" {} ", title),
-            text_area: ta,
+            text_area: TextArea::new(lines.clone()),
             max_lines,
             num_lines: 0,
             ..Default::default()
@@ -152,19 +149,12 @@ impl Component for TextInputPopup<'_> {
             constraint!(==height),
         );
 
-        let text_area_style = match self.focus {
-            PopupFocus::Edit => Style::new().fg(colors::DEEP_PURPLE_300),
-            _ => Style::new().fg(colors::TEAL_700),
+        let title = self.title.clone();
+        let block = match self.focus {
+            PopupFocus::Edit => popup::block_focused(title, ctx),
+            _ => popup::block(title, ctx),
         };
-        self.text_area.set_block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(self.title.clone())
-                .title_alignment(ratatui::layout::Alignment::Center)
-                .padding(Padding::horizontal(1))
-                .border_type(ratatui::widgets::BorderType::Rounded)
-                .border_style(text_area_style),
-        );
+        self.text_area.set_block(block);
 
         frame.render_widget(Clear, poparea);
         frame.render_widget(&self.text_area, poparea);
@@ -192,18 +182,21 @@ impl Component for TextInputPopup<'_> {
             PopupFocus::Accept => Some(0),
             PopupFocus::Cancel => Some(1),
         };
-        let mut bar =
-            PopupConfirmButtonBar::new(btn_state, ["ACCEPT".into(), "CANCEL".into()].to_vec())?;
-        bar.draw(
-            frame,
-            Rect {
-                x: poparea.left(),
-                y: poparea.bottom(),
-                width: poparea.width,
-                height: 1,
-            },
-            ctx,
-        )?;
+
+        if self.max_lines > 1 {
+            let mut bar =
+                PopupConfirmButtonBar::new(btn_state, ["ACCEPT".into(), "CANCEL".into()].to_vec())?;
+            bar.draw(
+                frame,
+                Rect {
+                    x: poparea.left(),
+                    y: poparea.bottom(),
+                    width: poparea.width,
+                    height: 1,
+                },
+                ctx,
+            )?;
+        }
 
         Ok(())
     }

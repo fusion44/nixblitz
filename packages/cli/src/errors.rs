@@ -20,6 +20,8 @@ pub enum CliError {
     MultipleModalsOpened,
     #[error("Invalid argument provided")]
     ArgumentError,
+    #[error("JSON parse error")]
+    JsonParseError,
 }
 
 pub fn init_error_handlers() {

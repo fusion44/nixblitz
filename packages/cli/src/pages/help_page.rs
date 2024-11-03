@@ -5,7 +5,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{container::render_container, Component},
+    components::{theme, Component},
     config::Config,
     errors::CliError,
 };
@@ -72,8 +72,8 @@ impl Component for HelpPage {
         Ok(None)
     }
 
-    fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
-        let c = render_container(" Help ", true);
+    fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
+        let c = theme::block::default(" Help ", ctx);
         frame.render_widget(c, area);
 
         Ok(())

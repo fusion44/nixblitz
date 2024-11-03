@@ -1,9 +1,7 @@
 use error_stack::{Report, Result};
 use ratatui::{
     layout::Rect,
-    style::{Modifier, Style},
-    text::Line,
-    widgets::{Block, Borders, Clear, List, ListItem, ListState, Padding},
+    widgets::{Clear, ListState},
     Frame,
 };
 use ratatui_macros::constraint;
@@ -11,23 +9,17 @@ use ratatui_macros::constraint;
 use crate::{
     action::{self, Action},
     app_contexts::{RenderContext, UpdateContext},
-    colors,
-    components::{list_options::popup::center, Component},
+    components::{
+        list_options::popup::center,
+        theme::{
+            block,
+            list::{self, SelectableListItem},
+            popup::{self, block},
+        },
+        Component,
+    },
     errors::CliError,
 };
-
-/// Represents an item within a Popup menu.
-#[derive(Debug)]
-pub struct PopupItem {
-    /// The underlying value associated with the item.
-    pub value: String,
-
-    /// Indicates whether the item is currently selected.
-    pub selected: bool,
-
-    /// The title displayed for the item in the Popup menu.
-    pub display_title: String,
-}
 
 /// Represents a Popup menu widget for string lists.
 #[derive(Debug, Default)]
@@ -36,7 +28,7 @@ pub struct StringListPopup {
     title: String,
 
     /// The list of items contained within the Popup menu.
-    options: Vec<PopupItem>,
+    options: Vec<SelectableListItem>,
 
     /// Maintains the current selection state within the Popup menu.
     state: ListState,
@@ -56,7 +48,7 @@ impl StringListPopup {
     /// # Returns
     /// A `Result` containing the constructed `Popup` or a `CliError`
     /// if the maximum title length exceeds 128 characters.
-    pub fn new(title: &str, options: Vec<PopupItem>) -> Result<Self, CliError> {
+    pub fn new(title: &str, options: Vec<SelectableListItem>) -> Result<Self, CliError> {
         let mut selected_id = 0;
         let max_len = options
             .iter()
@@ -112,7 +104,7 @@ impl Component for StringListPopup {
         &mut self,
         frame: &mut Frame,
         _: Rect,
-        _: &RenderContext,
+        ctx: &RenderContext,
     ) -> error_stack::Result<(), CliError> {
         assert!(u16::try_from(self.options.len()).is_ok());
 
@@ -120,34 +112,12 @@ impl Component for StringListPopup {
         let width: u16 = self.max_len + 12;
 
         let poparea = center(frame.area(), constraint!(==width), constraint!(==height));
-
-        let block = Block::default()
-            .title(self.title.as_str())
-            .title_alignment(ratatui::layout::Alignment::Center)
-            .padding(Padding::horizontal(1))
-            .borders(Borders::ALL)
-            .border_type(ratatui::widgets::BorderType::Rounded)
-            .border_style(Style::new().fg(colors::CYAN_700));
-
-        let list_items: Vec<ListItem> = self.options.iter().map(ListItem::from).collect();
-        let list = List::new(list_items)
-            .highlight_style(Style::new().add_modifier(Modifier::REVERSED))
-            .highlight_symbol("|")
-            .block(block);
+        let block = popup::block_focused(self.title.clone(), ctx);
+        let list = list::select::default(&self.options, ctx).block(block);
 
         frame.render_widget(Clear, poparea);
         frame.render_stateful_widget(list, poparea, &mut self.state);
 
         Ok(())
-    }
-}
-
-impl From<&PopupItem> for ListItem<'_> {
-    fn from(value: &PopupItem) -> Self {
-        let line = match value.selected {
-            false => Line::styled(format!(" ☐ {}", value.display_title), colors::WHITE),
-            true => Line::styled(format!(" ✓ {}", value.display_title), colors::CYAN_500),
-        };
-        ListItem::new(line)
     }
 }
