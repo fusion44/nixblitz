@@ -28,6 +28,8 @@ pub enum TemplatingError {
     FileNotFound,
     #[error("Unable to generate the json string")]
     JsonRenderError,
+    #[error("Unable to load the json string")]
+    JsonLoadError,
 }
 
 #[derive(Debug, Error)]

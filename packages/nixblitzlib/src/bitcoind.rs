@@ -1,13 +1,17 @@
-use core::str;
+use core::{fmt, str};
+use std::{collections::HashMap, net::IpAddr, str::FromStr};
 
 use alejandra::format;
 
-use crate::utils::{self};
+use error_stack::{Report, Result, ResultExt};
 use garde::Validate;
+use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 
+use crate::{errors::TemplatingError, utils::BASE_TEMPLATE};
+
 /// Represents all available Bitcoin network options
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub enum BitcoinNetwork {
     #[default]
     /// [default] The mainnet network
@@ -23,6 +27,17 @@ pub enum BitcoinNetwork {
     Signet,
 }
 
+impl fmt::Display for BitcoinNetwork {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BitcoinNetwork::Mainnet => write!(f, "Mainnet"),
+            BitcoinNetwork::Testnet => write!(f, "Testnet"),
+            BitcoinNetwork::Regtest => write!(f, "Regtest"),
+            BitcoinNetwork::Signet => write!(f, "Signet"),
+        }
+    }
+}
+
 /// Prune options for a blockchain.
 ///
 /// This enum defines the different pruning strategies that can be used.
@@ -36,7 +51,7 @@ pub enum BitcoinNetwork {
 ///
 /// let options = PruneOptions::Automatic { prune_at: 1024 };
 /// ```
-#[derive(Debug, Validate, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Validate, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub enum PruneOptions {
     #[default]
     /// [default] Pruning disabled
@@ -61,7 +76,7 @@ pub enum PruneOptions {
     },
 }
 
-#[derive(Debug, Validate, Serialize, Deserialize)]
+#[derive(Debug, Validate, Serialize, Deserialize, Eq, PartialEq)]
 pub struct BitcoinDaemonServiceRPCUser {
     /// Password HMAC-SHA-256 for JSON-RPC connections. Must be a string of the format <SALT-HEX>$<HMAC-HEX>.
 
@@ -75,55 +90,47 @@ pub struct BitcoinDaemonServiceRPCUser {
     pub name: String,
 }
 
-#[derive(Debug, Validate, Serialize, Deserialize, Default)]
+impl BitcoinDaemonServiceRPCUser {
+    pub fn new(password_hmac: String, name: String) -> Self {
+        Self {
+            password_hmac,
+            name,
+        }
+    }
+}
+
+#[derive(Debug, Validate, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BitcoinDaemonService {
     /// Whether the service is enabled or not
     #[garde(skip)]
-    pub enabled: bool,
+    pub enable: bool,
 
-    /// The name of the instance.
+    /// Address to listen for peer connections
     #[garde(skip)]
-    pub name: Option<String>,
+    pub address: IpAddr,
 
-    /// The user as which to run bitcoind.
-    #[garde(length(min = 3))]
-    pub user: Option<String>,
-
-    /// Whether to use the testnet instead of mainnet.
-    #[garde(skip)]
-    pub network: BitcoinNetwork,
-
-    /// RPC user information for JSON-RPC connections.
-    #[garde(skip)]
-    pub rpc_users: Vec<BitcoinDaemonServiceRPCUser>,
-
-    /// Override the default port on which to listen for JSON-RPC connections.
-    #[garde(range(min = 1024, max = 65535))]
-    pub rpc_port: Option<u16>,
-
-    /// Whether to prune the node
-    // #[garde(custom(_check_prune(&self)))]
-    #[garde(skip)]
-    pub prune: Option<PruneOptions>,
-
-    /// The size in MiB at which the blockchain on disk will be pruned.
+    /// Port to listen for peer connections.
     ///
-    /// * Only active if prune is set to automatic
-    /// * Must be at least 1 MiB
-    #[garde(range(min = 1))]
-    pub prune_size: Option<u16>,
-
-    /// Override the default port on which to listen for connections.
+    /// Default: mainnet 8333
+    ///          regtest 18444
     #[garde(range(min = 1024, max = 65535))]
-    pub port: Option<u16>,
+    pub port: u16,
 
-    /// The bitcoind package to use.
-    #[garde(skip)]
-    pub package: Option<String>,
+    /// Port to listen for Tor peer connections.
+    /// If set, inbound connections to this port are tagged as onion peers.
+    ///
+    /// Default: None
+    ///          mainnet 8334
+    ///          regtest 18445
+    #[garde(range(min = 1024, max = 65535))]
+    pub onion_port: Option<u16>,
 
-    /// The group ta which to run bitcoind.
+    /// Listen for peer connections at `address:port`
+    /// and `address:onionPort` (if {option}`onionPort` is set).
+    ///
+    /// Default: false
     #[garde(skip)]
-    pub group: Option<String>,
+    pub listen: bool,
 
     /// Additional configurations to be appended to bitcoin.conf
     /// Strings concatenated with "\n"
@@ -136,24 +143,72 @@ pub struct BitcoinDaemonService {
     /// logips=1
     /// ''
     #[garde(skip)]
-    pub extra_config: Option<String>,
+    pub extra_config: String,
+
+    /// The user as which to run bitcoind.
+    #[garde(length(min = 3))]
+    pub user: String,
+
+    /// Whether to use the testnet instead of mainnet.
+    #[garde(skip)]
+    pub network: BitcoinNetwork,
+
+    /// Allowed users for JSON-RPC connections.
+    #[garde(skip)]
+    pub rpc_users: Vec<BitcoinDaemonServiceRPCUser>,
+
+    /// Address to listen for rpc connections
+    #[garde(skip)]
+    pub rpc_address: IpAddr,
+
+    /// Override the default port on which to listen for JSON-RPC connections.
+    #[garde(range(min = 1024, max = 65535))]
+    pub rpc_port: u16,
+
+    /// Hosts that should be allowed to connect to the RPC server
+    ///
+    /// Example: "192.168.0.0/16"
+    /// Default: None
+    #[garde(skip)]
+    pub rpc_allow_ip: Vec<IpAddr>,
+
+    /// Whether to prune the node
+    // #[garde(custom(_check_prune(&self)))]
+    #[garde(skip)]
+    pub prune: PruneOptions,
+
+    /// The size in MiB at which the blockchain on disk will be pruned.
+    ///
+    /// * Only active if prune is set to automatic
+    /// * Must be at least 500 MiB
+    #[garde(range(min = 500))]
+    pub prune_size: u16,
 
     /// Extra command line options to pass to bitcoind. Run bitcoind –help to list all available options.
     #[garde(skip)]
-    pub extra_cmd_line_options: Option<Vec<String>>,
+    pub extra_cmd_line_options: Vec<String>,
 
     /// Override the default database cache size in MiB.
     /// Integer between 4 and 16384 (both inclusive)
+    ///
+    /// Example: 4000
+    /// Default: None
     #[garde(range(min = 4, max = 16384))]
     pub db_cache: Option<i16>,
 
     /// The data directory for bitcoind.
+    ///
+    /// Default: "/var/lib/bitcoind"
     #[garde(skip)]
-    pub data_dir: Option<String>,
+    pub data_dir: String,
 
     /// Whether to enable the tx index
     #[garde(skip)]
-    pub tx_index: Option<bool>,
+    pub tx_index: bool,
+
+    /// Whether to enable the integrated wallet
+    #[garde(skip)]
+    pub disable_wallet: bool,
 
     /// ZMQ address for zmqpubrawtx notifications
     ///
@@ -170,569 +225,305 @@ pub struct BitcoinDaemonService {
     pub zmqpubrawblock: Option<String>,
 }
 
-pub(crate) fn clean_string(value: &str) -> Result<String, String> {
-    if value.starts_with('"') && value.ends_with('"') {
-        return Ok(value[1..value.len() - 1].to_string());
-    }
-
-    if value.starts_with("''") && value.ends_with("''") {
-        return Ok(value[2..value.len() - 2].to_string());
-    }
-
-    Err(format!(
-        "Unable to determine string type of string: {}",
-        value
-    ))
-}
-
-fn parse_multiline_string(begin: usize, data: &str) -> Result<String, String> {
-    let mut new_str = String::from("");
-    for line in data.lines().skip(begin + 1) {
-        if line.contains("'';") {
-            return Ok(new_str.trim().to_string());
+impl Default for BitcoinDaemonService {
+    fn default() -> Self {
+        Self {
+            enable: false,
+            address: IpAddr::from_str("127.0.0.1").unwrap(),
+            port: 8333,
+            onion_port: None,
+            listen: false,
+            extra_config: "".into(),
+            user: "admin".into(),
+            network: BitcoinNetwork::Mainnet,
+            rpc_users: [].into(),
+            rpc_address: IpAddr::from_str("127.0.0.1").unwrap(),
+            rpc_port: 8332,
+            rpc_allow_ip: [].into(),
+            prune: PruneOptions::Disable,
+            prune_size: 2000,
+            extra_cmd_line_options: [].into(),
+            db_cache: None,
+            data_dir: "/var/lib/bitcoind".into(),
+            tx_index: false,
+            disable_wallet: true,
+            zmqpubrawtx: None,
+            zmqpubrawblock: None,
         }
-        new_str.push_str(format!("{}\n", line.trim()).as_str());
     }
-
-    Err("Unable to parse String at".to_string())
 }
 
+const FILE_NAME: &str = "src/apps/bitcoind.nix.templ";
+
+fn quoted_string_or_null(value: Option<String>) -> String {
+    match value {
+        Some(value) => format!("\"{}\"", value).to_string(),
+        None => "null".to_string(),
+    }
+}
 impl BitcoinDaemonService {
-    pub fn from_string(data: &str) -> Result<BitcoinDaemonService, String> {
-        let mut config = BitcoinDaemonService::default();
+    pub fn render(&self) -> Result<HashMap<String, String>, TemplatingError> {
+        let mut handlebars = Handlebars::new();
+        handlebars.register_escape_fn(no_escape);
 
-        let lines = data.lines();
-        for (n, line) in lines.enumerate() {
-            let new_line = &line
-                .replace("services.bitcoin.", "")
-                .replace(';', "")
-                .trim()
-                .to_string();
-
-            if let Some((key, value)) = new_line.split_once('=') {
-                match key.trim() {
-                    "enable" => match value.trim().parse() {
-                        Ok(parsed_value) => config.enabled = parsed_value,
-                        Err(_) => return Err(format!("Unable to parse line: {}", line)),
-                    },
-                    "name" => match clean_string(value.trim()) {
-                        Ok(cleaned) => config.name = Some(cleaned),
-                        Err(msg) => return Err(msg),
-                    },
-                    "user" => match clean_string(value.trim()) {
-                        Ok(cleaned) => config.user = Some(cleaned),
-                        Err(msg) => return Err(msg),
-                    },
-                    "group" => match clean_string(value.trim()) {
-                        Ok(cleaned) => config.group = Some(cleaned),
-                        Err(msg) => return Err(msg),
-                    },
-                    "package" => match clean_string(value.trim()) {
-                        Ok(cleaned) => config.package = Some(cleaned),
-                        Err(msg) => return Err(msg),
-                    },
-                    "port" => match value.trim().parse() {
-                        Ok(parsed_value) => config.port = Some(parsed_value),
-                        Err(_) => return Err(format!("Unable to parse line: {}", line)),
-                    },
-                    "txindex" => match value.trim().parse() {
-                        Ok(parsed_value) => config.tx_index = Some(parsed_value),
-                        Err(_) => return Err(format!("Unable to parse line: {}", line)),
-                    },
-                    "dbCache" => match value.trim().parse() {
-                        Ok(parsed_value) => config.db_cache = Some(parsed_value),
-                        Err(_) => return Err(format!("Unable to parse line: {}", line)),
-                    },
-                    "dataDir" => match clean_string(value.trim()) {
-                        Ok(cleaned) => config.data_dir = Some(cleaned),
-                        Err(msg) => return Err(msg),
-                    },
-                    "rpc.port" => match value.trim().parse() {
-                        Ok(parsed_value) => config.rpc_port = Some(parsed_value),
-                        Err(_) => return Err(format!("Unable to parse line: {}", line)),
-                    },
-
-                    "mainnet" => match value.trim().parse() {
-                        Ok(true) => config.network = BitcoinNetwork::Mainnet,
-                        Ok(false) => {}
-                        Err(_) => return Err(format!("Unable to parse line: {}", line)),
-                    },
-                    "testnet" => match value.trim().parse() {
-                        Ok(true) => config.network = BitcoinNetwork::Testnet,
-                        Ok(false) => {}
-                        Err(_) => return Err(format!("Unable to parse line: {}", line)),
-                    },
-                    "regtest" => match value.trim().parse() {
-                        Ok(true) => config.network = BitcoinNetwork::Regtest,
-                        Ok(false) => {}
-                        Err(_) => return Err(format!("Unable to parse line: {}", line)),
-                    },
-                    "signet" => match value.trim().parse() {
-                        Ok(true) => config.network = BitcoinNetwork::Signet,
-                        Ok(false) => {}
-                        Err(_) => return Err(format!("Unable to parse line: {}", line)),
-                    },
-                    "zmqpubrawtx" => match clean_string(value.trim()) {
-                        Ok(cleaned) => config.zmqpubrawtx = Some(cleaned),
-                        Err(msg) => return Err(msg),
-                    },
-                    "zmqpubrawblock" => match clean_string(value.trim()) {
-                        Ok(cleaned) => config.zmqpubrawblock = Some(cleaned),
-                        Err(msg) => return Err(msg),
-                    },
-                    "extraConfig" => match parse_multiline_string(n, data) {
-                        Ok(cleaned) => config.extra_config = Some(cleaned),
-                        Err(msg) => return Err(msg),
-                    },
-
-                    _ => continue,
-                }
+        let mut rendered_contents = HashMap::new();
+        let file = BASE_TEMPLATE.get_file(FILE_NAME);
+        let file = match file {
+            Some(f) => f,
+            None => {
+                return Err(Report::new(TemplatingError::FileNotFound)
+                    .attach_printable(format!("File {FILE_NAME} not found in template")))
             }
-        }
-
-        Ok(config)
-    }
-
-    pub fn render(&self) -> (format::Status, String) {
-        if let Err(e) = self.validate(&()) {
-            panic!("invalid config: {e}")
-        }
-
-        let mut res = utils::AutoLineString::from("{");
-        match self.enabled {
-            true => res.push_line("services.bitcoin.enable = true;"),
-            false => res.push_line("services.bitcoin.enable = false;"),
         };
 
-        if let Some(v) = &self.name {
-            res.push_line(format!("services.bitcoin.name = \"{}\";", v).as_str())
-        }
-
-        if let Some(v) = &self.group {
-            res.push_line(format!("services.bitcoin.group = \"{}\";", v).as_str())
-        }
-
-        if let Some(v) = &self.package {
-            res.push_line(format!("services.bitcoin.package = \"{}\";", v).as_str())
-        }
-
-        match self.network {
-            // we could omit mainnet as it is default, but we'll add the field for clarity
-            BitcoinNetwork::Mainnet => res.push_line("services.bitcoin.mainnet = true;"),
-            BitcoinNetwork::Testnet => res.push_line("services.bitcoin.testnet = true;"),
-            BitcoinNetwork::Regtest => res.push_line("services.bitcoin.regtest = true;"),
-            BitcoinNetwork::Signet => res.push_line("services.bitcoin.signet = true;"),
+        let file = match file.contents_utf8() {
+            Some(f) => f,
+            None => {
+                return Err(Report::new(TemplatingError::FileNotFound)
+                    .attach_printable(format!("Unable to read file contents of {FILE_NAME}")))
+            }
         };
 
-        if !self.rpc_users.is_empty() {
-            res.push_line("services.bitcoin.rpc.users = {");
-            for user in &self.rpc_users {
-                res.push_line(format!("{} = {{", user.name).as_str());
-                res.push_line(format!("passwordHMAC = \"{}\";", user.password_hmac).as_str());
-                res.push_line("};");
-            }
-            res.push_line("};");
+        handlebars
+            .register_template_string(FILE_NAME, file)
+            .attach_printable_lazy(|| format!("{handlebars:?} could not register the template"))
+            .change_context(TemplatingError::Register)?;
+
+        let data: HashMap<&str, String> = HashMap::from([
+            ("enable", self.enable.to_string()),
+            (
+                "regtest",
+                (self.network == BitcoinNetwork::Regtest).to_string(),
+            ),
+            ("tx_index", self.tx_index.to_string()),
+            ("disable_wallet", self.disable_wallet.to_string()),
+            ("address", self.address.to_string()),
+            ("listen", self.listen.to_string()),
+            ("port", self.port.to_string()),
+            ("rpc_address", self.rpc_address.to_string()),
+            ("rpc_port", self.rpc_port.to_string()),
+            (
+                "rpc_allow_ip",
+                self.rpc_allow_ip
+                    .iter()
+                    .map(|s| format!("\"{}\"", s))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ),
+            (
+                "rpc_users",
+                self.rpc_users
+                    .iter()
+                    .map(|s| format!("{}={{ passwordHMAC = \"{}\"; }};", s.name, s.password_hmac))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ),
+            (
+                "zmqpubrawblock",
+                quoted_string_or_null(self.zmqpubrawblock.clone()),
+            ),
+            (
+                "zmqpubrawtx",
+                quoted_string_or_null(self.zmqpubrawtx.clone()),
+            ),
+        ]);
+
+        let res = handlebars
+            .render(FILE_NAME, &data)
+            .attach_printable("Failed to render bitcoin daemon template".to_string())
+            .change_context(TemplatingError::Render)?;
+
+        let (status, text) = format::in_memory("<convert bitcoind>".to_string(), res);
+
+        if let format::Status::Error(e) = status {
+            Err(Report::new(TemplatingError::Format)).attach_printable_lazy(|| {
+                format!("Could not format the template file due to error: {e}")
+            })?
+        } else {
+            println!("{}", text);
+            rendered_contents.insert(FILE_NAME.to_string(), text);
         }
 
-        if let Some(v) = &self.rpc_port {
-            res.push_line(format!("services.bitcoin.rpc.port = {};", v).as_str());
-        }
-
-        if let Some(v) = &self.user {
-            res.push_line(format!("services.bitcoin.user = \"{}\";", v).as_str());
-        }
-
-        if let Some(v) = &self.prune {
-            match v {
-                PruneOptions::Disable => {}
-                PruneOptions::Manual => res.push_line("services.bitcoin.prune = 1;"),
-                PruneOptions::Automatic { prune_at: field } => {
-                    res.push_line(format!("services.bitcoin.prune = {};", field).as_str())
-                }
-            }
-        }
-
-        if let Some(v) = &self.port {
-            res.push_line(format!("services.bitcoin.port = {};", v).as_str())
-        }
-
-        if let Some(v) = &self.db_cache {
-            res.push_line(format!("services.bitcoin.dbCache = {};", v).as_str())
-        }
-
-        if let Some(v) = &self.tx_index {
-            res.push_line(format!("services.bitcoin.txindex = {};", v).as_str())
-        }
-
-        if let Some(v) = &self.zmqpubrawblock {
-            res.push_line(format!("services.bitcoin.zmqpubrawblock = \"{}\";", v.trim()).as_str())
-        }
-
-        if let Some(v) = &self.zmqpubrawtx {
-            res.push_line(format!("services.bitcoin.zmqpubrawtx = \"{}\";", v.trim()).as_str())
-        }
-
-        if let Some(v) = &self.data_dir {
-            res.push_line(format!("services.bitcoin.dataDir = \"{}\";", v).as_str())
-        }
-
-        if let Some(v) = &self.extra_config {
-            res.push_line(format!("services.bitcoin.extraConfig = ''\n{}\n'';", v.trim()).as_str())
-        }
-
-        res.push_line("}");
-        format::in_memory("<convert bitcoind>".to_string(), res.to_string())
-    }
-}
-
-fn _get_network_test_string(network: &BitcoinNetwork) -> String {
-    let (status, res) = format::in_memory(
-        "".to_string(),
-        match network {
-            BitcoinNetwork::Mainnet => {
-                "{ services.bitcoin.enable = true; services.bitcoin.mainnet = true; }".to_string()
-            }
-            BitcoinNetwork::Testnet => {
-                "{ services.bitcoin.enable = true; services.bitcoin.testnet = true; }".to_string()
-            }
-            BitcoinNetwork::Regtest => {
-                "{ services.bitcoin.enable = true; services.bitcoin.regtest = true; }".to_string()
-            }
-            BitcoinNetwork::Signet => {
-                "{ services.bitcoin.enable = true; services.bitcoin.signet = true; }".to_string()
-            }
-        },
-    );
-
-    match status {
-        format::Status::Error(err) => eprintln!("Unable to format {}", err),
-        format::Status::Changed(_) => {}
+        Ok(rendered_contents)
     }
 
-    res
+    pub(crate) fn to_json_string(&self) -> Result<String, TemplatingError> {
+        serde_json::to_string(self).change_context(TemplatingError::JsonRenderError)
+    }
+
+    pub(crate) fn from_json(json_data: &str) -> Result<BitcoinDaemonService, TemplatingError> {
+        serde_json::from_str(json_data).change_context(TemplatingError::JsonLoadError)
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use garde::rules::contains::Contains;
-
-    use crate::bitcoind::_get_network_test_string;
-
+pub mod tests {
     use super::*;
 
-    #[test]
-    fn test_bitcoin_daemon_service_creation() {
-        let service = BitcoinDaemonService {
-            name: Some("TestInstance".to_string()),
-            user: Some("testuser".to_string()),
-            port: Some(8333),
-            rpc_port: Some(9333),
-            ..BitcoinDaemonService::default()
-        };
+    fn get_test_daemon() -> BitcoinDaemonService {
+        let enable = true;
+        let address = IpAddr::from_str("127.0.0.1").unwrap();
+        let port = 8333;
+        let network = BitcoinNetwork::Testnet;
+        let tx_index = true;
+        let onion_port = Some(1551);
+        let listen = false;
+        let extra_config = "extra_config_value".to_string();
+        let user = "user_name".to_string();
+        let rpc_users = vec![
+            BitcoinDaemonServiceRPCUser::new("rpc_user1".into(), "dsfsdf".into()),
+            BitcoinDaemonServiceRPCUser::new("rpc_user2".into(), "owieru".into()),
+        ];
 
-        assert!(!service.enabled);
-        assert_eq!(service.name, Some("TestInstance".to_string()));
-        assert_eq!(service.user, Some("testuser".to_string()));
-        assert_eq!(service.rpc_port, Some(9333));
-        assert_eq!(service.port, Some(8333));
-        assert_eq!(service.network, BitcoinNetwork::Mainnet);
-        assert!(service.rpc_users.is_empty());
-        assert!(service.prune.is_none());
-        assert!(service.package.is_none());
-        assert!(service.group.is_none());
-        assert!(service.extra_config.is_none());
-        assert!(service.extra_cmd_line_options.is_none());
-        assert!(service.db_cache.is_none());
-        assert!(service.data_dir.is_none());
-    }
+        let rpc_address = IpAddr::from_str("128.22.22.4").unwrap();
+        let rpc_port = 8332;
+        let rpc_allow_ip: Vec<IpAddr> = vec![
+            IpAddr::from_str("192.168.1.100").unwrap(),
+            IpAddr::from_str("192.168.1.111").unwrap(),
+        ];
+        let prune = PruneOptions::Automatic { prune_at: 2500 };
+        let prune_size = 500;
+        let extra_cmd_line_options: Vec<String> =
+            vec!["option1".to_string(), "option2=value".to_string()];
+        let db_cache = Some(2048);
+        let data_dir = "/path/to/data/dir".to_string();
+        let disable_wallet = true;
+        let zmqpubrawtx = Some("zmqpubrawtx_test".to_string());
+        let zmqpubrawblock = Some("zmqpubrawblock_test".to_string());
 
-    #[test]
-    fn test_render_full() {
-        let service = BitcoinDaemonService {
-            name: Some("TestInstance".to_string()),
-            user: Some("testuser".to_string()),
-            port: Some(8333),
-            rpc_port: Some(9333),
-            prune: Some(PruneOptions::Automatic { prune_at: 1024 }),
-            rpc_users: vec![
-                BitcoinDaemonServiceRPCUser {
-                    name: "testuser1".to_string(),
-                    password_hmac: "".to_string(),
-                },
-                BitcoinDaemonServiceRPCUser {
-                    name: "testuser2".to_string(),
-                    password_hmac: "".to_string(),
-                },
-            ],
-            ..BitcoinDaemonService::default()
-        };
-        let (format_status, nix_file) = service.render();
-        match format_status {
-            format::Status::Error(err) => eprintln!("Unable to format {}", err),
-            format::Status::Changed(_) => println!("Format success"),
-        }
-
-        println!("{}", nix_file);
-
-        // assert!(false);
-    }
-
-    #[test]
-    fn test_prune_default_options() {
-        let service = BitcoinDaemonService {
-            prune: None,
-            ..BitcoinDaemonService::default()
-        };
-
-        let res = service.validate(&());
-        assert!(res.is_ok());
-        let nix = service.render().1;
-        assert!(!nix.validate_contains("prune ="));
-    }
-
-    #[test]
-    fn test_prune_manual_options() {
-        let service = BitcoinDaemonService {
-            prune: Some(PruneOptions::Manual),
-            ..BitcoinDaemonService::default()
-        };
-
-        let res = service.validate(&());
-        assert!(res.is_ok());
-        let nix = service.render().1;
-        assert!(nix.validate_contains("prune = 1;"));
-    }
-
-    #[test]
-    fn test_read() {
-        let orig_service = BitcoinDaemonService {
-            enabled: true,
-            name: Some("TestInstance".to_string()),
-            user: Some("TestUser".to_string()),
-            group: Some("TestGroup".to_string()),
-            port: Some(8343),
-            rpc_port: Some(9343),
-            package: Some("TestPackageName".to_string()),
-            db_cache: Some(512),
-            tx_index: Some(true),
-            data_dir: Some("/data/dir".to_string()),
-            zmqpubrawtx: Some("zmqpubrawtx".to_string()),
-            zmqpubrawblock: Some("zmqpubrawblock".to_string()),
-            extra_config: Some(
-                "
-setting1=2143
-setting2=4534
-"
-                .to_string(),
-            ),
-            ..BitcoinDaemonService::default()
-        };
-
-        let (status, source) = orig_service.render();
-        assert!(!matches!(status, format::Status::Error(_)));
-        println!("{}", source);
-        let res = BitcoinDaemonService::from_string(&source);
-        match res {
-            Ok(read_service) => {
-                assert!(read_service.enabled, "Testing whether enabled is read.");
-                assert!(
-                    read_service.name.is_some(),
-                    "Testing whether name is Some()"
-                );
-                assert_eq!(
-                    read_service.name.as_ref().unwrap(),
-                    orig_service.name.as_ref().unwrap(),
-                    "Testing whether the correct name is being read."
-                );
-                assert!(
-                    read_service.user.is_some(),
-                    "Testing whether user is Some()"
-                );
-                assert_eq!(
-                    read_service.user.as_ref().unwrap(),
-                    orig_service.user.as_ref().unwrap(),
-                    "Testing whether user is being read."
-                );
-                assert!(
-                    read_service.group.is_some(),
-                    "Testing whether group is Some()"
-                );
-                assert_eq!(
-                    read_service.group.as_ref().unwrap(),
-                    orig_service.group.as_ref().unwrap(),
-                    "Testing whether group is being read."
-                );
-                assert!(
-                    read_service.port.is_some(),
-                    "Testing whether port is Some()"
-                );
-                assert_eq!(
-                    read_service.port.as_ref().unwrap(),
-                    orig_service.port.as_ref().unwrap(),
-                    "Testing whether port is being read."
-                );
-                assert!(
-                    read_service.rpc_port.is_some(),
-                    "Testing whether rpc_port is Some()"
-                );
-                assert_eq!(
-                    read_service.rpc_port.as_ref().unwrap(),
-                    orig_service.rpc_port.as_ref().unwrap(),
-                    "Testing whether port is being read."
-                );
-                assert!(
-                    read_service.package.is_some(),
-                    "Testing whether package is Some()"
-                );
-                assert_eq!(
-                    read_service.package.as_ref().unwrap(),
-                    orig_service.package.as_ref().unwrap(),
-                    "Testing whether port is being read."
-                );
-                assert!(
-                    read_service.db_cache.is_some(),
-                    "Testing whether db_cache is Some()"
-                );
-                assert_eq!(
-                    read_service.db_cache.as_ref().unwrap(),
-                    orig_service.db_cache.as_ref().unwrap(),
-                    "Testing whether port is being read."
-                );
-                assert!(
-                    read_service.tx_index.is_some(),
-                    "Testing whether tx_index is Some()"
-                );
-                assert_eq!(
-                    read_service.tx_index.as_ref().unwrap(),
-                    orig_service.tx_index.as_ref().unwrap(),
-                    "Testing whether port is being read."
-                );
-                assert!(
-                    read_service.data_dir.is_some(),
-                    "Testing whether data_dir is Some()"
-                );
-                assert_eq!(
-                    read_service.data_dir.as_ref().unwrap(),
-                    orig_service.data_dir.as_ref().unwrap(),
-                    "Testing whether port is being read."
-                );
-                assert!(
-                    read_service.zmqpubrawtx.is_some(),
-                    "Testing whether zmqpubrawtx is Some()"
-                );
-                assert_eq!(
-                    read_service.zmqpubrawtx.as_ref().unwrap(),
-                    orig_service.zmqpubrawtx.as_ref().unwrap(),
-                    "Testing whether port is being read."
-                );
-                assert!(
-                    read_service.zmqpubrawblock.is_some(),
-                    "Testing whether zmqpubrawblock is Some()"
-                );
-                assert_eq!(
-                    read_service.zmqpubrawblock.as_ref().unwrap(),
-                    orig_service.zmqpubrawblock.as_ref().unwrap(),
-                    "Testing whether port is being read."
-                );
-                assert!(
-                    read_service.extra_config.is_some(),
-                    "Testing whether extra_config is Some()"
-                );
-                assert_eq!(
-                    read_service.extra_config.as_ref().unwrap().trim(),
-                    orig_service.extra_config.as_ref().unwrap().trim(),
-                    "Testing whether port is being read."
-                );
-            }
-            Err(err) => panic!("Parsing err: {err}"),
+        BitcoinDaemonService {
+            enable,
+            address: address.clone(),
+            port,
+            network,
+            tx_index,
+            onion_port,
+            listen,
+            extra_config: extra_config.clone(),
+            user: user.clone(),
+            rpc_users,
+            rpc_address: rpc_address.clone(),
+            rpc_port,
+            rpc_allow_ip,
+            prune,
+            prune_size,
+            extra_cmd_line_options,
+            db_cache,
+            data_dir: data_dir.clone(),
+            disable_wallet,
+            zmqpubrawtx,
+            zmqpubrawblock,
         }
     }
 
-    // #[test]
-    // fn test_read_rpc_users() {
-    //     let service = BitcoinDaemonService {
-    //         rpc_users: vec![
-    //             BitcoinDaemonServiceRPCUser {
-    //                 name: "testuser1".to_string(),
-    //                 password_hmac: "".to_string(),
-    //             },
-    //             BitcoinDaemonServiceRPCUser {
-    //                 name: "testuser2".to_string(),
-    //                 password_hmac: "".to_string(),
-    //             },
-    //         ],
-    //         ..BitcoinDaemonService::default()
-    //     };
-    //
-    //     let (status, source) = service.render();
-    //     assert!(!matches!(status, format::Status::Error(_)));
-    //     let res = BitcoinDaemonService::from_string(&source);
-    //     match res {
-    //         Ok(v) => assert!(v.enabled),
-    //         Err(err) => panic!("Parsing err: {err}"),
-    //     }
-    // }
-
     #[test]
-    fn test_read_network() {
-        let mut service = BitcoinDaemonService::default();
-
-        for network in [
-            BitcoinNetwork::Mainnet,
-            BitcoinNetwork::Testnet,
-            BitcoinNetwork::Regtest,
-            BitcoinNetwork::Signet,
-        ] {
-            service.network = network;
-            let (status, source) = service.render();
-            assert!(!matches!(status, format::Status::Error(_)));
-            let res = BitcoinDaemonService::from_string(&source);
-            match res {
-                Ok(v) => assert_eq!(v.network, network),
-                Err(err) => panic!("Parsing err: {err}"),
-            }
-        }
+    fn test_bitcoin_daemon_service_defaults() {
+        let default_service = BitcoinDaemonService::default();
+        let default_ip = IpAddr::from_str("127.0.0.1").unwrap();
+        assert!(!default_service.enable);
+        assert_eq!(default_service.address, default_ip);
+        assert_eq!(default_service.port, 8333);
+        assert_eq!(default_service.rpc_address, default_ip);
+        assert_eq!(default_service.rpc_port, 8332);
+        assert_eq!(default_service.user, "admin");
+        assert_eq!(default_service.data_dir, "/var/lib/bitcoind");
+        assert_eq!(default_service.network, BitcoinNetwork::Mainnet);
+        assert_eq!(default_service.prune, PruneOptions::Disable);
+        assert_eq!(default_service.prune_size, 2000);
     }
 
-    // #[test]
-    // fn test_render_prune_automatic_options() {
-    //     let service = BitcoinDaemonService {
-    //         prune: Some(PruneOptions::Automatic { prune_at: 1024 }),
-    //         ..BitcoinDaemonService::default()
-    //     };
-    //
-    //     let res = service.validate(&());
-    //     assert!(res.is_ok());
-    //     let nix = service.render().1;
-    //     assert!(nix.validate_contains("prune = 1024;"));
-    //
-    //     let service_nok = BitcoinDaemonService {
-    //         prune: Some(PruneOptions::Automatic { prune_at: 234 }),
-    //         ..BitcoinDaemonService::default()
-    //     };
-    //     let res = service_nok.validate(&());
-    //     assert!(res.is_err());
-    // }
+    #[test]
+    fn test_to_json_string() {
+        let d = get_test_daemon();
+        let json_str = d.to_json_string().unwrap();
+        println!("{}", json_str);
+
+        assert!(json_str.contains(&format!("\"enable\":{}", d.enable)));
+        assert!(json_str.contains(&format!("\"address\":\"{}\"", d.address)));
+        assert!(json_str.contains(&format!("\"port\":{}", d.port)));
+        assert!(json_str.contains(&format!("\"network\":\"{}\"", d.network)));
+        assert!(json_str.contains(&format!("\"tx_index\":{}", d.tx_index)));
+        assert!(json_str.contains(&format!("\"onion_port\":{}", d.onion_port.unwrap())));
+        assert!(json_str.contains(&format!("\"listen\":{}", d.listen)));
+        assert!(json_str.contains(&format!("\"extra_config\":\"{}\"", d.extra_config)));
+        assert!(json_str.contains(&format!("\"user\":\"{}\"", d.user)));
+        let rpc_users_string = d
+            .rpc_users
+            .iter()
+            .map(|u| {
+                format!(
+                    "{{\"password_hmac\":\"{}\",\"name\":\"{}\"}}",
+                    u.password_hmac, u.name
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        assert!(json_str.contains(&format!("\"rpc_users\":[{}]", rpc_users_string)));
+        assert!(json_str.contains(&format!("\"rpc_address\":\"{}\"", d.rpc_address)));
+        assert!(json_str.contains(&format!("\"rpc_port\":{}", d.rpc_port)));
+        assert!(json_str
+            .contains(&"\"rpc_allow_ip\":[\"192.168.1.100\",\"192.168.1.111\"]".to_string()));
+        assert!(json_str.contains(&"\"prune\":{\"Automatic\":{\"prune_at\":2500}".to_string()));
+        assert!(json_str.contains(&format!("\"prune_size\":{}", d.prune_size)));
+        assert!(json_str
+            .contains(&"\"extra_cmd_line_options\":[\"option1\",\"option2=value\"]".to_string()));
+        assert!(json_str.contains(&format!("\"db_cache\":{}", d.db_cache.unwrap())));
+        assert!(json_str.contains(&format!("\"data_dir\":\"{}\"", d.data_dir)));
+        assert!(json_str.contains(&format!("\"disable_wallet\":{}", d.disable_wallet)));
+        assert!(json_str.contains(&format!("\"zmqpubrawtx\":\"{}\"", d.zmqpubrawtx.unwrap())));
+        assert!(json_str.contains(&format!(
+            "\"zmqpubrawblock\":\"{}\"",
+            d.zmqpubrawblock.unwrap()
+        )));
+    }
 
     #[test]
-    fn test_render_network() {
-        for network in [
-            BitcoinNetwork::Mainnet,
-            BitcoinNetwork::Testnet,
-            BitcoinNetwork::Regtest,
-            BitcoinNetwork::Signet,
-        ] {
-            let nix = _get_network_test_string(&network);
-            let service = BitcoinDaemonService {
-                enabled: true,
-                network,
-                ..Default::default()
-            };
+    fn test_from_json_string() {
+        let source = get_test_daemon();
+        let data = source.to_json_string().unwrap();
 
-            let (status, res) = service.render();
+        let service = BitcoinDaemonService::from_json(&data);
+        assert!(service.is_ok());
+        let target = service.unwrap();
+        assert!(source == target);
+    }
 
-            assert!(!matches!(status, format::Status::Error(_)));
-            assert_eq!(res.trim(), nix.trim());
-        }
+    #[test]
+    fn test_render_mainnet() {
+        let d = get_test_daemon();
+
+        let res = d.render().unwrap();
+        assert!(res.contains_key(FILE_NAME));
+        let nix_str = res.get(FILE_NAME).unwrap();
+
+        assert!(nix_str.contains(&format!("enable = {};", d.enable)));
+        assert!(nix_str.contains(&"regtest = false;".to_string()));
+        assert!(nix_str.contains(&format!("txindex = {}", d.tx_index)));
+        assert!(nix_str.contains(&format!("disablewallet = {};", d.disable_wallet)));
+        assert!(nix_str.contains(&format!("listen = {};", d.listen)));
+        assert!(nix_str.contains(&format!("address = \"{}\";", d.address)));
+        assert!(nix_str.contains(&format!("port = {};", d.port)));
+        assert!(nix_str.contains(&format!(
+            r#"
+    rpc = {{
+      address = "{}";
+      port = {};
+      allowip = [
+        "192.168.1.100"
+        "192.168.1.111"
+      ];
+      users = {{
+        dsfsdf = {{passwordHMAC = "rpc_user1";}};
+        owieru = {{passwordHMAC = "rpc_user2";}};
+      }};
+    }};
+"#,
+            d.rpc_address, d.rpc_port
+        )));
+        assert!(nix_str.contains(&format!(
+            "zmqpubrawblock = \"{}\";",
+            d.zmqpubrawblock.unwrap()
+        )));
+        assert!(nix_str.contains(&format!("zmqpubrawtx = \"{}\";", d.zmqpubrawtx.unwrap())));
     }
 }
