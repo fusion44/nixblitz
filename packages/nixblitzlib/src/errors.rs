@@ -24,8 +24,8 @@ pub enum TemplatingError {
     Render,
     #[error("Unable to format the rendered template")]
     Format,
-    #[error("Unable to find the template file")]
-    FileNotFound,
+    #[error("Unable to find the template file {:?}", .0)]
+    FileNotFound(String),
     #[error("Unable to generate the json string")]
     JsonRenderError,
     #[error("Unable to load the json string")]
@@ -40,8 +40,16 @@ pub enum SystemError {
     ParseError,
     #[error("No system files where found in the given directory")]
     NoSystemFound,
+    #[error("No system files where found in the given directory")]
+    SytemLoadError,
     #[error("Unable to create the path: {:?}", .0)]
     CreatePathError(String),
     #[error("Unable to crate the base system")]
     CreateBaseFiles(String),
+    #[error("Unable to find the file for path {:?}", .0)]
+    FileNotFound(String),
+    #[error("Unable to open the file at path {:?}", .0)]
+    FileOpenError(String),
+    #[error("Unable to read the file contents at path {:?}", .0)]
+    FileReadError(String),
 }

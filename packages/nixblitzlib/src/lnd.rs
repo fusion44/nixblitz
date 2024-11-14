@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{errors::TemplatingError, utils::BASE_TEMPLATE};
 
+pub const TEMPLATE_FILE_NAME: &str = "src/apps/lnd.nix.templ";
+pub const JSON_FILE_NAME: &str = "src/apps/lnd.json";
+
 #[derive(Debug, Validate, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LightningNetworkDaemonService {
     /// Whether the service is enabled or not
@@ -87,8 +90,6 @@ impl Default for LightningNetworkDaemonService {
     }
 }
 
-const LND_FILE_NAME: &str = "src/apps/lnd.nix.templ";
-
 impl LightningNetworkDaemonService {
     pub fn render(&self) -> Result<HashMap<String, String>, TemplatingError> {
         // TODO: I'd like to return a &str key here, as it is always a 'static
@@ -97,25 +98,31 @@ impl LightningNetworkDaemonService {
         handlebars.register_escape_fn(no_escape);
 
         let mut rendered_contents = HashMap::new();
-        let file = BASE_TEMPLATE.get_file(LND_FILE_NAME);
+        let file = BASE_TEMPLATE.get_file(TEMPLATE_FILE_NAME);
         let file = match file {
             Some(f) => f,
             None => {
-                return Err(Report::new(TemplatingError::FileNotFound)
-                    .attach_printable(format!("File {LND_FILE_NAME} not found in template")))
+                return Err(Report::new(TemplatingError::FileNotFound(
+                    TEMPLATE_FILE_NAME.to_string(),
+                ))
+                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))?
             }
         };
 
         let file = match file.contents_utf8() {
             Some(f) => f,
             None => {
-                return Err(Report::new(TemplatingError::FileNotFound)
-                    .attach_printable(format!("Unable to read file contents of {LND_FILE_NAME}")))
+                return Err(Report::new(TemplatingError::FileNotFound(
+                    TEMPLATE_FILE_NAME.to_string(),
+                ))
+                .attach_printable(format!(
+                    "Unable to read file contents of {TEMPLATE_FILE_NAME}"
+                )))
             }
         };
 
         handlebars
-            .register_template_string(LND_FILE_NAME, file)
+            .register_template_string(TEMPLATE_FILE_NAME, file)
             .attach_printable_lazy(|| format!("{handlebars:?} could not register the template"))
             .change_context(TemplatingError::Register)?;
 
@@ -149,7 +156,7 @@ impl LightningNetworkDaemonService {
         ]);
 
         let res = handlebars
-            .render(LND_FILE_NAME, &data)
+            .render(TEMPLATE_FILE_NAME, &data)
             .attach_printable("Failed to render LND template".to_string())
             .change_context(TemplatingError::Render)?;
         let (status, text) = format::in_memory("<lnd>".to_string(), res);
@@ -159,7 +166,7 @@ impl LightningNetworkDaemonService {
                 format!("Could not format the template file due to error: {e}")
             })?
         } else {
-            rendered_contents.insert(LND_FILE_NAME.to_string(), text);
+            rendered_contents.insert(TEMPLATE_FILE_NAME.to_string(), text);
         }
 
         Ok(rendered_contents)
@@ -241,9 +248,8 @@ mod tests {
 
         let result = s.render();
         if let Ok(data) = &result {
-            println!("{}", data[LND_FILE_NAME]);
-            assert!(&data.contains_key(LND_FILE_NAME));
-            let data = &data[LND_FILE_NAME];
+            assert!(&data.contains_key(TEMPLATE_FILE_NAME));
+            let data = &data[TEMPLATE_FILE_NAME];
             assert!(data.contains(&format!("enable = {};", s.enable)));
             assert!(data.contains(&format!("address = \"{}\";", s.address)));
             assert!(data.contains(&format!("port = {};", s.port)));

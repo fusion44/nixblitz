@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{errors::TemplatingError, utils::BASE_TEMPLATE};
 
+pub const TEMPLATE_FILE_NAME: &str = "src/apps/bitcoind.nix.templ";
+pub const JSON_FILE_NAME: &str = "src/apps/bitcoind.json";
+
 /// Represents all available Bitcoin network options
 #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub enum BitcoinNetwork {
@@ -253,8 +256,6 @@ impl Default for BitcoinDaemonService {
     }
 }
 
-const FILE_NAME: &str = "src/apps/bitcoind.nix.templ";
-
 fn quoted_string_or_null(value: Option<String>) -> String {
     match value {
         Some(value) => format!("\"{}\"", value).to_string(),
@@ -267,25 +268,31 @@ impl BitcoinDaemonService {
         handlebars.register_escape_fn(no_escape);
 
         let mut rendered_contents = HashMap::new();
-        let file = BASE_TEMPLATE.get_file(FILE_NAME);
+        let file = BASE_TEMPLATE.get_file(TEMPLATE_FILE_NAME);
         let file = match file {
             Some(f) => f,
             None => {
-                return Err(Report::new(TemplatingError::FileNotFound)
-                    .attach_printable(format!("File {FILE_NAME} not found in template")))
+                return Err(Report::new(TemplatingError::FileNotFound(
+                    TEMPLATE_FILE_NAME.to_string(),
+                ))
+                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))
             }
         };
 
         let file = match file.contents_utf8() {
             Some(f) => f,
             None => {
-                return Err(Report::new(TemplatingError::FileNotFound)
-                    .attach_printable(format!("Unable to read file contents of {FILE_NAME}")))
+                return Err(Report::new(TemplatingError::FileNotFound(
+                    TEMPLATE_FILE_NAME.to_string(),
+                ))
+                .attach_printable(format!(
+                    "Unable to read file contents of {TEMPLATE_FILE_NAME}"
+                )))
             }
         };
 
         handlebars
-            .register_template_string(FILE_NAME, file)
+            .register_template_string(TEMPLATE_FILE_NAME, file)
             .attach_printable_lazy(|| format!("{handlebars:?} could not register the template"))
             .change_context(TemplatingError::Register)?;
 
@@ -329,7 +336,7 @@ impl BitcoinDaemonService {
         ]);
 
         let res = handlebars
-            .render(FILE_NAME, &data)
+            .render(TEMPLATE_FILE_NAME, &data)
             .attach_printable("Failed to render bitcoin daemon template".to_string())
             .change_context(TemplatingError::Render)?;
 
@@ -341,7 +348,7 @@ impl BitcoinDaemonService {
             })?
         } else {
             println!("{}", text);
-            rendered_contents.insert(FILE_NAME.to_string(), text);
+            rendered_contents.insert(TEMPLATE_FILE_NAME.to_string(), text);
         }
 
         Ok(rendered_contents)
@@ -393,7 +400,7 @@ pub mod tests {
 
         BitcoinDaemonService {
             enable,
-            address: address.clone(),
+            address,
             port,
             network,
             tx_index,
@@ -402,7 +409,7 @@ pub mod tests {
             extra_config: extra_config.clone(),
             user: user.clone(),
             rpc_users,
-            rpc_address: rpc_address.clone(),
+            rpc_address,
             rpc_port,
             rpc_allow_ip,
             prune,
@@ -493,8 +500,8 @@ pub mod tests {
         let d = get_test_daemon();
 
         let res = d.render().unwrap();
-        assert!(res.contains_key(FILE_NAME));
-        let nix_str = res.get(FILE_NAME).unwrap();
+        assert!(res.contains_key(TEMPLATE_FILE_NAME));
+        let nix_str = res.get(TEMPLATE_FILE_NAME).unwrap();
 
         assert!(nix_str.contains(&format!("enable = {};", d.enable)));
         assert!(nix_str.contains(&"regtest = false;".to_string()));

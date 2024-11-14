@@ -1,53 +1,61 @@
 use std::path::PathBuf;
 
-use error_stack::{Report, Result};
+use error_stack::{Result, ResultExt};
 
-use crate::errors::SystemError;
+use crate::{
+    bitcoind::{self, BitcoinDaemonService},
+    errors::SystemError,
+    lnd::{self, LightningNetworkDaemonService},
+    nix_base_config::{self, NixBaseConfig},
+    utils::load_json_file,
+};
 
 /// Represents a system config that is stored at the [System::path].
 #[derive(Default, Debug)]
 pub struct System {
     /// The working directory we operate in
     work_dir: PathBuf,
+
+    /// The nix base config
+    nix_base: NixBaseConfig,
+
+    /// The bitcoin daemon service
+    bitcoin: BitcoinDaemonService,
+
+    /// The lightning network daemon service
+    lnd: LightningNetworkDaemonService,
 }
 
 impl System {
-    pub fn new(path: PathBuf) -> Self {
-        Self { work_dir: path }
-    }
+    pub fn load(work_dir: PathBuf) -> Result<Self, SystemError> {
+        let nix_path = work_dir.join(nix_base_config::TEMPLATE_FILE_NAME);
+        let nix_base_config_json =
+            load_json_file(&nix_path).change_context(SystemError::SytemLoadError)?;
+        let nix_base = NixBaseConfig::from_json(&nix_base_config_json)
+            .change_context(SystemError::SytemLoadError)
+            .attach_printable(format!(
+                "Trying to load {}",
+                nix_base_config::TEMPLATE_FILE_NAME
+            ))?;
 
-    /// Initializes the system based on the configuration found in the given path.
-    ///
-    /// This function checks if the specified path exists and is a directory. If the directory is empty,
-    /// it will initialize a new system if init was set to true. Otherwise, it returns an error.
-    ///
-    /// # Errors
-    ///
-    /// * [SystemError::ParseError] - If the path is invalid, doesn't exist, or is not a directory.
-    /// * [SystemError::NoSystemFound] - If the directory is empty and init is false.
-    pub fn init(&self) -> Result<(), SystemError> {
-        if self.work_dir.exists() {
-            let items = self.work_dir.read_dir();
-            let mut items = match items {
-                Ok(items) => items,
-                Err(e) => {
-                    return Err(Report::new(SystemError::ParseError)
-                        .attach_printable(format!("Error reading items in the directory: {}", e)))
-                }
-            };
+        let bitcoind_path = work_dir.join(bitcoind::TEMPLATE_FILE_NAME);
+        let bitcoind_json =
+            load_json_file(&bitcoind_path).change_context(SystemError::SytemLoadError)?;
+        let bitcoin = BitcoinDaemonService::from_json(&bitcoind_json)
+            .change_context(SystemError::SytemLoadError)
+            .attach_printable(format!("Trying to load {}", bitcoind::TEMPLATE_FILE_NAME))?;
 
-            let item = items.next();
-            if item.is_none() {
-                return Err(Report::new(SystemError::ParseError).attach_printable(
-                    "Given folder is empty, use the init command first to initialize a new system",
-                ));
-            }
+        let lnd_path = work_dir.join(lnd::TEMPLATE_FILE_NAME);
+        let lnd_json = load_json_file(&lnd_path).change_context(SystemError::SytemLoadError)?;
+        let lnd = LightningNetworkDaemonService::from_json(&lnd_json)
+            .change_context(SystemError::SytemLoadError)
+            .attach_printable(format!("Trying to load {}", lnd::TEMPLATE_FILE_NAME))?;
 
-            return Ok(());
-        }
-
-        Err(Report::new(SystemError::ParseError).attach_printable(
-            "Given folder is empty, use the init command first to initialize a new system",
-        ))
+        Ok(Self {
+            work_dir,
+            nix_base,
+            bitcoin,
+            lnd,
+        })
     }
 }

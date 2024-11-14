@@ -6,6 +6,9 @@ use std::{collections::HashMap, fmt::Display};
 
 use crate::{errors::TemplatingError, utils::BASE_TEMPLATE};
 
+pub const TEMPLATE_FILE_NAME: &str = "src/configuration.common.nix.templ";
+pub const JSON_FILE_NAME: &str = "src/nix_base.json";
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NixBaseConfig {
     /// Whether to allow unfree packages from nixpkgs
@@ -210,18 +213,23 @@ impl NixBaseConfig {
             let file = match file {
                 Some(f) => f,
                 None => {
-                    return Err(Report::new(TemplatingError::FileNotFound)
-                        .attach_printable(format!("File {file_name} for {template} not found")))
+                    return Err(
+                        Report::new(TemplatingError::FileNotFound(file_name.to_string()))
+                            .attach_printable(format!("File {file_name} for {template} not found")),
+                    )
                 }
             };
 
-            let file = match file.contents_utf8() {
-                Some(f) => f,
-                None => {
-                    return Err(Report::new(TemplatingError::FileNotFound)
+            let file =
+                match file.contents_utf8() {
+                    Some(f) => f,
+                    None => {
+                        return Err(Report::new(TemplatingError::FileNotFound(
+                            file_name.to_string(),
+                        ))
                         .attach_printable(format!("Unable to read file contents of {template}")))
-                }
-            };
+                    }
+                };
 
             handlebars
                 .register_template_string(file_name, file)
@@ -262,9 +270,10 @@ impl NixBaseConfig {
                 data = HashMap::from([("hostname", self.hostname_pi.clone())]);
             } else {
                 Err(
-                    Report::new(TemplatingError::FileNotFound).attach_printable(format!(
-                        "Couldn't process file {file_name} for template {template}"
-                    )),
+                    Report::new(TemplatingError::FileNotFound(file_name.to_owned()))
+                        .attach_printable(format!(
+                            "Couldn't process file {file_name} for template {template}"
+                        )),
                 )?
             }
 
@@ -286,8 +295,12 @@ impl NixBaseConfig {
         Ok(rendered_contents)
     }
 
-    pub(crate) fn to_json_string(&self) -> Result<String, TemplatingError> {
+    pub fn to_json_string(&self) -> Result<String, TemplatingError> {
         serde_json::to_string(self).change_context(TemplatingError::JsonRenderError)
+    }
+
+    pub fn from_json(json_data: &str) -> Result<NixBaseConfig, TemplatingError> {
+        serde_json::from_str(json_data).change_context(TemplatingError::JsonLoadError)
     }
 }
 

@@ -1,15 +1,17 @@
 use std::{
     fmt::Display,
     fs::{self, File},
-    io::Write,
-    path::Path,
+    io::{Read, Write},
+    path::{Path, PathBuf},
 };
 
 use error_stack::{Report, Result, ResultExt};
 use include_dir::{include_dir, Dir};
 
 use crate::{
+    bitcoind::BitcoinDaemonService,
     errors::{PasswordError, SystemError},
+    lnd::LightningNetworkDaemonService,
     nix_base_config::{NixBaseConfig, NixBaseConfigsTemplates},
 };
 use sha_crypt::{sha512_simple, Sha512Params};
@@ -117,6 +119,7 @@ pub fn init_default_system(work_dir: &Path, force: Option<bool>) -> Result<(), S
 
     let glob = "**/*";
 
+    let mut templ_files = vec![];
     for dir_path in BASE_TEMPLATE
         .find(glob)
         .change_context(SystemError::GenFilesError)
@@ -134,16 +137,99 @@ pub fn init_default_system(work_dir: &Path, force: Option<bool>) -> Result<(), S
                 .unwrap_or_default()
                 .to_str()
                 .unwrap_or_default();
-            if ext != "templ" {
-                create_file(&path, contents, force)?;
+            if ext == "templ" {
+                templ_files.push(path);
+                continue;
             }
+
+            create_file(&path, contents, force)?;
         }
     }
 
-    render_template_files(work_dir, force)
+    render_template_files(work_dir, templ_files, force)
 }
 
-fn render_template_files(work_dir: &Path, force: Option<bool>) -> Result<(), SystemError> {
+fn render_template_files(
+    work_dir: &Path,
+    templ_files: Vec<PathBuf>,
+    force: Option<bool>,
+) -> Result<(), SystemError> {
+    for path in templ_files {
+        let filename = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or("");
+        if filename.is_empty() {
+            return Err(Report::new(SystemError::GenFilesError))
+                .attach_lazy(|| format!("Unable to get filename from path: {}", filename));
+        } else if filename == "lnd.nix" {
+            _create_lnd_files(work_dir, force)?;
+        } else if filename == "bitcoind.nix" {
+            _create_bitcoin_files(work_dir, force)?;
+        } else if filename == "configuration.common.nix" {
+            _create_nix_base_config(work_dir, force)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn _create_bitcoin_files(work_dir: &Path, force: Option<bool>) -> Result<(), SystemError> {
+    let bitcoin_cfg = BitcoinDaemonService::default();
+    let rendered_json = bitcoin_cfg
+        .to_json_string()
+        .change_context(SystemError::GenFilesError)?;
+    let rendered_nix = bitcoin_cfg
+        .render()
+        .change_context(SystemError::CreateBaseFiles(
+            "Failed at rendering bitcoind config".to_string(),
+        ))?;
+
+    for (key, val) in rendered_nix.iter() {
+        create_file(
+            Path::new(&work_dir.join(key.replace(".templ", ""))),
+            val.as_bytes(),
+            force,
+        )?;
+    }
+
+    create_file(
+        Path::new(&work_dir.join("src/apps/bitcoind.json")),
+        rendered_json.as_bytes(),
+        force,
+    )?;
+
+    Ok(())
+}
+fn _create_lnd_files(work_dir: &Path, force: Option<bool>) -> Result<(), SystemError> {
+    let lnd_cfg = LightningNetworkDaemonService::default();
+    let rendered_json = lnd_cfg
+        .to_json_string()
+        .change_context(SystemError::GenFilesError)?;
+    let rendered_nix = lnd_cfg
+        .render()
+        .change_context(SystemError::CreateBaseFiles(
+            "Failed at rendering lnd config".to_string(),
+        ))?;
+
+    for (key, val) in rendered_nix.iter() {
+        create_file(
+            Path::new(&work_dir.join(key.replace(".templ", ""))),
+            val.as_bytes(),
+            force,
+        )?;
+    }
+
+    create_file(
+        Path::new(&work_dir.join("src/apps/lnd.json")),
+        rendered_json.as_bytes(),
+        force,
+    )?;
+
+    Ok(())
+}
+
+fn _create_nix_base_config(work_dir: &Path, force: Option<bool>) -> Result<(), SystemError> {
     let nix_base_config = NixBaseConfig::default();
     let rendered_json = nix_base_config
         .to_json_string()
@@ -166,7 +252,9 @@ fn render_template_files(work_dir: &Path, force: Option<bool>) -> Result<(), Sys
         Path::new(&work_dir.join("src/nix_base_config.json")),
         rendered_json.as_bytes(),
         force,
-    )
+    )?;
+
+    Ok(())
 }
 
 fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), SystemError> {
@@ -219,6 +307,53 @@ fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), 
         })?;
 
     Ok(())
+}
+
+/// Loads the contents of a JSON file.
+///
+/// # Arguments
+///
+/// * `file_path` - A reference to the path of the file to load.
+///
+/// # Returns
+///
+/// * `Ok(String)` - The contents of the file as a String.
+/// * `Err(Report)` - An error occurred while loading the file.
+///
+/// # Errors
+///
+/// This function will return an error if:
+///
+/// * The file does not exist.
+/// * The file cannot be opened.
+/// * The file cannot be read.
+pub fn load_json_file(file_path: &Path) -> Result<String, SystemError> {
+    if !file_path.exists() {
+        return Err(Report::new(SystemError::FileNotFound(
+            file_path
+                .to_str()
+                .unwrap_or("Unable to unwrap path")
+                .to_string(),
+        )));
+    }
+
+    let mut file = File::open(file_path).change_context(SystemError::FileOpenError(
+        file_path
+            .to_str()
+            .unwrap_or("Uable to unwrap path")
+            .to_string(),
+    ))?;
+
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .change_context(SystemError::FileReadError(
+            file_path
+                .to_str()
+                .unwrap_or("Unable to unwrap path")
+                .to_string(),
+        ))?;
+
+    Ok(contents)
 }
 
 #[cfg(test)]
