@@ -2,13 +2,13 @@ use std::path::PathBuf;
 
 use clap::Subcommand;
 
-pub mod gui;
 pub mod init;
+pub mod tui;
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Opens the TUI in the given work dir
-    Gui {
+    Tui {
         /// Tick rate, i.e. number of ticks per second
         #[arg(short, long, value_name = "FLOAT", default_value_t = 4.0)]
         tick_rate: f64,
@@ -21,7 +21,7 @@ pub enum Commands {
         #[arg(short, long, value_name = "PATH", default_value = ".")]
         work_dir: PathBuf,
     },
-    /// Initializes a new system in the given work dir
+    /// Initializes a new project in the given work dir
     Init {
         /// The working directory to operate on
         #[arg(short, long, value_name = "PATH", default_value = ".")]
@@ -31,6 +31,6 @@ pub enum Commands {
         #[arg(short, long)]
         force: bool,
     },
-    /// Analyze the system for common problems
+    /// Analyze the project for common problems
     Doctor {},
 }

@@ -4,7 +4,7 @@ use error_stack::{Result, ResultExt};
 
 use crate::{
     bitcoind::{self, BitcoinDaemonService},
-    errors::SystemError,
+    errors::ProjectError,
     lnd::{self, LightningNetworkDaemonService},
     nix_base_config::{self, NixBaseConfig},
     utils::load_json_file,
@@ -12,7 +12,7 @@ use crate::{
 
 /// Represents a system config that is stored at the [System::path].
 #[derive(Default, Debug)]
-pub struct System {
+pub struct Project {
     /// The working directory we operate in
     work_dir: PathBuf,
 
@@ -26,13 +26,13 @@ pub struct System {
     lnd: LightningNetworkDaemonService,
 }
 
-impl System {
-    pub fn load(work_dir: PathBuf) -> Result<Self, SystemError> {
+impl Project {
+    pub fn load(work_dir: PathBuf) -> Result<Self, ProjectError> {
         let nix_path = work_dir.join(nix_base_config::JSON_FILE_NAME);
         let nix_base_config_json =
-            load_json_file(&nix_path).change_context(SystemError::SystemLoadError)?;
+            load_json_file(&nix_path).change_context(ProjectError::ProjectLoadError)?;
         let nix_base = NixBaseConfig::from_json(&nix_base_config_json)
-            .change_context(SystemError::SystemLoadError)
+            .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!(
                 "Trying to load {}",
                 nix_base_config::JSON_FILE_NAME
@@ -40,15 +40,15 @@ impl System {
 
         let bitcoind_path = work_dir.join(bitcoind::JSON_FILE_NAME);
         let bitcoind_json =
-            load_json_file(&bitcoind_path).change_context(SystemError::SystemLoadError)?;
+            load_json_file(&bitcoind_path).change_context(ProjectError::ProjectLoadError)?;
         let bitcoin = BitcoinDaemonService::from_json(&bitcoind_json)
-            .change_context(SystemError::SystemLoadError)
+            .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", bitcoind::JSON_FILE_NAME))?;
 
         let lnd_path = work_dir.join(lnd::JSON_FILE_NAME);
-        let lnd_json = load_json_file(&lnd_path).change_context(SystemError::SystemLoadError)?;
+        let lnd_json = load_json_file(&lnd_path).change_context(ProjectError::ProjectLoadError)?;
         let lnd = LightningNetworkDaemonService::from_json(&lnd_json)
-            .change_context(SystemError::SystemLoadError)
+            .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", lnd::JSON_FILE_NAME))?;
 
         Ok(Self {

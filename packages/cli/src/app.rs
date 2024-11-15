@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
 use cli_log::{error, trace};
 use crossterm::event::KeyEvent;
 use error_stack::{Report, Result, ResultExt};
-use nixblitzlib::system::System;
+use nixblitzlib::project::Project;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::Rect,
@@ -45,7 +45,7 @@ pub struct App {
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
     home_page: ComponentIndex,
-    system: Rc<RefCell<System>>,
+    system: Rc<RefCell<Project>>,
     dirty: bool,
     theme: Rc<RefCell<ThemeData>>,
 
@@ -75,7 +75,8 @@ enum ComponentIndex {
 
 impl App {
     pub fn new(tick_rate: f64, frame_rate: f64, work_dir: PathBuf) -> Result<Self, CliError> {
-        let system = System::load(work_dir).change_context(CliError::UnableToInitSystemStruct)?;
+        let project =
+            Project::load(work_dir).change_context(CliError::UnableToInitProjectStruct)?;
 
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let mut map: HashMap<ComponentIndex, Box<dyn Component>> = HashMap::new();
@@ -106,7 +107,7 @@ impl App {
             action_tx,
             action_rx,
             home_page: ComponentIndex::AppsPage,
-            system: Rc::new(RefCell::new(system)),
+            system: Rc::new(RefCell::new(project)),
             modal_open: false,
             exclusive_input_component_shown: false,
             dirty: true,

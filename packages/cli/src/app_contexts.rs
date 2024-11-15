@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use nixblitzlib::system::System;
+use nixblitzlib::project::Project;
 
 use crate::{action::Action, components::theme::ThemeData};
 
@@ -8,19 +8,19 @@ use crate::{action::Action, components::theme::ThemeData};
 pub struct RenderContext {
     pub modal_open: bool,
     pub theme_data: Rc<RefCell<ThemeData>>,
-    pub system: Rc<RefCell<System>>,
+    pub project: Rc<RefCell<Project>>,
 }
 
 impl RenderContext {
     pub fn new(
         modal_open: bool,
         theme_data: Rc<RefCell<ThemeData>>,
-        system: Rc<RefCell<System>>,
+        project: Rc<RefCell<Project>>,
     ) -> Self {
         Self {
             modal_open,
             theme_data,
-            system,
+            project,
         }
     }
 }

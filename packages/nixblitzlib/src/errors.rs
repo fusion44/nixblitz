@@ -1,12 +1,6 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum GenerateDefaultSystemError {
-    #[error("")]
-    ToShort,
-}
-
-#[derive(Debug, Error)]
 pub enum PasswordError {
     #[error("Password to short")]
     ToShort,
@@ -33,18 +27,18 @@ pub enum TemplatingError {
 }
 
 #[derive(Debug, Error)]
-pub enum SystemError {
-    #[error("Unable to generate the system files")]
+pub enum ProjectError {
+    #[error("Unable to generate the project files")]
     GenFilesError,
-    #[error("Unable to read the system files")]
+    #[error("Unable to read the project files")]
     ParseError,
-    #[error("No system files where found in the given directory")]
-    NoSystemFound,
-    #[error("No system files where found in the given directory")]
-    SystemLoadError,
+    #[error("No project files where found in the given directory")]
+    NoProjectFound,
+    #[error("No project files where found in the given directory")]
+    ProjectLoadError,
     #[error("Unable to create the path: {:?}", .0)]
     CreatePathError(String),
-    #[error("Unable to crate the base system")]
+    #[error("Unable to create the base project")]
     CreateBaseFiles(String),
     #[error("Unable to find the file for path {:?}", .0)]
     FileNotFound(String),

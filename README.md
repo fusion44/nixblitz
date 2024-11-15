@@ -15,10 +15,10 @@ must to be set.
 
 A convenient way to set the env variable is to start the app as
 
-- bash `NIXBLITZ_LOG=debug nixblitz gui`
-- nushell `$env.NIXBLITZ_LOG = debug; nixblitz gui`
+- bash `NIXBLITZ_LOG=debug nixblitz tui`
+- nushell `$env.NIXBLITZ_LOG = debug; nixblitz tui`
 
 or, during development,
 
-- bash `NIXBLITZ_LOG=debug cargo run gui`
-- nushell `$env.NIXBLITZ_LOG = debug; cargo run gui`
+- bash `NIXBLITZ_LOG=debug cargo run tui`
+- nushell `$env.NIXBLITZ_LOG = debug; cargo run tui`

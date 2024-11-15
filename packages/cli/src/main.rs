@@ -1,7 +1,7 @@
 use clap::Parser;
 use cli::Cli;
 use cli_log::init_cli_log;
-use commands::{gui::start_gui, init::init_default_system_cmd};
+use commands::{init::init_default_project_cmd, tui::start_tui};
 use error_stack::Result;
 use errors::CliError;
 
@@ -24,13 +24,13 @@ async fn main() -> Result<(), CliError> {
 
     let cli = Cli::parse();
     match &cli.command {
-        Some(commands::Commands::Gui {
+        Some(commands::Commands::Tui {
             tick_rate,
             frame_rate,
             work_dir,
-        }) => start_gui(*tick_rate, *frame_rate, work_dir.clone()).await?,
+        }) => start_tui(*tick_rate, *frame_rate, work_dir.clone()).await?,
         Some(commands::Commands::Init { work_dir, force }) => {
-            init_default_system_cmd(work_dir, *force)?
+            init_default_project_cmd(work_dir, *force)?
         }
         Some(commands::Commands::Doctor {}) => {
             println!("We haven't quite figured out how to implement this yet. Maybe try asking a magic 8-ball instead?")

@@ -10,7 +10,7 @@ use include_dir::{include_dir, Dir};
 
 use crate::{
     bitcoind::BitcoinDaemonService,
-    errors::{PasswordError, SystemError},
+    errors::{PasswordError, ProjectError},
     lnd::LightningNetworkDaemonService,
     nix_base_config::{NixBaseConfig, NixBaseConfigsTemplates},
 };
@@ -87,24 +87,24 @@ pub fn unix_hash_password(pw: &str) -> Result<String, PasswordError> {
     Ok(hashed_pw)
 }
 
-fn safety_checks(work_dir: &Path) -> Result<(), SystemError> {
+fn safety_checks(work_dir: &Path) -> Result<(), ProjectError> {
     if !work_dir.exists() {
         return Ok(());
     }
 
     if !work_dir.is_dir() {
-        Err(SystemError::CreatePathError(
+        Err(ProjectError::CreatePathError(
             "The given path is not a directory".into(),
         ))?
     }
 
     let mut contents = work_dir
         .read_dir()
-        .change_context(SystemError::CreatePathError(
+        .change_context(ProjectError::CreatePathError(
             "Unable to read the working directory".into(),
         ))?;
     if contents.next().is_some() {
-        Err(SystemError::CreatePathError(
+        Err(ProjectError::CreatePathError(
             "The given path is not empty".into(),
         ))?
     }
@@ -112,7 +112,7 @@ fn safety_checks(work_dir: &Path) -> Result<(), SystemError> {
     Ok(())
 }
 
-pub fn init_default_system(work_dir: &Path, force: Option<bool>) -> Result<(), SystemError> {
+pub fn init_default_project(work_dir: &Path, force: Option<bool>) -> Result<(), ProjectError> {
     if !force.unwrap_or(false) {
         safety_checks(work_dir)?;
     }
@@ -122,7 +122,7 @@ pub fn init_default_system(work_dir: &Path, force: Option<bool>) -> Result<(), S
     let mut templ_files = vec![];
     for dir_path in BASE_TEMPLATE
         .find(glob)
-        .change_context(SystemError::GenFilesError)
+        .change_context(ProjectError::GenFilesError)
         .attach_printable_lazy(|| "Unable to get templates")?
     {
         let f = dir_path.as_file();
@@ -153,14 +153,14 @@ fn render_template_files(
     work_dir: &Path,
     templ_files: Vec<PathBuf>,
     force: Option<bool>,
-) -> Result<(), SystemError> {
+) -> Result<(), ProjectError> {
     for path in templ_files {
         let filename = path
             .file_stem()
             .and_then(|stem| stem.to_str())
             .unwrap_or("");
         if filename.is_empty() {
-            return Err(Report::new(SystemError::GenFilesError))
+            return Err(Report::new(ProjectError::GenFilesError))
                 .attach_lazy(|| format!("Unable to get filename from path: {}", filename));
         } else if filename == "lnd.nix" {
             _create_lnd_files(work_dir, force)?;
@@ -174,14 +174,14 @@ fn render_template_files(
     Ok(())
 }
 
-fn _create_bitcoin_files(work_dir: &Path, force: Option<bool>) -> Result<(), SystemError> {
+fn _create_bitcoin_files(work_dir: &Path, force: Option<bool>) -> Result<(), ProjectError> {
     let bitcoin_cfg = BitcoinDaemonService::default();
     let rendered_json = bitcoin_cfg
         .to_json_string()
-        .change_context(SystemError::GenFilesError)?;
+        .change_context(ProjectError::GenFilesError)?;
     let rendered_nix = bitcoin_cfg
         .render()
-        .change_context(SystemError::CreateBaseFiles(
+        .change_context(ProjectError::CreateBaseFiles(
             "Failed at rendering bitcoind config".to_string(),
         ))?;
 
@@ -201,14 +201,14 @@ fn _create_bitcoin_files(work_dir: &Path, force: Option<bool>) -> Result<(), Sys
 
     Ok(())
 }
-fn _create_lnd_files(work_dir: &Path, force: Option<bool>) -> Result<(), SystemError> {
+fn _create_lnd_files(work_dir: &Path, force: Option<bool>) -> Result<(), ProjectError> {
     let lnd_cfg = LightningNetworkDaemonService::default();
     let rendered_json = lnd_cfg
         .to_json_string()
-        .change_context(SystemError::GenFilesError)?;
+        .change_context(ProjectError::GenFilesError)?;
     let rendered_nix = lnd_cfg
         .render()
-        .change_context(SystemError::CreateBaseFiles(
+        .change_context(ProjectError::CreateBaseFiles(
             "Failed at rendering lnd config".to_string(),
         ))?;
 
@@ -229,14 +229,14 @@ fn _create_lnd_files(work_dir: &Path, force: Option<bool>) -> Result<(), SystemE
     Ok(())
 }
 
-fn _create_nix_base_config(work_dir: &Path, force: Option<bool>) -> Result<(), SystemError> {
+fn _create_nix_base_config(work_dir: &Path, force: Option<bool>) -> Result<(), ProjectError> {
     let nix_base_config = NixBaseConfig::default();
     let rendered_json = nix_base_config
         .to_json_string()
-        .change_context(SystemError::GenFilesError)?;
+        .change_context(ProjectError::GenFilesError)?;
     let rendered_nix = nix_base_config
         .render(NixBaseConfigsTemplates::Common)
-        .change_context(SystemError::CreateBaseFiles(
+        .change_context(ProjectError::CreateBaseFiles(
             "Failed at rendering base config".to_string(),
         ))?;
 
@@ -257,12 +257,12 @@ fn _create_nix_base_config(work_dir: &Path, force: Option<bool>) -> Result<(), S
     Ok(())
 }
 
-fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), SystemError> {
+fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), ProjectError> {
     fs::create_dir_all(
         path.parent()
-            .ok_or_else(|| Report::new(SystemError::GenFilesError))?,
+            .ok_or_else(|| Report::new(ProjectError::GenFilesError))?,
     )
-    .change_context(SystemError::GenFilesError)
+    .change_context(ProjectError::GenFilesError)
     .attach_printable_lazy(|| {
         format!("Path: {}", path.to_str().unwrap_or("Unable to unwrap path"))
     })?;
@@ -270,7 +270,7 @@ fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), 
     let force = force.unwrap_or(false);
     if !force {
         let res = fs::read_to_string(path)
-            .change_context(SystemError::GenFilesError)
+            .change_context(ProjectError::GenFilesError)
             .attach_printable_lazy(|| {
                 format!(
                     "Unable to read file {} to check if it is empty",
@@ -279,7 +279,7 @@ fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), 
             });
 
         if res.is_ok() {
-            return Err(Report::new(SystemError::GenFilesError)
+            return Err(Report::new(ProjectError::GenFilesError)
                 .attach_printable(format!(
                     "File exists: {}",
                     path.to_str().unwrap_or_default()
@@ -289,7 +289,7 @@ fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), 
     }
 
     let mut file = File::create(path)
-        .change_context(SystemError::GenFilesError)
+        .change_context(ProjectError::GenFilesError)
         .attach_printable_lazy(|| {
             format!(
                 "Unable to create file {}",
@@ -298,7 +298,7 @@ fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), 
         })?;
 
     file.write_all(contents)
-        .change_context(SystemError::GenFilesError)
+        .change_context(ProjectError::GenFilesError)
         .attach_printable_lazy(|| {
             format!(
                 "Unable to write file contents to {}",
@@ -327,9 +327,9 @@ fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), 
 /// * The file does not exist.
 /// * The file cannot be opened.
 /// * The file cannot be read.
-pub fn load_json_file(file_path: &Path) -> Result<String, SystemError> {
+pub fn load_json_file(file_path: &Path) -> Result<String, ProjectError> {
     if !file_path.exists() {
-        return Err(Report::new(SystemError::FileNotFound(
+        return Err(Report::new(ProjectError::FileNotFound(
             file_path
                 .to_str()
                 .unwrap_or("Unable to unwrap path")
@@ -337,7 +337,7 @@ pub fn load_json_file(file_path: &Path) -> Result<String, SystemError> {
         )));
     }
 
-    let mut file = File::open(file_path).change_context(SystemError::FileOpenError(
+    let mut file = File::open(file_path).change_context(ProjectError::FileOpenError(
         file_path
             .to_str()
             .unwrap_or("Uable to unwrap path")
@@ -346,7 +346,7 @@ pub fn load_json_file(file_path: &Path) -> Result<String, SystemError> {
 
     let mut contents = String::new();
     file.read_to_string(&mut contents)
-        .change_context(SystemError::FileReadError(
+        .change_context(ProjectError::FileReadError(
             file_path
                 .to_str()
                 .unwrap_or("Unable to unwrap path")
@@ -361,7 +361,7 @@ mod tests {
     use std::fs::{self, create_dir, create_dir_all, File};
 
     use crate::{
-        errors::SystemError,
+        errors::ProjectError,
         utils::{create_file, safety_checks, unix_hash_password},
     };
     use sha_crypt::sha512_check;
@@ -398,7 +398,7 @@ mod tests {
         let err = report.current_context();
         assert!(matches!(
             err,
-            SystemError::CreatePathError(msg) if msg == "The given path is not a directory"
+            ProjectError::CreatePathError(msg) if msg == "The given path is not a directory"
         ));
     }
 
@@ -426,7 +426,7 @@ mod tests {
         let err = report.current_context();
         assert!(matches!(
             err,
-            SystemError::CreatePathError(msg) if msg == "The given path is not empty"
+            ProjectError::CreatePathError(msg) if msg == "The given path is not empty"
         ));
     }
 
@@ -486,19 +486,19 @@ mod tests {
 
         let report = result.unwrap_err();
         let err = report.current_context();
-        assert!(matches!(err, SystemError::GenFilesError));
+        assert!(matches!(err, ProjectError::GenFilesError));
 
         let actual_contents = fs::read_to_string(&file_path).unwrap();
         assert_eq!(actual_contents, EXISTING_CONTENTS); // Content should not be overwritten
     }
 
     #[test]
-    fn test_init_default_system_creates_files() {
+    fn test_init_default_project_creates_files() {
         // let temp_dir = tempfile::tempdir().unwrap();
         // let work_dir = temp_dir.path();
         //
         // // TODO: fixme
-        // let res = init_default_system(work_dir);
+        // let res = init_default_project(work_dir);
         // if let Err(ref e) = res {
         //     println!("error: {}", e);
         // }
