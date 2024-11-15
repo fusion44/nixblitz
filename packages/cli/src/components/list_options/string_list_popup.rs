@@ -12,9 +12,8 @@ use crate::{
     components::{
         list_options::popup::center,
         theme::{
-            block,
             list::{self, SelectableListItem},
-            popup::{self, block},
+            popup::{self},
         },
         Component,
     },

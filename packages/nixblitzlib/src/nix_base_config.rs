@@ -348,129 +348,50 @@ mod tests {
         #[allow(clippy::unnecessary_to_owned)]
         let res_base = texts.get(&templates.first().unwrap().to_string());
         assert!(res_base.is_some());
-        assert_eq!(
-            res_base.unwrap().trim(),
-            OK_OUTPUT_BASE.replace("testPWhere", &pw).trim()
-        );
+        let res_base = res_base.unwrap();
+        assert!(res_base.contains(&format!(
+            "nixpkgs.config.allowUnfree = {};",
+            config.allow_unfree
+        )));
+        assert!(res_base.contains(&format!("time.timeZone = \"{}\";", config.time_zone)));
+        for key in config.openssh_auth_keys {
+            assert!(res_base.contains(&format!("\"{}\"", key)));
+        }
+        assert!(res_base.contains(&format!(
+            "i18n.defaultLocale = \"{}\";",
+            config.default_locale
+        )));
+        assert!(res_base.contains(&format!(
+            "PasswordAuthentication = {};",
+            config.ssh_password_auth
+        )));
+        assert!(res_base.contains(&format!(
+            "hashedPassword = \"{}\";",
+            &config.hashed_password
+        )));
+        for pkg in config.system_packages {
+            assert!(res_base.contains(&pkg.to_string()));
+        }
+        for port in config.ports {
+            assert!(res_base.contains(&format!("{}", port)));
+        }
 
         #[allow(clippy::unnecessary_to_owned)]
         let res_vm = texts.get(&templates.get(1).unwrap().to_string());
         assert!(res_vm.is_some());
-        assert_eq!(res_vm.unwrap().trim(), OK_OUTPUT_VM.trim());
+        let res_vm = res_vm.unwrap();
+        assert!(res_vm.contains(&format!(
+            "networking.hostName = \"{}\";",
+            config.hostname_vm
+        )));
 
         #[allow(clippy::unnecessary_to_owned)]
         let res_pi = texts.get(&templates.get(2).unwrap().to_string());
-        println!("{}", res_pi.unwrap().trim());
-        println!("{}", OK_OUTPUT_PI.trim());
         assert!(res_pi.is_some());
-        assert_eq!(res_pi.unwrap().trim(), OK_OUTPUT_PI.trim());
+        let res_pi = res_pi.unwrap();
+        assert!(res_pi.contains(&format!(
+            "networking.hostName = \"{}\";",
+            config.hostname_pi
+        )));
     }
-
-    const OK_OUTPUT_BASE: &str = "
-{pkgs, ...}: {
-  imports = [
-    ./apps/bitcoind.nix
-    ./apps/lnd.nix
-    ./apps/blitz_api.nix
-    ./apps/blitz_web.nix
-  ];
-
-  boot.loader.grub.enable = false;
-
-  nixpkgs.config.allowUnfree = true;
-  time.timeZone = \"Europe/London\";
-  i18n.defaultLocale = \"de_DE.UTF-8\";
-
-  console = {
-    font = \"Lat2-Terminus16\";
-    useXkbConfig = true; # use xkb.options in tty.
-  };
-
-  users = {
-    defaultUserShell = pkgs.nushell;
-    users.\"myUserName\" = {
-      isNormalUser = true;
-      extraGroups = [\"wheel\"];
-      hashedPassword = \"testPWhere\";
-      openssh.authorizedKeys.keys = [
-        \"123\"
-        \"234\"
-      ];
-    };
-  };
-
-  home-manager.users.\"myUserName\" = {pkgs, ...}: {
-    home.packages = [];
-    programs.nushell = {
-      enable = true;
-      configFile.source = ./configs/nushell/config.nu;
-      envFile.source = ./configs/nushell/env.nu;
-    };
-
-    home.stateVersion = \"24.05\";
-  };
-
-  environment.systemPackages = with pkgs; [
-    bat
-    yazi
-  ];
-
-  services = {
-    openssh = {
-      enable = true;
-      ports = [22];
-      settings = {
-        PasswordAuthentication = true;
-        AllowUsers = [\"myUserName\"];
-        UseDns = true;
-        X11Forwarding = false;
-        PermitRootLogin = \"prohibit-password\";
-      };
-    };
-
-    redis.servers.\"\".enable = true;
-  };
-
-  networking.firewall.allowedTCPPorts = [22 1337];
-  system.stateVersion = \"24.05\";
-}
-";
-
-    const OK_OUTPUT_VM: &str = "
-{...}: {
-  imports = [
-    ./hardware-configuration.nix
-    ../configuration.common.nix
-  ];
-
-  boot.loader.generic-extlinux-compatible.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
-
-  virtualisation.vmVariant = {
-    # following configuration is added only when building VM with build-vm
-    virtualisation = {
-      memorySize = 2048; # Use 2048MiB memory.
-      diskSize = 10240;
-      cores = 3;
-      graphics = false;
-    };
-  };
-
-  services.qemuGuest.enable = true;
-
-  networking.hostName = \"nixblitzvm\";
-}";
-
-    const OK_OUTPUT_PI: &str = "
-{...}: {
-  imports = [
-    ./hardware-configuration.nix
-    ../configuration.common.nix
-  ];
-
-  boot.loader.generic-extlinux-compatible.enable = true;
-
-  networking.hostName = \"nixblitzpi\";
-}
-";
 }

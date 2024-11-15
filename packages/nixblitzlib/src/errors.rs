@@ -41,7 +41,7 @@ pub enum SystemError {
     #[error("No system files where found in the given directory")]
     NoSystemFound,
     #[error("No system files where found in the given directory")]
-    SytemLoadError,
+    SystemLoadError,
     #[error("Unable to create the path: {:?}", .0)]
     CreatePathError(String),
     #[error("Unable to crate the base system")]

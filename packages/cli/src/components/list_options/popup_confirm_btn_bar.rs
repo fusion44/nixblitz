@@ -9,10 +9,7 @@ use ratatui_macros::constraints;
 
 use crate::{
     app_contexts::RenderContext,
-    components::{
-        theme::{button, popup},
-        Component,
-    },
+    components::{theme::popup, Component},
     errors::CliError,
 };
 
