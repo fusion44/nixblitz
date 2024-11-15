@@ -34,9 +34,19 @@ lint fix="":
     print "Unknown argument '{{fix}}'. Pass '-f' to auto fix or nothing to dry run."
   }
 
-# runs all tests
-test:
-	cd {{rust_src}}; cargo test
+# runs all tests; Pass --trace (-t) to enable Rust tracing
+test trace="":
+  #!/usr/bin/env nu
+  if ("{{trace}}" == "-t" or "{{trace}}" == "--trace") {
+    cd {{rust_src}}
+    $env.RUST_BACKTRACE = 1
+    cargo test
+  } else if ("{{trace}}" == "") {
+    cd {{rust_src}}
+    cargo test
+  } else {
+    print "Unknown argument '{{trace}}'. Pass '-t' to enable Rust tracing or nothing to run without it."
+  }
 
 # run the CLI with debug log enabled, any args are passed to the CLI unaltered
 run-cli *args='':
