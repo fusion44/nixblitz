@@ -128,9 +128,10 @@ impl AppOptions {
         } else {
             block::default(&self.title, ctx)
         };
+        let td = ctx.theme_data.clone();
         let block = block
-            .bg(ctx.theme_data.colors.surface)
-            .fg(ctx.theme_data.colors.on_surface_var);
+            .bg(td.borrow().colors.surface)
+            .fg(td.borrow().colors.on_surface_var);
 
         let total_height = block.inner(area).height;
 

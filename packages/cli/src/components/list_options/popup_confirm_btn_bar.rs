@@ -58,8 +58,9 @@ impl Component for PopupConfirmButtonBar {
         };
 
         frame.render_widget(Clear, area);
+        let td = ctx.theme_data.clone();
         frame.render_widget(
-            Block::new().bg(ctx.theme_data.colors.surface_container_high),
+            Block::new().bg(td.borrow().colors.surface_container_high),
             area,
         );
         for (index, button) in self.buttons.iter().enumerate() {

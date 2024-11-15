@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
 
 use cli_log::{error, trace};
 use crossterm::event::KeyEvent;
@@ -45,9 +45,9 @@ pub struct App {
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
     home_page: ComponentIndex,
-    system: System,
+    system: Rc<RefCell<System>>,
     dirty: bool,
-    theme: ThemeData,
+    theme: Rc<RefCell<ThemeData>>,
 
     /// Tracks if a modal is open
     modal_open: bool,
@@ -75,7 +75,7 @@ enum ComponentIndex {
 
 impl App {
     pub fn new(tick_rate: f64, frame_rate: f64, work_dir: PathBuf) -> Result<Self, CliError> {
-        let system = System::new(work_dir);
+        let system = System::load(work_dir).change_context(CliError::UnableToInitSystemStruct)?;
 
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let mut map: HashMap<ComponentIndex, Box<dyn Component>> = HashMap::new();
@@ -106,16 +106,16 @@ impl App {
             action_tx,
             action_rx,
             home_page: ComponentIndex::AppsPage,
-            system,
+            system: Rc::new(RefCell::new(system)),
             modal_open: false,
             exclusive_input_component_shown: false,
             dirty: true,
-            theme: ThemeData::default(),
+            theme: Rc::new(RefCell::new(ThemeData::default())),
         })
     }
 
     pub async fn run(&mut self) -> Result<(), CliError> {
-        self.theme.set_theme("pale-green", "dark")?;
+        self.theme.borrow_mut().set_theme("pale-green", "dark")?;
 
         let mut tui = Tui::new()?
             .mouse(true)
@@ -139,10 +139,6 @@ impl App {
             let r = Rect::new(0, 0, size.width, size.height);
             component.1.init(r)?;
         }
-
-        self.system
-            .init()
-            .change_context(CliError::UnableToInitSystemStruct)?;
 
         let action_tx = self.action_tx.clone();
         loop {
@@ -373,10 +369,7 @@ impl App {
     }
 
     fn render(&mut self, tui: &mut Tui) -> Result<(), CliError> {
-        // TODO: try not to clone this, but pass a reference.
-        //       maybe include the frame in the context object
-        let t = self.theme.clone();
-        let ctx = RenderContext::new(self.modal_open, &t);
+        let ctx = RenderContext::new(self.modal_open, self.theme.clone(), self.system.clone());
 
         tui.draw(|frame| {
             let main_layout = Layout::default()

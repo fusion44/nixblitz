@@ -1,16 +1,26 @@
+use std::{cell::RefCell, rc::Rc};
+
+use nixblitzlib::system::System;
+
 use crate::{action::Action, components::theme::ThemeData};
 
 #[derive(Debug)]
-pub struct RenderContext<'a> {
+pub struct RenderContext {
     pub modal_open: bool,
-    pub theme_data: &'a ThemeData,
+    pub theme_data: Rc<RefCell<ThemeData>>,
+    pub system: Rc<RefCell<System>>,
 }
 
-impl<'a> RenderContext<'a> {
-    pub fn new(modal_open: bool, color_data: &'a ThemeData) -> Self {
+impl RenderContext {
+    pub fn new(
+        modal_open: bool,
+        theme_data: Rc<RefCell<ThemeData>>,
+        system: Rc<RefCell<System>>,
+    ) -> Self {
         Self {
             modal_open,
-            theme_data: color_data,
+            theme_data,
+            system,
         }
     }
 }

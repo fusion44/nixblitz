@@ -229,29 +229,34 @@ pub mod block {
     use crate::app_contexts::RenderContext;
 
     pub fn default<'a>(title: &'a str, ctx: &RenderContext) -> Block<'a> {
-        let colors = &ctx.theme_data.colors;
         Block::default()
             .title(title)
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .border_style(Style::new().bg(colors.surface).fg(colors.on_surface))
+            .border_style(
+                Style::new()
+                    .bg(ctx.theme_data.clone().borrow().colors.surface)
+                    .fg(ctx.theme_data.clone().borrow().colors.on_surface),
+            )
     }
 
     pub fn focused<'a>(title: &'a str, ctx: &RenderContext) -> Block<'a> {
-        let colors = &ctx.theme_data.colors;
-        default(title, ctx).border_style(Style::new().bg(colors.surface).fg(colors.primary))
-    }
-
-    pub fn dimmed<'a>(title: &'a str, ctx: &RenderContext) -> Block<'a> {
-        let colors = &ctx.theme_data.colors;
         default(title, ctx).border_style(
             Style::new()
-                .bg(colors.surface_dim)
-                .fg(colors.on_surface_var),
+                .bg(ctx.theme_data.clone().borrow().colors.surface)
+                .fg(ctx.theme_data.clone().borrow().colors.primary),
         )
     }
 
-    pub fn no_border<'a>(_: &'a RenderContext) -> Block<'a> {
+    pub fn dimmed<'a>(title: &'a str, ctx: &RenderContext) -> Block<'a> {
+        default(title, ctx).border_style(
+            Style::new()
+                .bg(ctx.theme_data.clone().borrow().colors.surface_dim)
+                .fg(ctx.theme_data.clone().borrow().colors.on_surface_var),
+        )
+    }
+
+    pub fn no_border(_: &RenderContext) -> Block {
         Block::default().borders(Borders::NONE)
     }
 }
@@ -267,14 +272,16 @@ pub mod button {
     use crate::app_contexts::RenderContext;
 
     pub fn default<'a>(label: &'a str, ctx: &RenderContext) -> Paragraph<'a> {
-        let colors = &ctx.theme_data.colors;
-        let style = Style::default().bg(colors.surface).fg(colors.primary);
+        let style = Style::default()
+            .bg(ctx.theme_data.clone().borrow().colors.surface)
+            .fg(ctx.theme_data.clone().borrow().colors.primary);
         Paragraph::new(Span::styled(label, style)).centered()
     }
 
     pub fn focused<'a>(label: &'a str, ctx: &RenderContext) -> Paragraph<'a> {
-        let colors = &ctx.theme_data.colors;
-        let style = Style::default().bg(colors.surface).fg(colors.secondary);
+        let style = Style::default()
+            .bg(ctx.theme_data.clone().borrow().colors.surface)
+            .fg(ctx.theme_data.clone().borrow().colors.secondary);
         Paragraph::new(Span::styled(label, style)).centered().bold()
     }
 }
@@ -289,33 +296,54 @@ pub mod menu {
     use crate::app_contexts::RenderContext;
 
     pub fn item<'a>(title: &'a str, action_char_index: usize, ctx: &RenderContext) -> Line<'a> {
-        let colors = &ctx.theme_data.colors;
         let (a, b) = title.split_at(action_char_index);
         if action_char_index == 1 {
             Line::from(vec![
-                Span::styled(a, Style::default().fg(colors.primary).underlined()),
-                Span::styled(b, Style::default().fg(colors.on_surface)),
+                Span::styled(
+                    a,
+                    Style::default()
+                        .fg(ctx.theme_data.clone().borrow().colors.primary)
+                        .underlined(),
+                ),
+                Span::styled(
+                    b,
+                    Style::default().fg(ctx.theme_data.clone().borrow().colors.on_surface),
+                ),
             ])
-            .bg(colors.surface)
+            .bg(ctx.theme_data.clone().borrow().colors.surface)
         } else {
             let (c, d) = a.split_at(a.len() - 1);
             Line::from(vec![
-                Span::styled(c, Style::default().fg(colors.on_surface)),
-                Span::styled(d, Style::default().fg(colors.primary).underlined()),
-                Span::styled(b, Style::default().fg(colors.on_surface)),
+                Span::styled(
+                    c,
+                    Style::default().fg(ctx.theme_data.clone().borrow().colors.on_surface),
+                ),
+                Span::styled(
+                    d,
+                    Style::default()
+                        .fg(ctx.theme_data.clone().borrow().colors.primary)
+                        .underlined(),
+                ),
+                Span::styled(
+                    b,
+                    Style::default().fg(ctx.theme_data.clone().borrow().colors.on_surface),
+                ),
             ])
-            .bg(colors.surface)
+            .bg(ctx.theme_data.clone().borrow().colors.surface)
         }
     }
 
     pub fn tab_bar<'a>(items: Vec<Line<'a>>, active_item: usize, ctx: &RenderContext) -> Tabs<'a> {
-        let colors = &ctx.theme_data.colors;
         Tabs::new(items)
             .select(active_item)
             .divider(Span::raw("|"))
-            .highlight_style(Style::default().bold().fg(colors.primary))
-            .bg(colors.surface)
-            .fg(colors.on_surface)
+            .highlight_style(
+                Style::default()
+                    .bold()
+                    .fg(ctx.theme_data.clone().borrow().colors.primary),
+            )
+            .bg(ctx.theme_data.clone().borrow().colors.surface)
+            .fg(ctx.theme_data.clone().borrow().colors.on_surface)
     }
 }
 pub mod popup {
@@ -328,20 +356,24 @@ pub mod popup {
 
     /// A block as should be used in popups
     pub fn block<'a>(title: String, ctx: &RenderContext) -> Block<'a> {
-        let colors = &ctx.theme_data.colors;
         Block::default()
-            .bg(colors.surface_container_high)
+            .bg(ctx
+                .theme_data
+                .clone()
+                .borrow()
+                .colors
+                .surface_container_high)
             .borders(Borders::ALL)
             .title(title)
             .title_alignment(ratatui::layout::Alignment::Center)
             .padding(Padding::horizontal(1))
             .border_type(ratatui::widgets::BorderType::Rounded)
-            .border_style(Style::new().fg(colors.primary_inverse))
+            .border_style(Style::new().fg(ctx.theme_data.clone().borrow().colors.primary_inverse))
     }
 
     pub fn block_focused<'a>(title: String, ctx: &RenderContext) -> Block<'a> {
-        let colors = &ctx.theme_data.colors;
-        block(title, ctx).border_style(Style::new().fg(colors.primary))
+        block(title, ctx)
+            .border_style(Style::new().fg(ctx.theme_data.clone().borrow().colors.primary))
     }
 
     pub mod button {
@@ -354,18 +386,26 @@ pub mod popup {
         use crate::app_contexts::RenderContext;
 
         pub fn default<'a>(label: &'a str, ctx: &RenderContext) -> Paragraph<'a> {
-            let colors = &ctx.theme_data.colors;
             let style = Style::default()
-                .bg(colors.surface_container_high)
-                .fg(colors.primary);
+                .bg(ctx
+                    .theme_data
+                    .clone()
+                    .borrow()
+                    .colors
+                    .surface_container_high)
+                .fg(ctx.theme_data.clone().borrow().colors.primary);
             Paragraph::new(Span::styled(label, style)).centered()
         }
 
         pub fn focused<'a>(label: &'a str, ctx: &RenderContext) -> Paragraph<'a> {
-            let colors = &ctx.theme_data.colors;
             let style = Style::default()
-                .bg(colors.surface_container_high)
-                .fg(colors.secondary);
+                .bg(ctx
+                    .theme_data
+                    .clone()
+                    .borrow()
+                    .colors
+                    .surface_container_high)
+                .fg(ctx.theme_data.clone().borrow().colors.secondary);
             Paragraph::new(Span::styled(label, style)).centered().bold()
         }
     }
@@ -405,10 +445,9 @@ pub mod list {
         }
     }
     fn build<'a>(items: &'a [&'a str], ctx: &RenderContext) -> List<'a> {
-        let color = &ctx.theme_data.colors;
         List::new(items.to_owned())
-            .bg(color.surface)
-            .fg(color.on_surface_var)
+            .bg(ctx.theme_data.clone().borrow().colors.surface)
+            .fg(ctx.theme_data.clone().borrow().colors.on_surface_var)
             .highlight_style(Style::new().add_modifier(Modifier::REVERSED))
             .highlight_symbol(">")
             .repeat_highlight_symbol(true)
