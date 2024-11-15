@@ -28,28 +28,28 @@ pub struct System {
 
 impl System {
     pub fn load(work_dir: PathBuf) -> Result<Self, SystemError> {
-        let nix_path = work_dir.join(nix_base_config::TEMPLATE_FILE_NAME);
+        let nix_path = work_dir.join(nix_base_config::JSON_FILE_NAME);
         let nix_base_config_json =
             load_json_file(&nix_path).change_context(SystemError::SytemLoadError)?;
         let nix_base = NixBaseConfig::from_json(&nix_base_config_json)
             .change_context(SystemError::SytemLoadError)
             .attach_printable(format!(
                 "Trying to load {}",
-                nix_base_config::TEMPLATE_FILE_NAME
+                nix_base_config::JSON_FILE_NAME
             ))?;
 
-        let bitcoind_path = work_dir.join(bitcoind::TEMPLATE_FILE_NAME);
+        let bitcoind_path = work_dir.join(bitcoind::JSON_FILE_NAME);
         let bitcoind_json =
             load_json_file(&bitcoind_path).change_context(SystemError::SytemLoadError)?;
         let bitcoin = BitcoinDaemonService::from_json(&bitcoind_json)
             .change_context(SystemError::SytemLoadError)
-            .attach_printable(format!("Trying to load {}", bitcoind::TEMPLATE_FILE_NAME))?;
+            .attach_printable(format!("Trying to load {}", bitcoind::JSON_FILE_NAME))?;
 
-        let lnd_path = work_dir.join(lnd::TEMPLATE_FILE_NAME);
+        let lnd_path = work_dir.join(lnd::JSON_FILE_NAME);
         let lnd_json = load_json_file(&lnd_path).change_context(SystemError::SytemLoadError)?;
         let lnd = LightningNetworkDaemonService::from_json(&lnd_json)
             .change_context(SystemError::SytemLoadError)
-            .attach_printable(format!("Trying to load {}", lnd::TEMPLATE_FILE_NAME))?;
+            .attach_printable(format!("Trying to load {}", lnd::JSON_FILE_NAME))?;
 
         Ok(Self {
             work_dir,

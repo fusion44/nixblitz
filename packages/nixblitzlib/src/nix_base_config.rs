@@ -7,7 +7,7 @@ use std::{collections::HashMap, fmt::Display};
 use crate::{errors::TemplatingError, utils::BASE_TEMPLATE};
 
 pub const TEMPLATE_FILE_NAME: &str = "src/configuration.common.nix.templ";
-pub const JSON_FILE_NAME: &str = "src/nix_base.json";
+pub const JSON_FILE_NAME: &str = "src/nix_base_config.json";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NixBaseConfig {
