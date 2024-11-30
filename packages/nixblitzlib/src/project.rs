@@ -68,7 +68,7 @@ impl Project {
 
     pub fn get_app_options(&mut self) -> Result<Rc<Vec<OptionData>>, ProjectError> {
         match self.selected_app {
-            SupportedApps::NixOS => Ok(self.nix_base.options.clone()),
+            SupportedApps::NixOS => Ok(Rc::new(self.nix_base.get_options())),
             SupportedApps::BitcoinCore => todo!(),
             SupportedApps::CoreLightning => todo!(),
             SupportedApps::LND => todo!(),

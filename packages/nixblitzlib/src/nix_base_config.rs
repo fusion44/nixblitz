@@ -2,7 +2,8 @@ use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Display, rc::Rc, str::FromStr};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
+use strum::EnumCount;
 
 use crate::{
     app_config::AppConfig,
@@ -25,7 +26,7 @@ pub const JSON_FILE_NAME: &str = "src/nix_base_config.json";
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NixBaseConfig {
     /// Whether to allow unfree packages from nixpkgs
-    pub allow_unfree: bool,
+    pub allow_unfree: Box<BoolOptionData>,
 
     /// The timezone that should be used for this system
     ///
@@ -119,9 +120,6 @@ pub struct NixBaseConfig {
     ///
     /// [nisos.org:networking.hostName](https://search.nixos.org/options?show=networking.hostName)
     pub hostname_pi: String,
-
-    #[serde(skip_serializing, skip_deserializing)]
-    pub options: Rc<Vec<OptionData>>,
 }
 
 impl Default for NixBaseConfig {
@@ -132,7 +130,13 @@ impl Default for NixBaseConfig {
         let username = "admin".to_string();
         let initial_password = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.".to_string();
         Self {
-            allow_unfree: false,
+            allow_unfree: Box::new(BoolOptionData::new(
+                OptionId::new(
+                    SupportedApps::NixOS,
+                    NixBaseConfigOption::AllowUnfree.to_string(),
+                ),
+                allow_unfree,
+            )),
             time_zone: time_zone.clone(),
             default_locale: default_locale.clone(),
             username: username.clone(),
@@ -153,13 +157,6 @@ impl Default for NixBaseConfig {
             ports: vec![22],
             hostname_vm: "nixblitzvm".to_string(),
             hostname_pi: "nixblitzpi".to_string(),
-            options: Rc::new(Self::get_options(
-                allow_unfree,
-                time_zone,
-                default_locale,
-                username,
-                initial_password,
-            )),
         }
     }
 }
@@ -169,7 +166,7 @@ pub enum NixBaseConfigsTemplates {
     Common,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, EnumCount, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NixBaseConfigOption {
     AllowUnfree,
     TimeZone,
@@ -234,7 +231,7 @@ impl Display for NixBaseConfigsTemplates {
 impl NixBaseConfig {
     #![allow(clippy::too_many_arguments)]
     pub fn new(
-        allow_unfree: bool,
+        allow_unfree: Box<BoolOptionData>,
         time_zone: String,
         default_locale: String,
         username: String,
@@ -247,7 +244,7 @@ impl NixBaseConfig {
         hostname_pi: String,
     ) -> Self {
         Self {
-            allow_unfree,
+            allow_unfree: allow_unfree.clone(),
             time_zone: time_zone.clone(),
             default_locale: default_locale.clone(),
             username: username.clone(),
@@ -258,13 +255,6 @@ impl NixBaseConfig {
             ports,
             hostname_vm,
             hostname_pi,
-            options: Rc::new(Self::get_options(
-                allow_unfree,
-                time_zone,
-                default_locale,
-                username,
-                "".to_string(),
-            )),
         }
     }
 
@@ -312,7 +302,7 @@ impl NixBaseConfig {
             let mut data = HashMap::new();
             if file_name == "src/configuration.common.nix.templ" {
                 data = HashMap::from([
-                    ("allow_unfree", format!("{}", self.allow_unfree)),
+                    ("allow_unfree", format!("{}", self.allow_unfree.value())),
                     ("time_zone", self.time_zone.clone()),
                     ("default_locale", self.default_locale.clone()),
                     ("username", self.username.clone()),
@@ -372,46 +362,23 @@ impl NixBaseConfig {
     }
 
     pub fn from_json(json_data: &str) -> Result<NixBaseConfig, TemplatingError> {
-        let mut res: NixBaseConfig =
+        let res: NixBaseConfig =
             serde_json::from_str(json_data).change_context(TemplatingError::JsonLoadError)?;
-        res.update_options();
+
         Ok(res)
     }
 
-    /// Update the options based on the current state
-    fn update_options(&mut self) {
-        self.options = Rc::new(Self::get_options(
-            self.allow_unfree,
-            self.time_zone.clone(),
-            self.default_locale.clone(),
-            self.username.clone(),
-            self.hashed_password.clone(),
-        ));
-    }
-
-    fn get_options(
-        allow_unfree: bool,
-        time_zone: String,
-        default_locale: String,
-        username: String,
-        initial_password: String,
-    ) -> Vec<OptionData> {
+    pub fn get_options(&self) -> Vec<OptionData> {
         vec![
-            OptionData::Bool(Box::new(BoolOptionData::new(
-                OptionId::new(SupportedApps::NixOS, "allow_unfree".to_string()),
-                "Allow Unfree".to_string(),
-                allow_unfree,
-                false,
-                allow_unfree,
-            ))),
+            OptionData::Bool(self.allow_unfree.clone()),
             OptionData::StringList(Box::new(StringListOptionData::new(
                 OptionId::new(
                     SupportedApps::NixOS,
                     NixBaseConfigOption::TimeZone.to_string(),
                 ),
                 "Time Zone".to_string(),
-                time_zone.clone(),
-                time_zone,
+                self.time_zone.clone(),
+                self.time_zone.clone(),
                 TIMEZONES
                     .iter()
                     .map(|tz| StringListOptionItem::new(tz.to_string(), tz.to_string()))
@@ -424,8 +391,8 @@ impl NixBaseConfig {
                     NixBaseConfigOption::DefaultLocale.to_string(),
                 ),
                 "Default Locale".to_string(),
-                default_locale.clone(),
-                default_locale,
+                self.default_locale.clone(),
+                self.default_locale.clone(),
                 LOCALES
                     .iter()
                     .map(|locale| StringListOptionItem::new(locale.to_string(), locale.to_string()))
@@ -438,10 +405,10 @@ impl NixBaseConfig {
                     NixBaseConfigOption::Username.to_string(),
                 ),
                 "User Name".to_string(),
-                username.clone(),
+                self.username.clone(),
                 1,
                 false,
-                username,
+                self.username.clone(),
             ))),
             OptionData::TextEdit(Box::new(TextOptionData::new(
                 OptionId::new(
@@ -449,10 +416,10 @@ impl NixBaseConfig {
                     NixBaseConfigOption::InitialPassword.to_string(),
                 ),
                 "Initial Password".to_string(),
-                initial_password.clone(),
+                self.hashed_password.clone(),
                 1,
                 false,
-                initial_password,
+                self.hashed_password.clone(),
             ))),
         ]
     }
@@ -468,8 +435,8 @@ impl AppConfig for NixBaseConfig {
             let mut res = Ok(false);
             if opt == NixBaseConfigOption::AllowUnfree {
                 if let OptionDataChangeNotification::Bool(val) = option {
-                    res = Ok(self.allow_unfree != val.value);
-                    self.allow_unfree = val.value;
+                    res = Ok(self.allow_unfree.value() != val.value);
+                    self.allow_unfree.set_value(val.value);
                 } else {
                     Err(
                         Report::new(ProjectError::ChangeOptionValueError).attach_printable(
@@ -493,12 +460,6 @@ impl AppConfig for NixBaseConfig {
                     .attach_printable(format!("Unbknown option: {}", opt,)))?
             }
 
-            if let Ok(dirty) = res {
-                if dirty {
-                    self.update_options();
-                }
-            }
-
             return res;
         }
 
@@ -509,13 +470,13 @@ impl AppConfig for NixBaseConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::unix_hash_password;
+    use crate::{strings::OPTION_TITLES, utils::unix_hash_password};
 
     #[test]
     fn test_default_config() {
         let config = NixBaseConfig::default();
 
-        assert!(!config.allow_unfree);
+        assert!(!config.allow_unfree.value());
         assert_eq!(config.time_zone, "America/New_York");
         assert_eq!(config.default_locale, "en_US.UTF-8");
         assert_eq!(config.username, "admin");
@@ -530,7 +491,13 @@ mod tests {
         let templates = NixBaseConfigsTemplates::Common.files();
 
         let config = NixBaseConfig::new(
-            true,
+            Box::new(BoolOptionData::new(
+                OptionId::new(
+                    SupportedApps::NixOS,
+                    NixBaseConfigOption::AllowUnfree.to_string(),
+                ),
+                true,
+            )),
             "Europe/London".to_string(),
             "de_DE.UTF-8".to_string(),
             "myUserName".to_string(),
@@ -553,7 +520,7 @@ mod tests {
         let res_base = res_base.unwrap();
         assert!(res_base.contains(&format!(
             "nixpkgs.config.allowUnfree = {};",
-            config.allow_unfree
+            config.allow_unfree.value()
         )));
         assert!(res_base.contains(&format!("time.timeZone = \"{}\";", config.time_zone)));
         for key in config.openssh_auth_keys {
@@ -612,5 +579,10 @@ mod tests {
             let parsed_option = NixBaseConfigOption::from_str(&option_str).unwrap();
             assert_eq!(option, parsed_option, "Failed for option: {:?}", option);
         }
+    }
+
+    #[test]
+    fn test_titles_map() {
+        assert!(OPTION_TITLES.len() == NixBaseConfigOption::COUNT);
     }
 }

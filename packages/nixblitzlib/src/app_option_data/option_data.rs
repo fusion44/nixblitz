@@ -10,7 +10,7 @@ use super::{
     text_edit_data::{TextOptionChangeData, TextOptionData},
 };
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Hash, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OptionId {
     pub app: SupportedApps,
     pub option: String,

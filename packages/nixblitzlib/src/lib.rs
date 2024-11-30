@@ -7,5 +7,6 @@ pub mod lnd;
 pub mod locales;
 pub mod nix_base_config;
 pub mod project;
+pub mod strings;
 pub mod timezones;
 pub mod utils;

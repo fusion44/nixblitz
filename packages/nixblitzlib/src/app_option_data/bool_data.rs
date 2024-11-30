@@ -4,22 +4,37 @@ use super::option_data::OptionId;
 
 #[derive(Clone, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BoolOptionData {
-    pub id: OptionId,
-    pub title: String,
-    pub value: bool,
-    pub dirty: bool,
-    pub original: bool,
+    id: OptionId,
+    dirty: bool,
+    value: bool,
+    original: bool,
 }
 
 impl BoolOptionData {
-    pub fn new(id: OptionId, title: String, value: bool, dirty: bool, original: bool) -> Self {
+    pub fn new(id: OptionId, value: bool) -> Self {
         Self {
             id,
-            title,
             value,
-            dirty,
-            original,
+            dirty: false,
+            original: value,
         }
+    }
+
+    pub fn id(&self) -> &OptionId {
+        &self.id
+    }
+
+    pub fn dirty(&self) -> bool {
+        self.dirty
+    }
+
+    pub fn value(&self) -> bool {
+        self.value
+    }
+
+    pub fn set_value(&mut self, value: bool) {
+        self.value = value;
+        self.dirty = value != self.original;
     }
 }
 

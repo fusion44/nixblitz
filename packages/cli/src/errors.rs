@@ -22,6 +22,8 @@ pub enum CliError {
     ArgumentError,
     #[error("JSON parse error")]
     JsonParseError,
+    #[error("Unable to find title for option {}", .0)]
+    OptionTitleRetrievalError(String),
 }
 
 pub fn init_error_handlers() {
