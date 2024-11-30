@@ -1,3 +1,5 @@
+use core::fmt;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
@@ -70,6 +72,12 @@ impl SupportedApps {
 
     pub fn as_string_list() -> &'static [&'static str] {
         &Self::APP_NAMES
+    }
+}
+
+impl fmt::Display for SupportedApps {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 

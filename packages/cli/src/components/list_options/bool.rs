@@ -1,29 +1,30 @@
 use error_stack::{Report, Result, ResultExt};
+use nixblitzlib::app_option_data::{
+    bool_data::{BoolOptionChangeData, BoolOptionData},
+    option_data::OptionDataChangeNotification,
+};
 use ratatui::{layout::Rect, Frame};
+use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{app_contexts::RenderContext, components::Component, errors::CliError};
+use crate::{action::Action, app_contexts::RenderContext, components::Component, errors::CliError};
 
 use super::base_option::{draw_item, OptionListItem};
 
 #[derive(Debug, Default)]
 pub struct BoolOptionComponent {
-    title: String,
+    data: BoolOptionData,
     subtitle: String,
-    value: bool,
     selected: bool,
-    dirty: bool,
-    original: bool,
+    action_tx: Option<UnboundedSender<Action>>,
 }
 
 impl BoolOptionComponent {
-    pub fn new(title: &str, initial_value: bool, selected: bool) -> Self {
+    pub fn new(data: &BoolOptionData, selected: bool) -> Self {
         Self {
-            title: String::from(title),
-            subtitle: Self::format_subtitle(initial_value),
-            value: initial_value,
+            data: data.clone(),
+            subtitle: Self::format_subtitle(data.value),
             selected,
-            dirty: false,
-            original: initial_value,
+            action_tx: None,
         }
     }
 
@@ -41,34 +42,46 @@ impl OptionListItem for BoolOptionComponent {
         self.selected
     }
 
+    fn on_edit(&mut self) -> std::result::Result<(), Report<CliError>> {
+        self.subtitle = Self::format_subtitle(self.data.value);
+        if let Some(tx) = &self.action_tx {
+            tx.send(Action::AppTabOptionChanged(
+                OptionDataChangeNotification::Bool(BoolOptionChangeData::new(
+                    self.data.id.clone(),
+                    !self.data.value,
+                )),
+            ))
+            .change_context(CliError::Unknown)?
+        }
+
+        Ok(())
+    }
+
     fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
     }
 
     fn is_dirty(&self) -> bool {
-        self.dirty
-    }
-
-    fn on_edit(&mut self) -> std::result::Result<(), Report<CliError>> {
-        self.value = !self.value;
-        self.dirty = self.value != self.original;
-        self.subtitle = Self::format_subtitle(self.value);
-
-        Ok(())
+        todo!()
     }
 }
 
 impl Component for BoolOptionComponent {
+    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
+        self.action_tx = Some(tx);
+        Ok(())
+    }
+
     fn draw(&mut self, frame: &mut Frame, area: Rect, _: &RenderContext) -> Result<(), CliError> {
         draw_item(
             self.selected,
-            &self.title,
+            &self.data.title,
             &self.subtitle,
-            self.dirty,
+            self.data.dirty,
             frame,
             area,
         )
         .change_context(CliError::UnableToDrawComponent)
-        .attach_printable_lazy(|| format!("Drawing list item titled {}", self.title))
+        .attach_printable_lazy(|| format!("Drawing list item titled {}", self.data.title))
     }
 }

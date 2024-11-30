@@ -29,10 +29,15 @@ impl RenderContext {
 pub struct UpdateContext {
     pub action: Action,
     pub modal_open: bool,
+    pub project: Rc<RefCell<Project>>,
 }
 
 impl UpdateContext {
-    pub fn new(action: Action, modal_open: bool) -> Self {
-        Self { action, modal_open }
+    pub fn new(action: Action, modal_open: bool, project: Rc<RefCell<Project>>) -> Self {
+        Self {
+            action,
+            modal_open,
+            project,
+        }
     }
 }

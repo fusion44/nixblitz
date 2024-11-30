@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
@@ -8,7 +10,7 @@ use crate::{
 };
 
 use error_stack::Result;
-use nixblitzlib::apps::SupportedApps;
+use nixblitzlib::{apps::SupportedApps, project::Project};
 use ratatui::prelude::*;
 use ratatui_macros::constraints;
 use tokio::sync::mpsc::UnboundedSender;
@@ -24,12 +26,12 @@ pub struct AppsPage {
 }
 
 impl AppsPage {
-    pub fn new() -> Result<Self, CliError> {
+    pub fn new(project: Rc<RefCell<Project>>) -> Result<Self, CliError> {
         let mut instance = Self {
             command_tx: None,
             config: Config::default(),
             app_list: AppList::new(),
-            app_options: AppOptions::new()?,
+            app_options: AppOptions::new(project)?,
             current_focus: FocusableComponent::AppTabList,
             ..Default::default()
         };

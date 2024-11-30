@@ -1,3 +1,5 @@
+pub mod app_config;
+pub mod app_option_data;
 pub mod apps;
 pub mod bitcoind;
 pub mod errors;

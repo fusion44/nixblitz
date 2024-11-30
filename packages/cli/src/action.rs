@@ -1,4 +1,6 @@
-use nixblitzlib::apps::SupportedApps;
+use nixblitzlib::{
+    app_option_data::option_data::OptionDataChangeNotification, apps::SupportedApps,
+};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -46,4 +48,5 @@ pub enum Action {
 
     /// App tab specific actions
     AppTabAppSelected(SupportedApps),
+    AppTabOptionChanged(OptionDataChangeNotification),
 }

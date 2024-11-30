@@ -1,3 +1,5 @@
+use core::error;
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -28,6 +30,10 @@ pub enum TemplatingError {
 
 #[derive(Debug, Error)]
 pub enum ProjectError {
+    #[error("Unable to change the option value")]
+    ChangeOptionValueError,
+    #[error("Unable to get options from project")]
+    GetOptionsError,
     #[error("Unable to generate the project files")]
     GenFilesError,
     #[error("Unable to read the project files")]
@@ -46,4 +52,6 @@ pub enum ProjectError {
     FileOpenError(String),
     #[error("Unable to read the file contents at path {:?}", .0)]
     FileReadError(String),
+    #[error("Invalid data type. Got {:?} Expected {:?}", .0, .1)]
+    InvalidDataType(String, String),
 }

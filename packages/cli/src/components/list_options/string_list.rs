@@ -1,4 +1,5 @@
 use error_stack::{Result, ResultExt};
+use nixblitzlib::app_option_data::string_list_data::StringListOptionData;
 use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -14,23 +15,6 @@ use super::{
     string_list_popup::StringListPopup,
 };
 
-#[derive(Debug, Default, Clone)]
-pub struct StringListOption {
-    pub value: String,
-    pub selected: bool,
-    pub display_name: String,
-}
-
-impl StringListOption {
-    pub fn new(value: String, selected: bool, display_name: String) -> Self {
-        Self {
-            value,
-            selected,
-            display_name,
-        }
-    }
-}
-
 // ╭ Options (2/2) ───────────────────────────────╮
 // │ BOOL TWO                                     │
 // │ ✓ (true)                                     │
@@ -39,34 +23,21 @@ impl StringListOption {
 // ╰──────────────────────────────────────────────╯
 #[derive(Debug, Default)]
 pub struct StringListOptionComponent {
-    /// The title of the list item
-    title: String,
     /// The subtitle of the list item
     subtitle: String,
-    /// Whether this list item is selected
+    data: StringListOptionData,
     selected: bool,
-    dirty: bool,
-    original: String,
-    /// The possible options this list item can have
-    options: Vec<StringListOption>,
     editing: bool,
     action_tx: Option<UnboundedSender<Action>>,
     string_list_popup: Option<Box<StringListPopup>>,
 }
 
 impl StringListOptionComponent {
-    pub fn new(
-        title: String,
-        initial_value: String,
-        selected: bool,
-        options: Vec<StringListOption>,
-    ) -> Self {
+    pub fn new(data: &StringListOptionData, selected: bool) -> Self {
         Self {
-            title,
-            subtitle: initial_value.clone(),
+            subtitle: data.value.clone(),
+            data: data.clone(),
             selected,
-            original: initial_value.clone(),
-            options,
             string_list_popup: None,
             ..Default::default()
         }
@@ -77,13 +48,13 @@ impl StringListOptionComponent {
     }
 
     fn build_popup(&mut self) -> Result<(), CliError> {
+        let opts = &self.data.clone().options;
         self.string_list_popup = Some(Box::new(StringListPopup::new(
-            &self.title,
-            self.options
-                .iter()
+            "test",
+            opts.iter()
                 .map(|i| SelectableListItem {
                     value: i.value.clone(),
-                    selected: i.selected,
+                    selected: self.data.value == i.value,
                     display_title: i.display_name.clone(),
                 })
                 .collect(),
@@ -103,7 +74,7 @@ impl OptionListItem for StringListOptionComponent {
     }
 
     fn is_dirty(&self) -> bool {
-        self.dirty
+        todo!();
     }
 
     fn on_edit(&mut self) -> Result<(), CliError> {
@@ -116,13 +87,7 @@ impl OptionListItem for StringListOptionComponent {
             }
         } else {
             if let Some(p) = &self.string_list_popup {
-                let res = p.as_ref().selected();
-                let res = res.unwrap_or_default();
-                self.subtitle = self.options.get(res).unwrap().value.clone();
-                self.dirty = self.original != self.subtitle;
-                for opt in self.options.iter_mut() {
-                    opt.selected = self.subtitle == opt.value;
-                }
+                //self.subtitle = self.data.options.get(res).unwrap().value.clone();
             }
             self.reset_popup();
             if let Some(tx) = &self.action_tx {
@@ -163,14 +128,14 @@ impl Component for StringListOptionComponent {
     fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         draw_item(
             self.selected,
-            &self.title,
-            &self.subtitle,
-            self.dirty,
+            &self.data.value,
+            &self.data.title,
+            self.data.dirty,
             frame,
             area,
         )
         .change_context(CliError::UnableToDrawComponent)
-        .attach_printable_lazy(|| format!("Drawing list item titled {}", self.title))?;
+        .attach_printable_lazy(|| format!("Drawing list item titled {}", self.data.title))?;
 
         if let Some(ref mut p) = self.string_list_popup {
             let _ = p.draw(frame, area, ctx);

@@ -1,8 +1,11 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, rc::Rc};
 
 use error_stack::{Result, ResultExt};
 
 use crate::{
+    app_config::AppConfig,
+    app_option_data::option_data::{OptionData, OptionDataChangeNotification, OptionId},
+    apps::SupportedApps,
     bitcoind::{self, BitcoinDaemonService},
     errors::ProjectError,
     lnd::{self, LightningNetworkDaemonService},
@@ -16,8 +19,11 @@ pub struct Project {
     /// The working directory we operate in
     work_dir: PathBuf,
 
+    /// The currently selected app
+    selected_app: SupportedApps,
+
     /// The nix base config
-    nix_base: NixBaseConfig,
+    pub nix_base: NixBaseConfig,
 
     /// The bitcoin daemon service
     bitcoin: BitcoinDaemonService,
@@ -52,10 +58,43 @@ impl Project {
             .attach_printable(format!("Trying to load {}", lnd::JSON_FILE_NAME))?;
 
         Ok(Self {
+            selected_app: SupportedApps::NixOS,
             work_dir,
             nix_base,
             bitcoin,
             lnd,
         })
+    }
+
+    pub fn get_app_options(&mut self) -> Result<Rc<Vec<OptionData>>, ProjectError> {
+        match self.selected_app {
+            SupportedApps::NixOS => Ok(self.nix_base.options.clone()),
+            SupportedApps::BitcoinCore => todo!(),
+            SupportedApps::CoreLightning => todo!(),
+            SupportedApps::LND => todo!(),
+            SupportedApps::BlitzAPI => todo!(),
+            SupportedApps::WebUI => todo!(),
+        }
+    }
+
+    pub fn on_option_changed(
+        &mut self,
+        option: OptionDataChangeNotification,
+    ) -> Result<bool, ProjectError> {
+        // TODO: figure out how to implement this with a trait.
+        let id: &OptionId = match &option {
+            OptionDataChangeNotification::Bool(value) => &value.id,
+            OptionDataChangeNotification::StringList(value) => &value.id,
+            OptionDataChangeNotification::TextEdit(value) => &value.id,
+        };
+
+        match id.app {
+            SupportedApps::NixOS => self.nix_base.app_option_changed(id, &option),
+            SupportedApps::BitcoinCore => todo!(),
+            SupportedApps::CoreLightning => todo!(),
+            SupportedApps::LND => todo!(),
+            SupportedApps::BlitzAPI => todo!(),
+            SupportedApps::WebUI => todo!(),
+        }
     }
 }

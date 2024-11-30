@@ -45,9 +45,9 @@ pub struct App {
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
     home_page: ComponentIndex,
-    system: Rc<RefCell<Project>>,
     dirty: bool,
     theme: Rc<RefCell<ThemeData>>,
+    project: Rc<RefCell<Project>>,
 
     /// Tracks if a modal is open
     modal_open: bool,
@@ -77,6 +77,7 @@ impl App {
     pub fn new(tick_rate: f64, frame_rate: f64, work_dir: PathBuf) -> Result<Self, CliError> {
         let project =
             Project::load(work_dir).change_context(CliError::UnableToInitProjectStruct)?;
+        let project = Rc::new(RefCell::new(project));
 
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let mut map: HashMap<ComponentIndex, Box<dyn Component>> = HashMap::new();
@@ -88,7 +89,10 @@ impl App {
             ComponentIndex::Menu,
             Box::new(Menu::new(APP_TITLE.len() as u16)),
         );
-        map.insert(ComponentIndex::AppsPage, Box::new(AppsPage::new()?));
+        map.insert(
+            ComponentIndex::AppsPage,
+            Box::new(AppsPage::new(project.clone())?),
+        );
         map.insert(ComponentIndex::SettingsPage, Box::new(SettingsPage::new()));
         map.insert(ComponentIndex::ActionsPage, Box::new(ActionsPage::new()));
         map.insert(ComponentIndex::HelpPage, Box::new(HelpPage::new()));
@@ -107,7 +111,7 @@ impl App {
             action_tx,
             action_rx,
             home_page: ComponentIndex::AppsPage,
-            system: Rc::new(RefCell::new(project)),
+            project,
             modal_open: false,
             exclusive_input_component_shown: false,
             dirty: true,
@@ -234,7 +238,7 @@ impl App {
                 continue;
             }
 
-            match action {
+            match action.clone() {
                 Action::Tick => {
                     self.last_tick_key_events.drain(..);
                 }
@@ -255,6 +259,17 @@ impl App {
                     self.handle_tab_nav(&action);
                 }
                 Action::PushModal(_) | Action::PopModal(_) => self.handle_modal_change(&action)?,
+                Action::AppTabOptionChanged(opt) => {
+                    let rerender = self
+                        .project
+                        .borrow_mut()
+                        .on_option_changed(opt)
+                        .change_context(CliError::Unknown)?;
+
+                    if rerender {
+                        self.render(tui)?;
+                    }
+                }
                 _ => {}
             }
 
@@ -267,7 +282,7 @@ impl App {
                 }
             }
 
-            let ctx = UpdateContext::new(action.clone(), self.modal_open);
+            let ctx = UpdateContext::new(action.clone(), self.modal_open, self.project.clone());
             for component in self.components_map.iter_mut() {
                 if let Some(action) = component.1.update(&ctx)? {
                     self.action_tx
@@ -370,7 +385,7 @@ impl App {
     }
 
     fn render(&mut self, tui: &mut Tui) -> Result<(), CliError> {
-        let ctx = RenderContext::new(self.modal_open, self.theme.clone(), self.system.clone());
+        let ctx = RenderContext::new(self.modal_open, self.theme.clone(), self.project.clone());
 
         tui.draw(|frame| {
             let main_layout = Layout::default()

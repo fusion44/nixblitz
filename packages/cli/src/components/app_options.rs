@@ -1,9 +1,9 @@
+use std::{cell::RefCell, rc::Rc};
+
 use super::{
     list_options::{
-        base_option::OptionListItem,
-        bool::BoolOptionComponent,
-        string_list::{StringListOption, StringListOptionComponent},
-        text::TextOptionComponent,
+        base_option::OptionListItem, bool::BoolOptionComponent,
+        string_list::StringListOptionComponent, text::TextOptionComponent,
     },
     theme::block,
     Component,
@@ -16,9 +16,11 @@ use crate::{
 };
 use cli_log::warn;
 use crossterm::event::{MouseButton, MouseEventKind};
-use error_stack::Result;
+use error_stack::{Result, ResultExt};
 
-use nixblitzlib::{apps::SupportedApps, timezones::TIMEZONES};
+use nixblitzlib::{
+    app_option_data::option_data::OptionData, apps::SupportedApps, project::Project,
+};
 use ratatui::prelude::*;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -39,50 +41,50 @@ pub struct AppOptions {
 }
 
 impl AppOptions {
-    pub fn new() -> Result<Self, CliError> {
-        let cons = (0..6).map(|_| Constraint::Length(2)).collect();
-
+    pub fn new(project: Rc<RefCell<Project>>) -> Result<Self, CliError> {
+        let opts = Self::get_opts(project, 0, None)?;
+        let cons = (0..opts.len()).map(|_| Constraint::Length(2)).collect();
         Ok(Self {
-            options: vec![
-                Box::new(BoolOptionComponent::new("bool one", false, true)),
-                Box::new(BoolOptionComponent::new("bool two", true, false)),
-                Box::new(StringListOptionComponent::new(
-                    "system timezone".into(),
-                    TIMEZONES[169].to_owned(),
-                    false,
-                    TIMEZONES
-                        .iter()
-                        .map(|tz| {
-                            StringListOption::new(
-                                tz.to_string(),
-                                *tz == TIMEZONES[169],
-                                tz.to_string(),
-                            )
-                        })
-                        .collect(),
-                )),
-                Box::new(TextOptionComponent::new(
-                    "one liner",
-                    "name of the node".into(),
-                    false,
-                    1,
-                )?),
-                Box::new(TextOptionComponent::new(
-                    "5 lines",
-                    "name of the node\n2\n3\n4\n5".into(),
-                    false,
-                    5,
-                )?),
-                Box::new(TextOptionComponent::new(
-                    "max",
-                    "name of the node".into(),
-                    false,
-                    u16::MAX,
-                )?),
-            ],
+            options: opts,
             constraints: cons,
             ..AppOptions::default()
         })
+    }
+
+    fn get_opts(
+        project: Rc<RefCell<Project>>,
+        selected: usize,
+        action_tx: Option<UnboundedSender<Action>>,
+    ) -> Result<Vec<Box<dyn OptionListItem>>, CliError> {
+        let opts = project
+            .clone()
+            .borrow_mut()
+            .get_app_options()
+            .change_context(CliError::Unknown)?;
+
+        Ok(opts
+            .iter()
+            .enumerate()
+            .map(|(index, option)| -> Box<dyn OptionListItem> {
+                let mut component: Box<dyn OptionListItem> = match option {
+                    OptionData::Bool(opt) => {
+                        Box::new(BoolOptionComponent::new(opt, index == selected))
+                    }
+                    OptionData::StringList(opt) => {
+                        Box::new(StringListOptionComponent::new(opt, index == selected))
+                    }
+                    OptionData::TextEdit(opt) => {
+                        Box::new(TextOptionComponent::new(opt, index == selected))
+                    }
+                };
+
+                if let Some(tx) = action_tx.clone() {
+                    let _ = component.register_action_handler(tx);
+                }
+
+                component
+            })
+            .collect())
     }
 
     fn check_user_mouse_select(&mut self, area: Rect) -> Option<usize> {
@@ -128,6 +130,7 @@ impl AppOptions {
         } else {
             block::default(&self.title, ctx)
         };
+
         let td = ctx.theme_data.clone();
         let block = block
             .bg(td.borrow().colors.surface)
@@ -161,6 +164,11 @@ impl AppOptions {
             )
             .split(block.inner(area));
         frame.render_widget(block, area);
+
+        self.options = Self::get_opts(ctx.project.clone(), self.selected, self.command_tx.clone())?;
+        self.constraints = (0..self.options.len())
+            .map(|_| Constraint::Length(2))
+            .collect();
 
         for (index, value) in self
             .options
