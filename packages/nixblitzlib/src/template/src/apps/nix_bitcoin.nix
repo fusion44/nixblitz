@@ -1,6 +1,4 @@
 {
-
-
   nix-bitcoin = {
     generateSecrets = true;
     operator = {
