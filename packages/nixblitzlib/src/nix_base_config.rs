@@ -131,10 +131,7 @@ impl Default for NixBaseConfig {
         let initial_password = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.".to_string();
         Self {
             allow_unfree: Box::new(BoolOptionData::new(
-                OptionId::new(
-                    SupportedApps::NixOS,
-                    NixBaseConfigOption::AllowUnfree.to_string(),
-                ),
+                NixBaseConfigOption::AllowUnfree.to_option_id(),
                 allow_unfree,
             )),
             time_zone: time_zone.clone(),
@@ -173,6 +170,12 @@ pub enum NixBaseConfigOption {
     DefaultLocale,
     Username,
     InitialPassword,
+}
+
+impl ToOptionId for NixBaseConfigOption {
+    fn to_option_id(&self) -> OptionId {
+        OptionId::new(SupportedApps::NixOS, self.to_string())
+    }
 }
 
 impl FromStr for NixBaseConfigOption {
@@ -400,10 +403,7 @@ impl NixBaseConfig {
                 false,
             ))),
             OptionData::TextEdit(Box::new(TextOptionData::new(
-                OptionId::new(
-                    SupportedApps::NixOS,
-                    NixBaseConfigOption::Username.to_string(),
-                ),
+                NixBaseConfigOption::Username.to_option_id(),
                 "User Name".to_string(),
                 self.username.clone(),
                 1,
@@ -411,10 +411,7 @@ impl NixBaseConfig {
                 self.username.clone(),
             ))),
             OptionData::TextEdit(Box::new(TextOptionData::new(
-                OptionId::new(
-                    SupportedApps::NixOS,
-                    NixBaseConfigOption::InitialPassword.to_string(),
-                ),
+                NixBaseConfigOption::InitialPassword.to_option_id(),
                 "Initial Password".to_string(),
                 self.hashed_password.clone(),
                 1,
@@ -492,10 +489,7 @@ mod tests {
 
         let config = NixBaseConfig::new(
             Box::new(BoolOptionData::new(
-                OptionId::new(
-                    SupportedApps::NixOS,
-                    NixBaseConfigOption::AllowUnfree.to_string(),
-                ),
+                NixBaseConfigOption::AllowUnfree.to_option_id(),
                 true,
             )),
             "Europe/London".to_string(),
