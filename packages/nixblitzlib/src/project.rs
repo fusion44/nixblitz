@@ -33,6 +33,27 @@ pub struct Project {
 }
 
 impl Project {
+    /// Loads the project configuration from the specified working directory.
+    ///
+    /// This function initializes a `Project` instance by loading configuration
+    /// files for the supported applications from the given directory.
+    /// It constructs the necessary components and sets the initial selected
+    /// application to NixOS.
+    ///
+    /// # Parameters
+    ///
+    /// - `work_dir`: The path to the working directory containing the configuration files.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing:
+    /// - `Ok(Project)` if the configuration is successfully loaded.
+    /// - `Err(ProjectError)` if an error occurs during the loading process.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if any of the configuration files
+    /// cannot be loaded or parsed correctly.
     pub fn load(work_dir: PathBuf) -> Result<Self, ProjectError> {
         let nix_path = work_dir.join(nix_base_config::JSON_FILE_NAME);
         let nix_base_config_json =
@@ -66,6 +87,22 @@ impl Project {
         })
     }
 
+    /// Retrieves the application options for the currently selected app.
+    ///
+    /// This function returns a reference-counted vector of `OptionData` for the
+    /// application that is currently selected. The options provide configuration
+    /// details specific to the app.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing:
+    /// - `Ok(Rc<Vec<OptionData>>)` with the options for the selected app.
+    /// - `Err(ProjectError)` if an error occurs while retrieving the options.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the options cannot be retrieved
+    /// for the specified application.
     pub fn get_app_options(&mut self) -> Result<Rc<Vec<OptionData>>, ProjectError> {
         match self.selected_app {
             SupportedApps::NixOS => Ok(Rc::new(self.nix_base.get_options())),
@@ -77,6 +114,27 @@ impl Project {
         }
     }
 
+    /// Handles changes to application options.
+    ///
+    /// This function is called when an option's value is changed. It determines
+    /// the application associated with the option and delegates the change handling
+    /// to the appropriate component.
+    ///
+    /// # Parameters
+    ///
+    /// - `option`: The notification containing the details of the option change.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a boolean value:
+    /// - `Ok(true)` if the option value has changed.
+    /// - `Ok(false)` if the option value has not changed.
+    /// - `Err(ProjectError)` if an error occurs during the process.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the option change cannot be processed
+    /// for the specified application.
     pub fn on_option_changed(
         &mut self,
         option: OptionDataChangeNotification,
