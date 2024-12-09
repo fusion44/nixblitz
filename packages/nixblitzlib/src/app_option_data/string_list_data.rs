@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::option_data::OptionId;
+use super::option_data::{GetOptionId, OptionId};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StringListOptionItem {
@@ -24,43 +24,55 @@ impl StringListOptionItem {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StringListOptionData {
     /// The id of the option
-    pub id: OptionId,
-
-    /// The title of the option
-    pub title: String,
+    id: OptionId,
 
     /// The current value of the option
-    pub value: String,
+    value: String,
 
     /// The original, unaltered value of the option
-    pub original: String,
+    original: String,
 
     /// The allowed values the option can take
-    pub options: Vec<StringListOptionItem>,
+    options: Vec<StringListOptionItem>,
 
     /// Whether the option is currently dirty (not yet saved)
-    pub dirty: bool,
+    dirty: bool,
 }
 
 impl StringListOptionData {
     /// Creates a new StringListOptionData with the given
     /// id, title, value, and options
-    pub fn new(
-        id: OptionId,
-        title: String,
-        value: String,
-        original: String,
-        options: Vec<StringListOptionItem>,
-        dirty: bool,
-    ) -> Self {
+    pub fn new(id: OptionId, value: String, options: Vec<StringListOptionItem>) -> Self {
         Self {
             id,
-            title,
-            value,
+            value: value.clone(),
             options,
-            dirty,
-            original,
+            dirty: false,
+            original: value,
         }
+    }
+
+    pub fn dirty(&self) -> bool {
+        self.dirty
+    }
+
+    pub fn value(&self) -> &str {
+        self.value.as_str()
+    }
+
+    pub fn set_value(&mut self, value: String) {
+        self.dirty = value != self.original;
+        self.value = value;
+    }
+
+    pub fn options(&self) -> &Vec<StringListOptionItem> {
+        &self.options
+    }
+}
+
+impl GetOptionId for StringListOptionData {
+    fn id(&self) -> &OptionId {
+        &self.id
     }
 }
 
@@ -73,5 +85,11 @@ pub struct StringListOptionChangeData {
 impl StringListOptionChangeData {
     pub fn new(id: OptionId, value: String) -> Self {
         Self { id, value }
+    }
+}
+
+impl GetOptionId for StringListOptionChangeData {
+    fn id(&self) -> &OptionId {
+        &self.id
     }
 }

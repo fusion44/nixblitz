@@ -9,7 +9,7 @@ use crate::{
     app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
-        option_data::{OptionData, OptionDataChangeNotification, OptionId},
+        option_data::{OptionData, OptionDataChangeNotification, OptionId, ToOptionId},
         string_list_data::{StringListOptionData, StringListOptionItem},
         text_edit_data::TextOptionData,
     },
@@ -35,7 +35,7 @@ pub struct NixBaseConfig {
     /// Default: "America/New_York"
     ///
     /// Example: "Europe/Copenhagen"
-    pub time_zone: String,
+    pub time_zone: Box<StringListOptionData>,
 
     /// The default locale. It determines the language for program
     /// messages, the format for dates and times, sort order, and so on.
@@ -46,7 +46,8 @@ pub struct NixBaseConfig {
     /// Default: "en_US.UTF-8"
     ///
     /// Example: "nl_NL.UTF-8"
-    pub default_locale: String,
+    /// Example: "nl_NL.utf8"
+    pub default_locale: Box<StringListOptionData>,
 
     /// The login username to use. This is the user
     /// with which most of the administrative tasks are executed.
@@ -126,7 +127,7 @@ impl Default for NixBaseConfig {
     fn default() -> Self {
         let allow_unfree = false;
         let time_zone = "America/New_York".to_string();
-        let default_locale = "en_US.UTF-8".to_string();
+        let default_locale = "en_US.utf8".to_string();
         let username = "admin".to_string();
         let initial_password = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.".to_string();
         Self {
@@ -134,8 +135,22 @@ impl Default for NixBaseConfig {
                 NixBaseConfigOption::AllowUnfree.to_option_id(),
                 allow_unfree,
             )),
-            time_zone: time_zone.clone(),
-            default_locale: default_locale.clone(),
+            time_zone: Box::new(StringListOptionData::new(
+                NixBaseConfigOption::TimeZone.to_option_id(),
+                time_zone,
+                TIMEZONES
+                    .iter()
+                    .map(|tz| StringListOptionItem::new(tz.to_string(), tz.to_string()))
+                    .collect(),
+            )),
+            default_locale: Box::new(StringListOptionData::new(
+                NixBaseConfigOption::DefaultLocale.to_option_id(),
+                default_locale,
+                LOCALES
+                    .iter()
+                    .map(|tz| StringListOptionItem::new(tz.to_string(), tz.to_string()))
+                    .collect(),
+            )),
             username: username.clone(),
             ssh_password_auth: false,
             // default password: "nixblitz"
@@ -235,8 +250,8 @@ impl NixBaseConfig {
     #![allow(clippy::too_many_arguments)]
     pub fn new(
         allow_unfree: Box<BoolOptionData>,
-        time_zone: String,
-        default_locale: String,
+        time_zone: Box<StringListOptionData>,
+        default_locale: Box<StringListOptionData>,
         username: String,
         ssh_password_auth: bool,
         hashed_password: String,
@@ -247,9 +262,9 @@ impl NixBaseConfig {
         hostname_pi: String,
     ) -> Self {
         Self {
-            allow_unfree: allow_unfree.clone(),
-            time_zone: time_zone.clone(),
-            default_locale: default_locale.clone(),
+            allow_unfree,
+            time_zone,
+            default_locale,
             username: username.clone(),
             ssh_password_auth,
             hashed_password,
@@ -306,8 +321,8 @@ impl NixBaseConfig {
             if file_name == "src/configuration.common.nix.templ" {
                 data = HashMap::from([
                     ("allow_unfree", format!("{}", self.allow_unfree.value())),
-                    ("time_zone", self.time_zone.clone()),
-                    ("default_locale", self.default_locale.clone()),
+                    ("time_zone", self.time_zone.value().into()),
+                    ("default_locale", self.default_locale.value().into()),
                     ("username", self.username.clone()),
                     ("ssh_password_auth", format!("{}", self.ssh_password_auth)),
                     ("initial_password", self.hashed_password.clone()),
@@ -374,34 +389,8 @@ impl NixBaseConfig {
     pub fn get_options(&self) -> Vec<OptionData> {
         vec![
             OptionData::Bool(self.allow_unfree.clone()),
-            OptionData::StringList(Box::new(StringListOptionData::new(
-                OptionId::new(
-                    SupportedApps::NixOS,
-                    NixBaseConfigOption::TimeZone.to_string(),
-                ),
-                "Time Zone".to_string(),
-                self.time_zone.clone(),
-                self.time_zone.clone(),
-                TIMEZONES
-                    .iter()
-                    .map(|tz| StringListOptionItem::new(tz.to_string(), tz.to_string()))
-                    .collect(),
-                false,
-            ))),
-            OptionData::StringList(Box::new(StringListOptionData::new(
-                OptionId::new(
-                    SupportedApps::NixOS,
-                    NixBaseConfigOption::DefaultLocale.to_string(),
-                ),
-                "Default Locale".to_string(),
-                self.default_locale.clone(),
-                self.default_locale.clone(),
-                LOCALES
-                    .iter()
-                    .map(|locale| StringListOptionItem::new(locale.to_string(), locale.to_string()))
-                    .collect(),
-                false,
-            ))),
+            OptionData::StringList(self.time_zone.clone()),
+            OptionData::StringList(self.default_locale.clone()),
             OptionData::TextEdit(Box::new(TextOptionData::new(
                 NixBaseConfigOption::Username.to_option_id(),
                 "User Name".to_string(),
@@ -435,26 +424,37 @@ impl AppConfig for NixBaseConfig {
                     res = Ok(self.allow_unfree.value() != val.value);
                     self.allow_unfree.set_value(val.value);
                 } else {
-                    Err(
-                        Report::new(ProjectError::ChangeOptionValueError).attach_printable(
-                            format!(
-                                "Unable to change options {}",
-                                NixBaseConfigOption::AllowUnfree,
-                            ),
-                        ),
-                    )?;
+                    Err(Report::new(ProjectError::ChangeOptionValueError(
+                        NixBaseConfigOption::AllowUnfree.to_string(),
+                    )))?;
                 }
             } else if opt == NixBaseConfigOption::TimeZone {
-                todo!();
+                if let OptionDataChangeNotification::StringList(val) = option {
+                    res = Ok(*self.time_zone.value().to_string() != val.value);
+                    self.time_zone.set_value(val.value.clone());
+                } else {
+                    Err(Report::new(ProjectError::ChangeOptionValueError(
+                        NixBaseConfigOption::DefaultLocale.to_string(),
+                    )))?;
+                }
             } else if opt == NixBaseConfigOption::DefaultLocale {
-                todo!();
+                if let OptionDataChangeNotification::StringList(val) = option {
+                    res = Ok(*self.default_locale.value().to_string() != val.value);
+                    self.default_locale.set_value(val.value.clone());
+                } else {
+                    Err(Report::new(ProjectError::ChangeOptionValueError(
+                        NixBaseConfigOption::DefaultLocale.to_string(),
+                    )))?;
+                }
             } else if opt == NixBaseConfigOption::Username {
-                todo!();
+                todo!("{}", opt);
             } else if opt == NixBaseConfigOption::InitialPassword {
-                todo!();
+                todo!("{}", opt);
             } else {
-                Err(Report::new(ProjectError::ChangeOptionValueError)
-                    .attach_printable(format!("Unbknown option: {}", opt,)))?
+                Err(
+                    Report::new(ProjectError::ChangeOptionValueError(opt.to_string()))
+                        .attach_printable(format!("Unknown option: {}", opt,)),
+                )?
             }
 
             return res;
@@ -474,8 +474,8 @@ mod tests {
         let config = NixBaseConfig::default();
 
         assert!(!config.allow_unfree.value());
-        assert_eq!(config.time_zone, "America/New_York");
-        assert_eq!(config.default_locale, "en_US.UTF-8");
+        assert_eq!(config.time_zone.value(), "America/New_York");
+        assert_eq!(config.default_locale.value(), "en_US.utf8");
         assert_eq!(config.username, "admin");
         assert!(!config.ssh_password_auth);
         assert_eq!(config.openssh_auth_keys.len(), 0);
@@ -492,8 +492,22 @@ mod tests {
                 NixBaseConfigOption::AllowUnfree.to_option_id(),
                 true,
             )),
-            "Europe/London".to_string(),
-            "de_DE.UTF-8".to_string(),
+            Box::new(StringListOptionData::new(
+                NixBaseConfigOption::TimeZone.to_option_id(),
+                "Europe/London".to_string(),
+                TIMEZONES
+                    .iter()
+                    .map(|tz| StringListOptionItem::new(tz.to_string(), tz.to_string()))
+                    .collect(),
+            )),
+            Box::new(StringListOptionData::new(
+                NixBaseConfigOption::DefaultLocale.to_option_id(),
+                "de_DE.utf8".to_string(),
+                LOCALES
+                    .iter()
+                    .map(|tz| StringListOptionItem::new(tz.to_string(), tz.to_string()))
+                    .collect(),
+            )),
             "myUserName".to_string(),
             true,
             pw.clone(),
@@ -516,13 +530,16 @@ mod tests {
             "nixpkgs.config.allowUnfree = {};",
             config.allow_unfree.value()
         )));
-        assert!(res_base.contains(&format!("time.timeZone = \"{}\";", config.time_zone)));
+        assert!(res_base.contains(&format!(
+            "time.timeZone = \"{}\";",
+            config.time_zone.value()
+        )));
         for key in config.openssh_auth_keys {
             assert!(res_base.contains(&format!("\"{}\"", key)));
         }
         assert!(res_base.contains(&format!(
             "i18n.defaultLocale = \"{}\";",
-            config.default_locale
+            config.default_locale.value()
         )));
         assert!(res_base.contains(&format!(
             "PasswordAuthentication = {};",

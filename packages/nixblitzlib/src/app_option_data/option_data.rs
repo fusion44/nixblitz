@@ -10,6 +10,18 @@ use super::{
     text_edit_data::{TextOptionChangeData, TextOptionData},
 };
 
+/// A trait for obtaining the unique identifier of an option.
+pub trait GetOptionId {
+    /// Returns a reference to the `OptionId` of the implementing type.
+    fn id(&self) -> &OptionId;
+}
+
+/// A trait for converting an object into an `OptionId`.
+pub trait ToOptionId {
+    /// Converts the implementing type into an `OptionId`.
+    fn to_option_id(&self) -> OptionId;
+}
+
 #[derive(Debug, Default, Hash, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OptionId {
     pub app: SupportedApps,
@@ -35,9 +47,29 @@ pub enum OptionData {
     TextEdit(Box<TextOptionData>),
 }
 
+impl GetOptionId for OptionData {
+    fn id(&self) -> &OptionId {
+        match self {
+            OptionData::Bool(data) => data.id(),
+            OptionData::StringList(data) => data.id(),
+            OptionData::TextEdit(data) => data.id(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OptionDataChangeNotification {
     Bool(BoolOptionChangeData),
     StringList(StringListOptionChangeData),
     TextEdit(TextOptionChangeData),
+}
+
+impl GetOptionId for OptionDataChangeNotification {
+    fn id(&self) -> &OptionId {
+        match self {
+            OptionDataChangeNotification::Bool(data) => data.id(),
+            OptionDataChangeNotification::StringList(data) => data.id(),
+            OptionDataChangeNotification::TextEdit(data) => data.id(),
+        }
+    }
 }

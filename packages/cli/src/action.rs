@@ -46,7 +46,14 @@ pub enum Action {
     /// The `bool` value, if true, specifies whether the modal was canceled or not.
     PopModal(bool),
 
-    /// App tab specific actions
+    // App tab specific actions
+    /// Action send when an app is selected from the app list
     AppTabAppSelected(SupportedApps),
-    AppTabOptionChanged(OptionDataChangeNotification),
+    /// Action sent by the option view when an option is changed
+    /// This is then processed by the project, which will then
+    /// trigger a `AppTabOptionChangeAccepted` to be sent
+    AppTabOptionChangeProposal(OptionDataChangeNotification),
+    /// Action sent when the option view needs to be updated
+    /// (e.g. when the project accepts a change)
+    AppTabOptionChangeAccepted,
 }

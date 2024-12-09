@@ -28,8 +28,8 @@ pub enum TemplatingError {
 
 #[derive(Debug, Error)]
 pub enum ProjectError {
-    #[error("Unable to change the option value")]
-    ChangeOptionValueError,
+    #[error("Unable to change the option value for {:?}", .0)]
+    ChangeOptionValueError(String),
     #[error("Unable to get options from project")]
     GetOptionsError,
     #[error("Unable to generate the project files")]

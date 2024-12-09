@@ -16,16 +16,16 @@ use ratatui_macros::constraints;
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Default)]
-pub struct AppsPage {
+pub struct AppsPage<'a> {
     command_tx: Option<UnboundedSender<Action>>,
     config: Config,
     app_list: AppList,
-    app_options: AppOptions,
+    app_options: AppOptions<'a>,
     last_focus: FocusableComponent,
     current_focus: FocusableComponent,
 }
 
-impl AppsPage {
+impl<'a> AppsPage<'a> {
     pub fn new(project: Rc<RefCell<Project>>) -> Result<Self, CliError> {
         let mut instance = Self {
             command_tx: None,
@@ -61,7 +61,7 @@ impl AppsPage {
     }
 }
 
-impl Component for AppsPage {
+impl<'a> Component for AppsPage<'a> {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
         self.app_list.register_action_handler(tx.clone())?;
         self.app_options.register_action_handler(tx.clone())?;
@@ -110,7 +110,7 @@ impl Component for AppsPage {
                 if self.current_focus == FocusableComponent::AppTabList {
                     self.on_focus_req(FocusableComponent::AppTabOptions);
                 } else if self.current_focus == FocusableComponent::AppTabOptions {
-                    let _res = self.app_options.on_enter();
+                    return self.app_options.update(ctx);
                 }
             }
             Action::Esc => {
@@ -121,6 +121,9 @@ impl Component for AppsPage {
                 if self.current_focus == FocusableComponent::AppTabOptions {
                     self.on_focus_req(FocusableComponent::AppTabList);
                 }
+            }
+            Action::AppTabOptionChangeAccepted => {
+                return self.app_options.update(ctx);
             }
             Action::AppTabAppSelected(app) => self.on_app_selected(app),
             Action::FocusRequest(r) => self.on_focus_req(r),

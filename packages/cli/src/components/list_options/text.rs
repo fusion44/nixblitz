@@ -1,6 +1,6 @@
 use error_stack::{Report, Result, ResultExt};
 use nixblitzlib::app_option_data::{
-    option_data::OptionDataChangeNotification,
+    option_data::{GetOptionId, OptionDataChangeNotification},
     text_edit_data::{TextOptionChangeData, TextOptionData},
 };
 use ratatui::{layout::Rect, Frame};
@@ -30,7 +30,7 @@ pub struct TextOptionComponent<'a> {
 
 impl<'a> TextOptionComponent<'a> {
     pub fn new(data: &TextOptionData, selected: bool) -> Self {
-        let subtitle = data.value.clone();
+        let subtitle = data.value().to_string();
 
         Self {
             data: data.clone(),
@@ -47,9 +47,9 @@ impl<'a> TextOptionComponent<'a> {
 
     fn build_popup(&mut self) -> Result<(), CliError> {
         let mut pop = TextInputPopup::new(
-            &self.data.title,
-            self.data.value.lines().map(String::from).collect(),
-            self.data.max_lines,
+            self.data.title(),
+            self.data.value().lines().map(String::from).collect(),
+            self.data.max_lines(),
         )?;
         if let Some(h) = &self.action_tx {
             pop.register_action_handler(h.clone())?;
@@ -60,9 +60,12 @@ impl<'a> TextOptionComponent<'a> {
     }
 
     fn update_subtitle(&mut self) {
-        if let Some(first_line) = self.data.value.lines().next() {
+        if let Some(first_line) = self.data.value().lines().next() {
             self.subtitle = first_line.to_string();
         }
+    }
+    pub fn set_data(&mut self, data: &TextOptionData) {
+        self.data = data.clone();
     }
 }
 
@@ -76,7 +79,7 @@ impl<'a> OptionListItem for TextOptionComponent<'a> {
     }
 
     fn is_dirty(&self) -> bool {
-        self.data.dirty
+        self.data.dirty()
     }
 
     fn on_edit(&mut self) -> std::result::Result<(), Report<CliError>> {
@@ -101,21 +104,21 @@ impl<'a> Component for TextOptionComponent<'a> {
         } else if ctx.action == Action::PopModal(true) && self.editing {
             self.editing = false;
             if let Some(ref mut p) = self.popup {
-                match self.data.max_lines {
+                match self.data.max_lines() {
                     1 => {
-                        self.data.value = p.get_result()[0].clone();
-                        self.subtitle = self.data.value.clone();
+                        self.data.set_value(p.get_result()[0].clone());
+                        self.subtitle = self.data.value().to_string();
                     }
                     n if n > 1 => {
-                        self.data.value = p.get_result().join("\n");
+                        self.data.set_value(p.get_result().join("\n"));
                     }
                     _ => {}
                 }
 
                 if let Some(tx) = &self.action_tx {
-                    tx.send(Action::AppTabOptionChanged(
+                    tx.send(Action::AppTabOptionChangeProposal(
                         OptionDataChangeNotification::TextEdit(TextOptionChangeData::new(
-                            self.data.id.clone(),
+                            self.data.id().clone(),
                             "text".to_string(),
                         )),
                     ))
@@ -156,14 +159,14 @@ impl<'a> Component for TextOptionComponent<'a> {
     fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         draw_item(
             self.selected,
-            &self.data.title,
+            self.data.title(),
             &self.subtitle,
-            self.data.dirty,
+            self.data.dirty(),
             frame,
             area,
         )
         .change_context(CliError::UnableToDrawComponent)
-        .attach_printable_lazy(|| format!("Drawing list item titled {}", self.data.title))?;
+        .attach_printable_lazy(|| format!("Drawing list item titled {}", self.data.title()))?;
 
         if let Some(ref mut p) = self.popup {
             p.draw(frame, area, ctx)?;

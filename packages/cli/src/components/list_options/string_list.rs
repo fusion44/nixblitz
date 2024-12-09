@@ -1,5 +1,11 @@
 use error_stack::{Result, ResultExt};
-use nixblitzlib::app_option_data::string_list_data::StringListOptionData;
+use nixblitzlib::{
+    app_option_data::{
+        option_data::{GetOptionId, OptionDataChangeNotification},
+        string_list_data::{StringListOptionChangeData, StringListOptionData},
+    },
+    strings::OPTION_TITLES,
+};
 use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -35,7 +41,7 @@ pub struct StringListOptionComponent {
 impl StringListOptionComponent {
     pub fn new(data: &StringListOptionData, selected: bool) -> Self {
         Self {
-            subtitle: data.value.clone(),
+            subtitle: data.value().to_string(),
             data: data.clone(),
             selected,
             string_list_popup: None,
@@ -43,22 +49,76 @@ impl StringListOptionComponent {
         }
     }
 
-    fn reset_popup(&mut self) {
-        self.string_list_popup = None;
+    pub fn set_data(&mut self, data: &StringListOptionData) {
+        self.data = data.clone();
     }
 
-    fn build_popup(&mut self) -> Result<(), CliError> {
-        let opts = &self.data.clone().options;
+    fn handle_edit_start(&mut self) -> Result<(), CliError> {
+        self.editing = true;
+        let opts = self.data.options();
+        let tx = &self
+            .action_tx
+            .clone()
+            .ok_or(CliError::UnableToFindUnboundedSender)?;
+
         self.string_list_popup = Some(Box::new(StringListPopup::new(
             "test",
             opts.iter()
                 .map(|i| SelectableListItem {
                     value: i.value.clone(),
-                    selected: self.data.value == i.value,
+                    selected: self.data.value() == i.value,
                     display_title: i.display_name.clone(),
                 })
                 .collect(),
+            tx.clone(),
         )?));
+
+        tx.send(Action::PushModal(false))
+            .change_context(CliError::UnableToFindUnboundedSender)?;
+
+        Ok(())
+    }
+
+    fn handle_edit_end(&mut self, edit_accepted: bool) -> Result<(), CliError> {
+        if !edit_accepted {
+            self.string_list_popup = None;
+            self.editing = false;
+
+            return Ok(());
+        }
+
+        let p = &self
+            .string_list_popup
+            .as_mut()
+            .ok_or(CliError::Unknown)
+            .attach_printable_lazy(|| "Popup is None when edit state is true")?;
+
+        let selected_item = p
+            .selected()
+            .ok_or(CliError::Unknown)
+            .attach_printable_lazy(|| "Unable to get the selected option id from popup")?;
+
+        let options = self.data.options();
+        let selected_item = options
+            .get(selected_item)
+            .ok_or(CliError::Unknown)
+            .attach_printable_lazy(|| "Unable to get the selected option from options list")?;
+
+        let tx = self
+            .action_tx
+            .clone()
+            .ok_or(CliError::UnableToFindUnboundedSender)?;
+
+        tx.send(Action::AppTabOptionChangeProposal(
+            OptionDataChangeNotification::StringList(StringListOptionChangeData::new(
+                self.data.id().clone(),
+                selected_item.value.clone(),
+            )),
+        ))
+        .change_context(CliError::UnableToSendViaUnboundedSender)?;
+
+        self.string_list_popup = None;
+        self.editing = false;
 
         Ok(())
     }
@@ -78,22 +138,12 @@ impl OptionListItem for StringListOptionComponent {
     }
 
     fn on_edit(&mut self) -> Result<(), CliError> {
-        self.editing = !self.editing;
-
+        // Do nothing if we are already in edit mode
+        // Update will handle the reset
         if self.editing {
-            self.build_popup()?;
-            if let Some(tx) = &self.action_tx {
-                let _ = tx.send(Action::PushModal(false));
-            }
-        } else {
-            if let Some(p) = &self.string_list_popup {
-                //self.subtitle = self.data.options.get(res).unwrap().value.clone();
-            }
-            self.reset_popup();
-            if let Some(tx) = &self.action_tx {
-                let _ = tx.send(Action::PopModal(true));
-            }
+            return Ok(());
         }
+        self.handle_edit_start()?;
 
         Ok(())
     }
@@ -106,36 +156,40 @@ impl Component for StringListOptionComponent {
     }
 
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
-        if ctx.action == Action::Esc && self.editing {
-            self.editing = false;
-            self.reset_popup();
-            if let Some(tx) = &self.action_tx {
-                let _ = tx.send(Action::PopModal(true));
+        if let Action::PopModal(value) = ctx.action {
+            if self.editing {
+                self.handle_edit_end(value)?;
             }
-        } else if ctx.action == Action::NavUp
-            || ctx.action == Action::NavDown
-            || ctx.action == Action::PageUp
-            || ctx.action == Action::PageDown && self.editing
-        {
-            if let Some(p) = &mut self.string_list_popup {
-                return p.update(ctx);
-            }
+        } else if self.editing {
+            let p = &mut self
+                .string_list_popup
+                .as_mut()
+                .ok_or(CliError::Unknown)
+                .attach_printable("Unable to find popup, even though we are editing")?;
+
+            return p.update(ctx);
         }
 
         Ok(None)
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect, ctx: &RenderContext) -> Result<(), CliError> {
+        let title =
+            OPTION_TITLES
+                .get(self.data.id())
+                .ok_or(CliError::OptionTitleRetrievalError(
+                    self.data.id().to_string(),
+                ))?;
         draw_item(
             self.selected,
-            &self.data.value,
-            &self.data.title,
-            self.data.dirty,
+            title,
+            self.data.value(),
+            self.data.dirty(),
             frame,
             area,
         )
         .change_context(CliError::UnableToDrawComponent)
-        .attach_printable_lazy(|| format!("Drawing list item titled {}", self.data.title))?;
+        .attach_printable_lazy(|| format!("Drawing list item titled {}", title))?;
 
         if let Some(ref mut p) = self.string_list_popup {
             let _ = p.draw(frame, area, ctx);

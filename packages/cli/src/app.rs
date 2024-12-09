@@ -236,6 +236,8 @@ impl App {
                 self.render(tui)?;
                 self.dirty = false;
                 continue;
+            } else if action == Action::Render && !self.dirty {
+                continue;
             }
 
             match action.clone() {
@@ -259,15 +261,21 @@ impl App {
                     self.handle_tab_nav(&action);
                 }
                 Action::PushModal(_) | Action::PopModal(_) => self.handle_modal_change(&action)?,
-                Action::AppTabOptionChanged(opt) => {
-                    let rerender = self
+                Action::AppTabOptionChangeProposal(opt) => {
+                    let updated = self
                         .project
                         .borrow_mut()
                         .on_option_changed(opt)
                         .change_context(CliError::Unknown)?;
 
-                    if rerender {
-                        self.render(tui)?;
+                    if updated {
+                        self.dirty = true;
+                        self.action_tx
+                            .send(Action::AppTabOptionChangeAccepted)
+                            .change_context(CliError::UnableToSendViaUnboundedSender)?;
+                        self.action_tx
+                            .send(Action::Render)
+                            .change_context(CliError::UnableToSendViaUnboundedSender)?;
                     }
                 }
                 _ => {}

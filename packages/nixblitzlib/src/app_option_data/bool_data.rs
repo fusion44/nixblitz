@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::option_data::OptionId;
+use super::option_data::{GetOptionId, OptionId};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BoolOptionData {
@@ -20,10 +20,6 @@ impl BoolOptionData {
         }
     }
 
-    pub fn id(&self) -> &OptionId {
-        &self.id
-    }
-
     pub fn dirty(&self) -> bool {
         self.dirty
     }
@@ -38,6 +34,12 @@ impl BoolOptionData {
     }
 }
 
+impl GetOptionId for BoolOptionData {
+    fn id(&self) -> &OptionId {
+        &self.id
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BoolOptionChangeData {
     pub id: OptionId,
@@ -47,5 +49,11 @@ pub struct BoolOptionChangeData {
 impl BoolOptionChangeData {
     pub fn new(id: OptionId, value: bool) -> Self {
         Self { id, value }
+    }
+}
+
+impl GetOptionId for BoolOptionChangeData {
+    fn id(&self) -> &OptionId {
+        &self.id
     }
 }

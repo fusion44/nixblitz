@@ -1,10 +1,11 @@
-use error_stack::{Report, Result};
+use error_stack::{Report, Result, ResultExt};
 use ratatui::{
     layout::Rect,
     widgets::{Clear, ListState},
     Frame,
 };
 use ratatui_macros::constraint;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     action::{self, Action},
@@ -21,7 +22,7 @@ use crate::{
 };
 
 /// Represents a Popup menu widget for string lists.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct StringListPopup {
     /// The title displayed at the top of the Popup menu.
     title: String,
@@ -34,6 +35,9 @@ pub struct StringListPopup {
 
     /// Number of items in the options.
     max_len: u16,
+
+    /// The sender for actions
+    action_tx: UnboundedSender<Action>,
 }
 
 impl StringListPopup {
@@ -47,7 +51,11 @@ impl StringListPopup {
     /// # Returns
     /// A `Result` containing the constructed `Popup` or a `CliError`
     /// if the maximum title length exceeds 128 characters.
-    pub fn new(title: &str, options: Vec<SelectableListItem>) -> Result<Self, CliError> {
+    pub fn new(
+        title: &str,
+        options: Vec<SelectableListItem>,
+        action_tx: UnboundedSender<Action>,
+    ) -> Result<Self, CliError> {
         let mut selected_id = 0;
         let max_len = options
             .iter()
@@ -73,11 +81,28 @@ impl StringListPopup {
             options,
             state,
             max_len: max_len as u16,
+            action_tx,
         })
     }
 
     pub fn selected(&self) -> Option<usize> {
         self.state.selected()
+    }
+
+    fn handle_accept(&mut self) -> Result<(), CliError> {
+        self.action_tx
+            .send(Action::PopModal(true))
+            .change_context(CliError::UnableToSendViaUnboundedSender)?;
+
+        Ok(())
+    }
+
+    fn handle_dismiss(&self) -> Result<(), CliError> {
+        self.action_tx
+            .send(Action::PopModal(false))
+            .change_context(CliError::UnableToSendViaUnboundedSender)?;
+
+        Ok(())
     }
 }
 
@@ -93,6 +118,8 @@ impl Component for StringListPopup {
             Action::NavDown => self.state.select_next(),
             Action::PageUp => self.state.scroll_up_by(10),
             Action::PageDown => self.state.scroll_down_by(10),
+            Action::Enter => self.handle_accept()?,
+            Action::Esc => self.handle_dismiss()?,
             _ => (),
         }
 

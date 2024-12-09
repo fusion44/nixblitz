@@ -2,7 +2,7 @@ use error_stack::{Report, Result, ResultExt};
 use nixblitzlib::{
     app_option_data::{
         bool_data::{BoolOptionChangeData, BoolOptionData},
-        option_data::OptionDataChangeNotification,
+        option_data::{GetOptionId, OptionDataChangeNotification},
     },
     strings::OPTION_TITLES,
 };
@@ -27,7 +27,7 @@ impl BoolOptionComponent {
             data: data.clone(),
             subtitle: Self::format_subtitle(data.value()),
             selected,
-            action_tx: None,
+            ..Default::default()
         }
     }
 
@@ -37,6 +37,11 @@ impl BoolOptionComponent {
         }
 
         "✗ (false)".to_string()
+    }
+
+    pub fn set_data(&mut self, data: &BoolOptionData) {
+        self.subtitle = Self::format_subtitle(self.data.value());
+        self.data = data.clone();
     }
 }
 
@@ -48,7 +53,7 @@ impl OptionListItem for BoolOptionComponent {
     fn on_edit(&mut self) -> std::result::Result<(), Report<CliError>> {
         self.subtitle = Self::format_subtitle(self.data.value());
         if let Some(tx) = &self.action_tx {
-            tx.send(Action::AppTabOptionChanged(
+            tx.send(Action::AppTabOptionChangeProposal(
                 OptionDataChangeNotification::Bool(BoolOptionChangeData::new(
                     self.data.id().clone(),
                     !self.data.value(),
