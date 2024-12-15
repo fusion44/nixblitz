@@ -2,12 +2,16 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum PasswordError {
-    #[error("Password to short")]
-    ToShort,
+    #[error("Password too short")]
+    TooShort,
     #[error("Unable to hash the password")]
     HashingError,
     #[error("Password is None")]
     IsNone,
+    #[error("Confirm password must not be None")]
+    MissingConfirm,
+    #[error("Passwords do not match")]
+    Mismatch,
 }
 
 #[derive(Debug, Error)]

@@ -10,14 +10,16 @@ use crate::{
     app_option_data::{
         bool_data::BoolOptionData,
         option_data::{OptionData, OptionDataChangeNotification, OptionId, ToOptionId},
+        password_data::PasswordOptionData,
         string_list_data::{StringListOptionData, StringListOptionItem},
         text_edit_data::TextOptionData,
     },
     apps::SupportedApps,
     errors::{ProjectError, TemplatingError},
     locales::LOCALES,
+    strings::INITIAL_PASSWORD,
     timezones::TIMEZONES,
-    utils::BASE_TEMPLATE,
+    utils::{check_password_validity_confirm, unix_hash_password, BASE_TEMPLATE},
 };
 
 pub const TEMPLATE_FILE_NAME: &str = "src/configuration.common.nix.templ";
@@ -72,7 +74,7 @@ pub struct NixBaseConfig {
     /// Default: nixblitz
     ///
     /// [nixos.org:users.users.\<name\>.hashedPassword](https://search.nixos.org/options?show=users.users.<name>.hashedPassword)
-    pub hashed_password: String,
+    pub hashed_password: Box<PasswordOptionData>,
 
     /// SSH authentication keys to allow for SSH connection attempts.
     ///
@@ -129,7 +131,6 @@ impl Default for NixBaseConfig {
         let time_zone = "America/New_York".to_string();
         let default_locale = "en_US.utf8".to_string();
         let username = "admin".to_string();
-        let initial_password = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.".to_string();
         Self {
             allow_unfree: Box::new(BoolOptionData::new(
                 NixBaseConfigOption::AllowUnfree.to_option_id(),
@@ -153,8 +154,14 @@ impl Default for NixBaseConfig {
             )),
             username: username.clone(),
             ssh_password_auth: false,
-            // default password: "nixblitz"
-            hashed_password: initial_password.clone(),
+            hashed_password: Box::new(PasswordOptionData::new(
+                NixBaseConfigOption::InitialPassword.to_option_id(),
+                INITIAL_PASSWORD.to_string(),
+                true,
+                10,
+                false,
+                INITIAL_PASSWORD.to_string(),
+            )),
             openssh_auth_keys: vec![],
             system_packages: vec![
                 String::from("bat"),
@@ -254,7 +261,7 @@ impl NixBaseConfig {
         default_locale: Box<StringListOptionData>,
         username: String,
         ssh_password_auth: bool,
-        hashed_password: String,
+        hashed_password: Box<PasswordOptionData>,
         openssh_auth_keys: Vec<String>,
         system_packages: Vec<String>,
         ports: Vec<usize>,
@@ -325,7 +332,10 @@ impl NixBaseConfig {
                     ("default_locale", self.default_locale.value().into()),
                     ("username", self.username.clone()),
                     ("ssh_password_auth", format!("{}", self.ssh_password_auth)),
-                    ("initial_password", self.hashed_password.clone()),
+                    (
+                        "initial_password",
+                        self.hashed_password.hashed_value().clone(),
+                    ),
                     (
                         "openssh_auth_keys",
                         self.openssh_auth_keys
@@ -393,20 +403,12 @@ impl NixBaseConfig {
             OptionData::StringList(self.default_locale.clone()),
             OptionData::TextEdit(Box::new(TextOptionData::new(
                 NixBaseConfigOption::Username.to_option_id(),
-                "User Name".to_string(),
                 self.username.clone(),
                 1,
                 false,
                 self.username.clone(),
             ))),
-            OptionData::TextEdit(Box::new(TextOptionData::new(
-                NixBaseConfigOption::InitialPassword.to_option_id(),
-                "Initial Password".to_string(),
-                self.hashed_password.clone(),
-                1,
-                false,
-                self.hashed_password.clone(),
-            ))),
+            OptionData::PasswordEdit(self.hashed_password.clone()),
         ]
     }
 }
@@ -449,7 +451,33 @@ impl AppConfig for NixBaseConfig {
             } else if opt == NixBaseConfigOption::Username {
                 todo!("{}", opt);
             } else if opt == NixBaseConfigOption::InitialPassword {
-                todo!("{}", opt);
+                if let OptionDataChangeNotification::PasswordEdit(password_opt) = option {
+                    let main: String = password_opt.value.clone();
+                    let confirm: Option<String> = password_opt.confirm.clone();
+
+                    let check_result = check_password_validity_confirm(&main, &confirm);
+                    if check_result.is_err() {
+                        // TODO: handle invalid passwords more gracefully.
+                        //       The user should be notified. For now we
+                        //       expect that library users handle invalid cases
+                        //       Currently there is no way to notifiy library
+                        //       users properly.
+                        return Ok(false);
+                    }
+
+                    let hashed_pw = unix_hash_password(&main).change_context(
+                        ProjectError::ChangeOptionValueError("Unable to hash password".into()),
+                    )?;
+
+                    res = Ok(true);
+                    self.hashed_password.set_hashed_value(hashed_pw);
+                    self.hashed_password
+                        .set_subtitle(self.hashed_password.hashed_value().clone());
+                } else {
+                    Err(Report::new(ProjectError::ChangeOptionValueError(
+                        NixBaseConfigOption::InitialPassword.to_string(),
+                    )))?;
+                }
             } else {
                 Err(
                     Report::new(ProjectError::ChangeOptionValueError(opt.to_string()))
@@ -510,7 +538,14 @@ mod tests {
             )),
             "myUserName".to_string(),
             true,
-            pw.clone(),
+            Box::new(PasswordOptionData::new(
+                NixBaseConfigOption::InitialPassword.to_option_id(),
+                pw.to_string(),
+                true,
+                10,
+                false,
+                pw.to_string(),
+            )),
             vec![String::from("123"), String::from("234")],
             vec![String::from("bat"), String::from("yazi")],
             vec![22, 1337],
@@ -547,7 +582,7 @@ mod tests {
         )));
         assert!(res_base.contains(&format!(
             "hashedPassword = \"{}\";",
-            &config.hashed_password
+            &config.hashed_password.hashed_value()
         )));
         for pkg in config.system_packages {
             assert!(res_base.contains(&pkg.to_string()));

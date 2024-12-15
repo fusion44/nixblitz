@@ -2,7 +2,7 @@ use error_stack::{Report, Result, ResultExt};
 use nixblitzlib::{
     app_option_data::{
         option_data::{GetOptionId, OptionDataChangeNotification},
-        text_edit_data::{TextOptionChangeData, TextOptionData},
+        password_data::{PasswordOptionChangeData, PasswordOptionData},
     },
     strings::OPTION_TITLES,
 };
@@ -18,23 +18,21 @@ use crate::{
 
 use super::{
     base_option::{draw_item, OptionListItem},
-    text_popup::TextInputPopup,
+    password_confirm_popup::PasswordConfirmPopup,
 };
 
 #[derive(Debug, Default)]
-pub struct TextOptionComponent<'a> {
-    data: TextOptionData,
+pub struct PasswordOptionComponent<'a> {
+    data: PasswordOptionData,
     title: &'a str,
-    subtitle: String,
     selected: bool,
     editing: bool,
     action_tx: Option<UnboundedSender<Action>>,
-    popup: Option<Box<TextInputPopup<'a>>>,
+    popup: Option<Box<PasswordConfirmPopup<'a>>>,
 }
 
-impl<'a> TextOptionComponent<'a> {
-    pub fn new(data: &TextOptionData, selected: bool) -> Result<Self, CliError> {
-        let subtitle = data.value().to_string();
+impl<'a> PasswordOptionComponent<'a> {
+    pub fn new(data: &PasswordOptionData, selected: bool) -> Result<Self, CliError> {
         let title = OPTION_TITLES
             .get(data.id())
             .ok_or(CliError::OptionTitleRetrievalError(data.id().to_string()))?;
@@ -42,7 +40,6 @@ impl<'a> TextOptionComponent<'a> {
         Ok(Self {
             data: data.clone(),
             title,
-            subtitle,
             selected,
             editing: false,
             ..Default::default()
@@ -54,30 +51,23 @@ impl<'a> TextOptionComponent<'a> {
     }
 
     fn build_popup(&mut self) -> Result<(), CliError> {
-        let mut pop = TextInputPopup::new(
-            self.title,
-            self.data.value().lines().map(String::from).collect(),
-            self.data.max_lines(),
-        )?;
-        if let Some(h) = &self.action_tx {
-            pop.register_action_handler(h.clone())?;
-        }
+        let mut pop = PasswordConfirmPopup::new(self.title, self.data.clone())?;
+        let tx = self
+            .action_tx
+            .clone()
+            .ok_or(CliError::UnableToFindUnboundedSender)?;
+        pop.register_action_handler(tx.clone())?;
         self.popup = Some(Box::new(pop));
 
         Ok(())
     }
 
-    fn update_subtitle(&mut self) {
-        if let Some(first_line) = self.data.value().lines().next() {
-            self.subtitle = first_line.to_string();
-        }
-    }
-    pub fn set_data(&mut self, data: &TextOptionData) {
+    pub fn set_data(&mut self, data: &PasswordOptionData) {
         self.data = data.clone();
     }
 }
 
-impl<'a> OptionListItem for TextOptionComponent<'a> {
+impl<'a> OptionListItem for PasswordOptionComponent<'a> {
     fn selected(&self) -> bool {
         self.selected
     }
@@ -103,7 +93,7 @@ impl<'a> OptionListItem for TextOptionComponent<'a> {
     }
 }
 
-impl<'a> Component for TextOptionComponent<'a> {
+impl<'a> Component for PasswordOptionComponent<'a> {
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
         if ctx.action == Action::Esc && self.editing {
             if let Some(ref mut p) = self.popup {
@@ -111,34 +101,27 @@ impl<'a> Component for TextOptionComponent<'a> {
             }
         } else if ctx.action == Action::PopModal(true) && self.editing {
             self.editing = false;
-            if let Some(ref mut p) = self.popup {
-                match self.data.max_lines() {
-                    1 => {
-                        self.data.set_value(p.get_result()[0].clone());
-                        self.subtitle = self.data.value().to_string();
-                    }
-                    n if n > 1 => {
-                        self.data.set_value(p.get_result().join("\n"));
-                    }
-                    _ => {}
-                }
-
-                if let Some(tx) = &self.action_tx {
+            if let Some(tx) = &self.action_tx {
+                if let Some(p) = &self.popup {
+                    let (main, confirm) = p.values();
                     tx.send(Action::AppTabOptionChangeProposal(
-                        OptionDataChangeNotification::TextEdit(TextOptionChangeData::new(
+                        OptionDataChangeNotification::PasswordEdit(PasswordOptionChangeData::new(
                             self.data.id().clone(),
-                            "text".to_string(),
+                            main,
+                            Some(confirm),
                         )),
                     ))
                     .change_context(CliError::Unknown)?
-                }
+                };
             }
-
-            self.update_subtitle();
             self.reset_popup();
         } else if ctx.action == Action::PopModal(false) && self.editing {
             self.editing = false;
             self.reset_popup();
+        } else if ctx.action == Action::TogglePasswordVisibility && self.editing {
+            if let Some(ref mut p) = self.popup {
+                p.update(ctx)?;
+            }
         }
 
         Ok(None)
@@ -168,7 +151,7 @@ impl<'a> Component for TextOptionComponent<'a> {
         draw_item(
             self.selected,
             self.title,
-            &self.subtitle,
+            &self.data.subtitle(),
             self.data.dirty(),
             frame,
             area,

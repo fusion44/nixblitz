@@ -30,6 +30,7 @@ pub enum Action {
     PageUp,
     PageDown,
     FocusRequest(FocusableComponent),
+    TogglePasswordVisibility,
 
     /// A modal is opened.
     ///

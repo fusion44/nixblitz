@@ -16,6 +16,7 @@ pub mod app_options;
 pub mod default_theme;
 pub mod list_options;
 pub mod menu;
+pub mod password_input;
 pub mod theme;
 pub mod title;
 

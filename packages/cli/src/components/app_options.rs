@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 use super::{
     list_options::{
-        base_option::OptionListItem, bool::BoolOptionComponent,
+        base_option::OptionListItem, bool::BoolOptionComponent, password::PasswordOptionComponent,
         string_list::StringListOptionComponent, text::TextOptionComponent,
     },
     theme::block,
@@ -31,6 +31,7 @@ enum _Comp<'a> {
     Bool(BoolOptionComponent),
     StringList(StringListOptionComponent),
     EditText(TextOptionComponent<'a>),
+    Password(PasswordOptionComponent<'a>),
 }
 
 impl<'a> fmt::Display for _Comp<'a> {
@@ -39,6 +40,7 @@ impl<'a> fmt::Display for _Comp<'a> {
             _Comp::Bool(_) => write!(f, "_Comp::Bool"),
             _Comp::StringList(_) => write!(f, "_Comp::StringList"),
             _Comp::EditText(_) => write!(f, "_Comp::EditText"),
+            _Comp::Password(_) => write!(f, "_Comp::Password"),
         }
     }
 }
@@ -74,11 +76,22 @@ impl<'a> _Comp<'a> {
         }
     }
 
+    fn get_password_mut(&mut self) -> Result<&mut PasswordOptionComponent<'a>, CliError> {
+        match self {
+            _Comp::Password(ref mut val) => Ok(val),
+            _ => Err(Report::new(CliError::OptionTypeMismatch(
+                "_Comp::Password".to_string(),
+                format!("{}", self),
+            ))),
+        }
+    }
+
     fn set_selected(&mut self, selected: bool) {
         match self {
             _Comp::Bool(comp) => comp.set_selected(selected),
             _Comp::StringList(comp) => comp.set_selected(selected),
             _Comp::EditText(comp) => comp.set_selected(selected),
+            _Comp::Password(comp) => comp.set_selected(selected),
         }
     }
 }
@@ -118,6 +131,7 @@ impl<'a> OptionMap<'a> {
             _Comp::Bool(bool_option_component) => Ok(bool_option_component),
             _Comp::StringList(string_list_option_component) => Ok(string_list_option_component),
             _Comp::EditText(text_option_component) => Ok(text_option_component),
+            _Comp::Password(password_option_component) => Ok(password_option_component),
         }
     }
 
@@ -129,6 +143,7 @@ impl<'a> OptionMap<'a> {
                 _Comp::Bool(bool_option_component) => bool_option_component as &mut dyn Component,
                 _Comp::StringList(string_list_option_component) => string_list_option_component,
                 _Comp::EditText(text_option_component) => text_option_component,
+                _Comp::Password(password_option_component) => password_option_component,
             })
             .collect())
     }
@@ -147,6 +162,7 @@ impl<'a> OptionMap<'a> {
             _Comp::Bool(bool_option_component) => Ok(bool_option_component),
             _Comp::StringList(string_list_option_component) => Ok(string_list_option_component),
             _Comp::EditText(text_option_component) => Ok(text_option_component),
+            _Comp::Password(password_option_component) => Ok(password_option_component),
         }
     }
 }
@@ -188,7 +204,7 @@ impl<'a> AppOptions<'a> {
             .get_app_options()
             .change_context(CliError::Unknown)?;
 
-        let list_of_options: BTreeMap<String, Box<_Comp>> = opts
+        let list_of_options: Result<BTreeMap<String, Box<_Comp>>, CliError> = opts
             .iter()
             .enumerate()
             .map(|(index, option)| {
@@ -212,13 +228,22 @@ impl<'a> AppOptions<'a> {
                         Box::new(_Comp::EditText(TextOptionComponent::new(
                             opt,
                             index == selected,
-                        ))),
+                        )?)),
+                    ),
+                    OptionData::PasswordEdit(opt) => (
+                        opt.id().to_string(),
+                        Box::new(_Comp::Password(PasswordOptionComponent::new(
+                            opt,
+                            index == selected,
+                        )?)),
                     ),
                 };
 
-                component
+                Ok(component)
             })
             .collect();
+
+        let list_of_options = list_of_options?;
 
         Ok(OptionMap::new(list_of_options))
     }
@@ -251,6 +276,9 @@ impl<'a> AppOptions<'a> {
                 }
                 OptionData::TextEdit(data) => {
                     option_comp.get_edit_text_mut()?.set_data(data);
+                }
+                OptionData::PasswordEdit(data) => {
+                    option_comp.get_password_mut()?.set_data(data);
                 }
             }
         }
@@ -444,6 +472,7 @@ impl<'a> AppOptions<'a> {
             _Comp::Bool(c) => Ok(c.draw(frame, index, ctx)?),
             _Comp::StringList(c) => Ok(c.draw(frame, index, ctx)?),
             _Comp::EditText(c) => Ok(c.draw(frame, index, ctx)?),
+            _Comp::Password(c) => Ok(c.draw(frame, index, ctx)?),
         }
     }
 }
@@ -485,6 +514,7 @@ impl<'a> Component for AppOptions<'a> {
         if !self.modal_open
             && ctx.action != Action::PopModal(false)
             && ctx.action != Action::PopModal(true)
+            && ctx.action != Action::TogglePasswordVisibility
         {
             match ctx.action {
                 Action::NavUp | Action::NavDown => {

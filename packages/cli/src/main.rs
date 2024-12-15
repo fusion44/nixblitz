@@ -17,6 +17,7 @@ mod constants;
 mod errors;
 mod pages;
 mod tui;
+mod utils;
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {

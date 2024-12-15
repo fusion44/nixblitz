@@ -144,6 +144,7 @@ impl Project {
             OptionDataChangeNotification::Bool(value) => &value.id,
             OptionDataChangeNotification::StringList(value) => &value.id,
             OptionDataChangeNotification::TextEdit(value) => &value.id,
+            OptionDataChangeNotification::PasswordEdit(value) => &value.id,
         };
 
         match id.app {

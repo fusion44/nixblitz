@@ -9,6 +9,7 @@
 		"<Shift-s>": "NavSettingsTab",
 		"<Shift-c>": "NavActionsTab",
 		"<Shift-h>": "NavHelpTab",
+    "<Ctrl-k>": "TogglePasswordVisibility",
 		"<k>": "NavUp",
       "<j>": "NavDown",
       "<h>": "NavLeft",

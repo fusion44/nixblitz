@@ -1,11 +1,34 @@
 use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
+use strum::Display;
 
 use crate::{
     app_option_data::option_data::{OptionId, ToOptionId},
     nix_base_config::NixBaseConfigOption,
 };
+
+// default password: "nixblitz"
+pub(crate) static INITIAL_PASSWORD: &str = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.";
+
+#[derive(Debug, Display, Hash, Eq, PartialEq)]
+pub enum Strings {
+    PasswordInputPlaceholderMain,
+    PasswordInputPlaceholderConfirm,
+}
+
+pub static STRINGS: Lazy<HashMap<Strings, &str>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+    map.insert(
+        Strings::PasswordInputPlaceholderMain,
+        "Please enter your password",
+    );
+    map.insert(
+        Strings::PasswordInputPlaceholderConfirm,
+        "Please confirm your password",
+    );
+    map
+});
 
 pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
     let mut map = HashMap::new();

@@ -1,5 +1,7 @@
 pub mod base_option;
 pub mod bool;
+pub mod password;
+pub mod password_confirm_popup;
 pub mod popup;
 pub mod popup_confirm_btn_bar;
 pub mod string_list;

@@ -409,6 +409,49 @@ pub mod popup {
             Paragraph::new(Span::styled(label, style)).centered().bold()
         }
     }
+
+    pub mod error_text {
+        use ratatui::{style::Style, text::Span, widgets::Paragraph};
+
+        use crate::app_contexts::RenderContext;
+
+        pub fn default<'a>(label: &'a str, ctx: &RenderContext) -> Paragraph<'a> {
+            let style = Style::default()
+                .bg(ctx.theme_data.clone().borrow().colors.error_container)
+                .fg(ctx.theme_data.clone().borrow().colors.error);
+            Paragraph::new(Span::styled(label, style))
+        }
+    }
+}
+
+pub mod input {
+    use ratatui::style::Style;
+
+    use crate::app_contexts::RenderContext;
+
+    /// Input style, not focused
+    pub fn default(ctx: &RenderContext) -> Style {
+        Style::default().fg(ctx.theme_data.borrow().colors.on_surface)
+    }
+
+    /// Input style, focused
+    pub fn focused(ctx: &RenderContext) -> Style {
+        Style::default().fg(ctx.theme_data.borrow().colors.on_surface_var)
+    }
+
+    pub mod cursor {
+        use ratatui::style::Style;
+
+        use crate::app_contexts::RenderContext;
+
+        pub fn default(ctx: &RenderContext) -> Style {
+            Style::default().bg(ctx.theme_data.borrow().colors.surface_container_high)
+        }
+
+        pub fn focused(ctx: &RenderContext) -> Style {
+            Style::default().bg(ctx.theme_data.borrow().colors.primary)
+        }
+    }
 }
 
 pub mod list {

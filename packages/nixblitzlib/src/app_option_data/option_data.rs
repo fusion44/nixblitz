@@ -6,6 +6,7 @@ use crate::apps::SupportedApps;
 
 use super::{
     bool_data::{BoolOptionChangeData, BoolOptionData},
+    password_data::{PasswordOptionChangeData, PasswordOptionData},
     string_list_data::{StringListOptionChangeData, StringListOptionData},
     text_edit_data::{TextOptionChangeData, TextOptionData},
 };
@@ -45,6 +46,7 @@ pub enum OptionData {
     Bool(Box<BoolOptionData>),
     StringList(Box<StringListOptionData>),
     TextEdit(Box<TextOptionData>),
+    PasswordEdit(Box<PasswordOptionData>),
 }
 
 impl GetOptionId for OptionData {
@@ -53,6 +55,7 @@ impl GetOptionId for OptionData {
             OptionData::Bool(data) => data.id(),
             OptionData::StringList(data) => data.id(),
             OptionData::TextEdit(data) => data.id(),
+            OptionData::PasswordEdit(data) => data.id(),
         }
     }
 }
@@ -62,6 +65,7 @@ pub enum OptionDataChangeNotification {
     Bool(BoolOptionChangeData),
     StringList(StringListOptionChangeData),
     TextEdit(TextOptionChangeData),
+    PasswordEdit(PasswordOptionChangeData),
 }
 
 impl GetOptionId for OptionDataChangeNotification {
@@ -70,6 +74,7 @@ impl GetOptionId for OptionDataChangeNotification {
             OptionDataChangeNotification::Bool(data) => data.id(),
             OptionDataChangeNotification::StringList(data) => data.id(),
             OptionDataChangeNotification::TextEdit(data) => data.id(),
+            OptionDataChangeNotification::PasswordEdit(data) => data.id(),
         }
     }
 }

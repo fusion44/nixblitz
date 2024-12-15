@@ -278,12 +278,18 @@ impl App {
                             .change_context(CliError::UnableToSendViaUnboundedSender)?;
                     }
                 }
+                Action::TogglePasswordVisibility => {
+                    self.dirty = true;
+                    self.action_tx
+                        .send(Action::AppTabOptionChangeAccepted)
+                        .change_context(CliError::UnableToSendViaUnboundedSender)?;
+                }
                 _ => {}
             }
 
             if self.exclusive_input_component_shown {
                 match action {
-                    Action::Esc | Action::PopModal(_) => {}
+                    Action::Esc | Action::PopModal(_) | Action::TogglePasswordVisibility => {}
                     _ => {
                         continue;
                     }

@@ -92,7 +92,11 @@ impl<'a> Component for AppsPage<'a> {
 
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
         match ctx.action {
-            Action::NavUp | Action::NavDown | Action::PageUp | Action::PageDown => {
+            Action::NavUp
+            | Action::NavDown
+            | Action::PageUp
+            | Action::PageDown
+            | Action::TogglePasswordVisibility => {
                 if ctx.modal_open {
                     return self.app_options.update(ctx);
                 }

@@ -7,9 +7,6 @@ pub struct TextOptionData {
     /// Unique identifier for the text option
     id: OptionId,
 
-    /// Title or label for the text option
-    title: String,
-
     /// Current value of the text option
     value: String,
 
@@ -25,17 +22,9 @@ pub struct TextOptionData {
 }
 
 impl TextOptionData {
-    pub fn new(
-        id: OptionId,
-        title: String,
-        value: String,
-        max_lines: u16,
-        dirty: bool,
-        original: String,
-    ) -> Self {
+    pub fn new(id: OptionId, value: String, max_lines: u16, dirty: bool, original: String) -> Self {
         Self {
             id,
-            title,
             value,
             max_lines,
             dirty,
@@ -54,10 +43,6 @@ impl TextOptionData {
     pub fn set_value(&mut self, value: String) {
         self.dirty = value != self.original;
         self.value = value;
-    }
-
-    pub fn title(&self) -> &str {
-        &self.title
     }
 
     pub fn max_lines(&self) -> u16 {

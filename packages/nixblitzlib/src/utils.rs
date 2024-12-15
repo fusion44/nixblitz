@@ -87,6 +87,46 @@ pub fn unix_hash_password(pw: &str) -> Result<String, PasswordError> {
     Ok(hashed_pw)
 }
 
+/// Checks the validity of a password by ensuring it matches the confirmation and is longer than 10 characters.
+///
+/// # Arguments
+///
+/// * `main` - The main password string.
+/// * `confirm` - An optional confirmation password string.
+///
+/// # Returns
+///
+/// * `Ok(())` - If the password is valid.
+/// * `PasswordError` - An error if the password is not valid.
+///
+/// # Errors
+///
+/// This function will return an error if:
+///
+/// * The confirmation password is `None`.
+/// * The passwords do not match.
+/// * The password is not longer than 10 characters.
+pub fn check_password_validity_confirm(
+    main: &str,
+    confirm: &Option<String>,
+) -> Result<(), PasswordError> {
+    if confirm.is_none() {
+        return Err(Report::new(PasswordError::MissingConfirm));
+    }
+
+    let confirm = confirm.as_ref().unwrap();
+
+    if main != confirm {
+        return Err(Report::new(PasswordError::Mismatch));
+    }
+
+    if main.len() <= 10 {
+        return Err(Report::new(PasswordError::TooShort));
+    }
+
+    Ok(())
+}
+
 fn safety_checks(work_dir: &Path) -> Result<(), ProjectError> {
     if !work_dir.exists() {
         return Ok(());
@@ -362,7 +402,7 @@ mod tests {
 
     use crate::{
         errors::ProjectError,
-        utils::{create_file, safety_checks, unix_hash_password},
+        utils::{check_password_validity_confirm, create_file, safety_checks, unix_hash_password},
     };
     use sha_crypt::sha512_check;
 
@@ -376,6 +416,31 @@ mod tests {
         let result = sha512_check(TEST_PW, &result.unwrap());
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_check_password_sanity_confirm() {
+        let main_password = "strong_password";
+        let confirm_password = Some("strong_password".to_string());
+
+        // Test matching passwords
+        let result = check_password_validity_confirm(main_password, &confirm_password);
+        assert!(result.is_ok());
+
+        // Test non-matching passwords
+        let non_matching_confirm = Some("different_password".to_string());
+        let result = check_password_validity_confirm(main_password, &non_matching_confirm);
+        assert!(result.is_err());
+
+        // Test short password
+        let short_password = "short";
+        let result = check_password_validity_confirm(short_password, &confirm_password);
+        assert!(result.is_err());
+
+        // Test None confirm password
+        let result = check_password_validity_confirm(main_password, &None);
+        assert!(result.is_err());
+    }
+
     #[test]
     fn safety_checks_non_existent_path() {
         let temp_dir = tempfile::tempdir().unwrap();
