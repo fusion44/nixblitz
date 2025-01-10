@@ -1,10 +1,12 @@
 use core::fmt;
-use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use super::{
     list_options::{
-        base_option::OptionListItem, bool::BoolOptionComponent, password::PasswordOptionComponent,
-        string_list::StringListOptionComponent, text::TextOptionComponent,
+        base_option::OptionListItem, bool::BoolOptionComponent,
+        net_address::NetAddressOptionComponent, number::NumberOptionComponent,
+        password::PasswordOptionComponent, string_list::StringListOptionComponent,
+        text::TextOptionComponent,
     },
     theme::block,
     Component,
@@ -12,13 +14,15 @@ use super::{
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
+    components::list_options::port::PortOptionComponent,
     constants::FocusableComponent,
     errors::CliError,
 };
-use cli_log::warn;
+use cli_log::{error, warn};
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::{Report, Result, ResultExt};
 
+use indexmap::IndexMap;
 use nixblitzlib::{
     app_option_data::option_data::{GetOptionId, OptionData},
     apps::SupportedApps,
@@ -32,6 +36,9 @@ enum _Comp<'a> {
     StringList(StringListOptionComponent),
     EditText(TextOptionComponent<'a>),
     Password(PasswordOptionComponent<'a>),
+    Number(NumberOptionComponent<'a>),
+    NetAddress(NetAddressOptionComponent<'a>),
+    Port(PortOptionComponent<'a>),
 }
 
 impl<'a> fmt::Display for _Comp<'a> {
@@ -41,6 +48,9 @@ impl<'a> fmt::Display for _Comp<'a> {
             _Comp::StringList(_) => write!(f, "_Comp::StringList"),
             _Comp::EditText(_) => write!(f, "_Comp::EditText"),
             _Comp::Password(_) => write!(f, "_Comp::Password"),
+            _Comp::Number(_) => write!(f, "_Comp::Number"),
+            _Comp::NetAddress(_) => write!(f, "_Comp::NetAddress"),
+            _Comp::Port(_) => write!(f, "_Comp::Port"),
         }
     }
 }
@@ -86,23 +96,56 @@ impl<'a> _Comp<'a> {
         }
     }
 
+    fn get_unsigned_num_mut(&mut self) -> Result<&mut NumberOptionComponent<'a>, CliError> {
+        match self {
+            _Comp::Number(ref mut val) => Ok(val),
+            _ => Err(Report::new(CliError::OptionTypeMismatch(
+                "_Comp::Number".to_string(),
+                format!("{}", self),
+            ))),
+        }
+    }
+
+    fn get_net_address_mut(&mut self) -> Result<&mut NetAddressOptionComponent<'a>, CliError> {
+        match self {
+            _Comp::NetAddress(ref mut val) => Ok(val),
+            _ => Err(Report::new(CliError::OptionTypeMismatch(
+                "_Comp::NetAddress".to_string(),
+                format!("{}", self),
+            ))),
+        }
+    }
+
+    fn get_port_mut(&mut self) -> Result<&mut PortOptionComponent<'a>, CliError> {
+        match self {
+            _Comp::Port(ref mut val) => Ok(val),
+            _ => Err(Report::new(CliError::OptionTypeMismatch(
+                "_Comp::Port".to_string(),
+                format!("{}", self),
+            ))),
+        }
+    }
+
     fn set_selected(&mut self, selected: bool) {
         match self {
             _Comp::Bool(comp) => comp.set_selected(selected),
             _Comp::StringList(comp) => comp.set_selected(selected),
             _Comp::EditText(comp) => comp.set_selected(selected),
             _Comp::Password(comp) => comp.set_selected(selected),
+            _Comp::Number(comp) => comp.set_selected(selected),
+            _Comp::NetAddress(comp) => comp.set_selected(selected),
+            _Comp::Port(comp) => comp.set_selected(selected),
         }
     }
 }
 
 #[derive(Default)]
 struct OptionMap<'a> {
-    map: BTreeMap<String, Box<_Comp<'a>>>,
+    map: IndexMap<String, Box<_Comp<'a>>>,
 }
 
 impl<'a> OptionMap<'a> {
-    fn new(map: BTreeMap<String, Box<_Comp<'a>>>) -> Self {
+    fn new(map: IndexMap<String, Box<_Comp<'a>>>) -> Self {
         OptionMap { map }
     }
 
@@ -132,6 +175,9 @@ impl<'a> OptionMap<'a> {
             _Comp::StringList(string_list_option_component) => Ok(string_list_option_component),
             _Comp::EditText(text_option_component) => Ok(text_option_component),
             _Comp::Password(password_option_component) => Ok(password_option_component),
+            _Comp::Number(unum_option_component) => Ok(unum_option_component),
+            _Comp::NetAddress(net_address_option_component) => Ok(net_address_option_component),
+            _Comp::Port(port_option_component) => Ok(port_option_component),
         }
     }
 
@@ -144,6 +190,9 @@ impl<'a> OptionMap<'a> {
                 _Comp::StringList(string_list_option_component) => string_list_option_component,
                 _Comp::EditText(text_option_component) => text_option_component,
                 _Comp::Password(password_option_component) => password_option_component,
+                _Comp::Number(unum_option_component) => unum_option_component,
+                _Comp::NetAddress(net_address_option_component) => net_address_option_component,
+                _Comp::Port(port_option_component) => port_option_component,
             })
             .collect())
     }
@@ -163,6 +212,9 @@ impl<'a> OptionMap<'a> {
             _Comp::StringList(string_list_option_component) => Ok(string_list_option_component),
             _Comp::EditText(text_option_component) => Ok(text_option_component),
             _Comp::Password(password_option_component) => Ok(password_option_component),
+            _Comp::Number(unum_option_component) => Ok(unum_option_component),
+            _Comp::NetAddress(net_address_option_component) => Ok(net_address_option_component),
+            _Comp::Port(port_option_component) => Ok(port_option_component),
         }
     }
 }
@@ -199,12 +251,11 @@ impl<'a> AppOptions<'a> {
         selected: usize,
     ) -> Result<OptionMap<'a>, CliError> {
         let opts = project
-            .clone()
             .borrow_mut()
             .get_app_options()
             .change_context(CliError::Unknown)?;
 
-        let list_of_options: Result<BTreeMap<String, Box<_Comp>>, CliError> = opts
+        let list_of_options: Result<IndexMap<String, Box<_Comp>>, CliError> = opts
             .iter()
             .enumerate()
             .map(|(index, option)| {
@@ -233,6 +284,27 @@ impl<'a> AppOptions<'a> {
                     OptionData::PasswordEdit(opt) => (
                         opt.id().to_string(),
                         Box::new(_Comp::Password(PasswordOptionComponent::new(
+                            opt,
+                            index == selected,
+                        )?)),
+                    ),
+                    OptionData::NumberEdit(opt) => (
+                        opt.id().to_string(),
+                        Box::new(_Comp::Number(NumberOptionComponent::new(
+                            opt,
+                            index == selected,
+                        )?)),
+                    ),
+                    OptionData::NetAddress(opt) => (
+                        opt.id().to_string(),
+                        Box::new(_Comp::NetAddress(NetAddressOptionComponent::new(
+                            opt,
+                            index == selected,
+                        )?)),
+                    ),
+                    OptionData::Port(opt) => (
+                        opt.id().to_string(),
+                        Box::new(_Comp::Port(PortOptionComponent::new(
                             opt,
                             index == selected,
                         )?)),
@@ -279,6 +351,13 @@ impl<'a> AppOptions<'a> {
                 }
                 OptionData::PasswordEdit(data) => {
                     option_comp.get_password_mut()?.set_data(data);
+                }
+                OptionData::NumberEdit(data) => {
+                    option_comp.get_unsigned_num_mut()?.set_data(data);
+                }
+                OptionData::NetAddress(data) => option_comp.get_net_address_mut()?.set_data(data),
+                OptionData::Port(data) => {
+                    option_comp.get_port_mut()?.set_data(data);
                 }
             }
         }
@@ -364,10 +443,8 @@ impl<'a> AppOptions<'a> {
             .split(block.inner(area));
         frame.render_widget(block, area);
 
-        self.constraints = (0..self.options.len())
-            .map(|_| Constraint::Length(2))
-            .collect();
-
+        let mut delayed_selected_index = 0;
+        let mut delayed_selected_opt: Option<&mut Box<_Comp<'_>>> = None;
         for (index, value) in self
             .options
             .map
@@ -380,14 +457,22 @@ impl<'a> AppOptions<'a> {
                 // defer drawing. The selected option might show a popup,
                 // which must be drawn last to make sure it is not overdrawn
                 // by options listed later
+                delayed_selected_index = index;
+                delayed_selected_opt = Some(value);
                 continue;
             }
 
             Self::draw_opt(value, frame, layout[index], ctx)?;
         }
 
-        let opt = self.options.get_nth_component_mut(self.selected)?;
-        opt.draw(frame, layout[self.selected], ctx)?;
+        if let Some(delayed_selected_opt) = delayed_selected_opt {
+            Self::draw_opt(
+                delayed_selected_opt,
+                frame,
+                layout[delayed_selected_index],
+                ctx,
+            )?;
+        }
 
         Ok(())
     }
@@ -473,6 +558,9 @@ impl<'a> AppOptions<'a> {
             _Comp::StringList(c) => Ok(c.draw(frame, index, ctx)?),
             _Comp::EditText(c) => Ok(c.draw(frame, index, ctx)?),
             _Comp::Password(c) => Ok(c.draw(frame, index, ctx)?),
+            _Comp::Number(c) => Ok(c.draw(frame, index, ctx)?),
+            _Comp::NetAddress(c) => Ok(c.draw(frame, index, ctx)?),
+            _Comp::Port(c) => Ok(c.draw(frame, index, ctx)?),
         }
     }
 }
@@ -527,6 +615,22 @@ impl<'a> Component for AppOptions<'a> {
                 }
                 Action::AppTabOptionChangeAccepted => {
                     self.update_option_items(ctx.project.clone())?;
+                    return Ok(None);
+                }
+                Action::AppTabAppSelected(_) => {
+                    self.options = Self::build_option_items(ctx.project.clone(), 0)?;
+                    self.constraints = (0..self.options.map.len())
+                        .map(|_| Constraint::Length(2))
+                        .collect();
+
+                    if let Some(tx) = &self.command_tx {
+                        for c in self.options.get_components_mut()? {
+                            c.register_action_handler(tx.clone())?;
+                        }
+                    } else {
+                        error!("unable to set action sender to new component");
+                    }
+
                     return Ok(None);
                 }
                 _ => return Ok(None),

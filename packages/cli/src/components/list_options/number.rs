@@ -1,8 +1,8 @@
 use error_stack::{Report, Result, ResultExt};
 use nixblitzlib::{
     app_option_data::{
+        number_data::{NumberOptionChangeData, NumberOptionData},
         option_data::{GetOptionId, OptionDataChangeNotification},
-        text_edit_data::{TextOptionChangeData, TextOptionData},
     },
     strings::OPTION_TITLES,
 };
@@ -18,22 +18,22 @@ use crate::{
 
 use super::{
     base_option::{draw_item, OptionListItem},
-    text_popup::TextInputPopup,
+    number_popup::NumberInputPopup,
 };
 
-#[derive(Debug, Default)]
-pub struct TextOptionComponent<'a> {
-    data: TextOptionData,
+#[derive(Debug)]
+pub struct NumberOptionComponent<'a> {
+    data: NumberOptionData,
     title: &'a str,
     subtitle: String,
     selected: bool,
     editing: bool,
     action_tx: Option<UnboundedSender<Action>>,
-    popup: Option<Box<TextInputPopup<'a>>>,
+    popup: Option<Box<NumberInputPopup<'a>>>,
 }
 
-impl<'a> TextOptionComponent<'a> {
-    pub fn new(data: &TextOptionData, selected: bool) -> Result<Self, CliError> {
+impl<'a> NumberOptionComponent<'a> {
+    pub fn new(data: &NumberOptionData, selected: bool) -> Result<Self, CliError> {
         let subtitle = data.value().to_string();
         let title = OPTION_TITLES
             .get(data.id())
@@ -45,7 +45,8 @@ impl<'a> TextOptionComponent<'a> {
             subtitle,
             selected,
             editing: false,
-            ..Default::default()
+            action_tx: None,
+            popup: None,
         })
     }
 
@@ -54,11 +55,7 @@ impl<'a> TextOptionComponent<'a> {
     }
 
     fn build_popup(&mut self) -> Result<(), CliError> {
-        let mut pop = TextInputPopup::new(
-            self.title,
-            self.data.value().lines().map(String::from).collect(),
-            self.data.max_lines(),
-        )?;
+        let mut pop = NumberInputPopup::new(self.title, self.data.value().clone())?;
         if let Some(h) = &self.action_tx {
             pop.register_action_handler(h.clone())?;
         }
@@ -68,16 +65,15 @@ impl<'a> TextOptionComponent<'a> {
     }
 
     fn update_subtitle(&mut self) {
-        if let Some(first_line) = self.data.value().lines().next() {
-            self.subtitle = first_line.to_string();
-        }
+        self.data.value().to_string();
     }
-    pub fn set_data(&mut self, data: &TextOptionData) {
+
+    pub fn set_data(&mut self, data: &NumberOptionData) {
         self.data = data.clone();
     }
 }
 
-impl<'a> OptionListItem for TextOptionComponent<'a> {
+impl<'a> OptionListItem for NumberOptionComponent<'a> {
     fn selected(&self) -> bool {
         self.selected
     }
@@ -103,7 +99,7 @@ impl<'a> OptionListItem for TextOptionComponent<'a> {
     }
 }
 
-impl<'a> Component for TextOptionComponent<'a> {
+impl<'a> Component for NumberOptionComponent<'a> {
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
         if ctx.action == Action::Esc && self.editing {
             if let Some(ref mut p) = self.popup {
@@ -112,22 +108,14 @@ impl<'a> Component for TextOptionComponent<'a> {
         } else if ctx.action == Action::PopModal(true) && self.editing {
             self.editing = false;
             if let Some(ref mut p) = self.popup {
-                match self.data.max_lines() {
-                    1 => {
-                        self.data.set_value(p.get_result()[0].clone());
-                        self.subtitle = self.data.value().to_string();
-                    }
-                    n if n > 1 => {
-                        self.data.set_value(p.get_result().join("\n"));
-                    }
-                    _ => {}
-                }
+                self.data.set_value(p.get_result().clone());
+                self.update_subtitle();
 
                 if let Some(tx) = &self.action_tx {
                     tx.send(Action::AppTabOptionChangeProposal(
-                        OptionDataChangeNotification::TextEdit(TextOptionChangeData::new(
+                        OptionDataChangeNotification::NumberEdit(NumberOptionChangeData::new(
                             self.data.id().clone(),
-                            self.data.value().to_string(),
+                            self.data.value().clone(),
                         )),
                     ))
                     .change_context(CliError::Unknown)?

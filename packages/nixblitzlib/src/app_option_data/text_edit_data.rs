@@ -23,6 +23,7 @@ pub struct TextOptionData {
 
 impl TextOptionData {
     pub fn new(id: OptionId, value: String, max_lines: u16, dirty: bool, original: String) -> Self {
+        let max_lines = if max_lines == 0 { 1 } else { max_lines };
         Self {
             id,
             value,

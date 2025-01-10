@@ -284,6 +284,10 @@ impl App {
                         .send(Action::AppTabOptionChangeAccepted)
                         .change_context(CliError::UnableToSendViaUnboundedSender)?;
                 }
+                Action::AppTabAppSelected(app) => {
+                    self.project.borrow_mut().set_selected_app(app);
+                    self.dirty = true;
+                }
                 _ => {}
             }
 

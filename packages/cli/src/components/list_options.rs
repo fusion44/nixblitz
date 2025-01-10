@@ -1,9 +1,13 @@
 pub mod base_option;
 pub mod bool;
+pub mod net_address;
+pub mod number;
+pub mod number_popup;
 pub mod password;
 pub mod password_confirm_popup;
 pub mod popup;
 pub mod popup_confirm_btn_bar;
+pub mod port;
 pub mod string_list;
 pub mod string_list_popup;
 pub mod text;

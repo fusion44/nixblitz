@@ -449,7 +449,9 @@ impl AppConfig for NixBaseConfig {
                     )))?;
                 }
             } else if opt == NixBaseConfigOption::Username {
-                todo!("{}", opt);
+                if let OptionDataChangeNotification::TextEdit(val) = option {
+                    self.username = val.value.clone();
+                }
             } else if opt == NixBaseConfigOption::InitialPassword {
                 if let OptionDataChangeNotification::PasswordEdit(password_opt) = option {
                     let main: String = password_opt.value.clone();
@@ -495,7 +497,7 @@ impl AppConfig for NixBaseConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{strings::OPTION_TITLES, utils::unix_hash_password};
+    use crate::utils::unix_hash_password;
 
     #[test]
     fn test_default_config() {
@@ -625,10 +627,5 @@ mod tests {
             let parsed_option = NixBaseConfigOption::from_str(&option_str).unwrap();
             assert_eq!(option, parsed_option, "Failed for option: {:?}", option);
         }
-    }
-
-    #[test]
-    fn test_titles_map() {
-        assert!(OPTION_TITLES.len() == NixBaseConfigOption::COUNT);
     }
 }

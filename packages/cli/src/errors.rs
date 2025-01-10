@@ -34,6 +34,8 @@ pub enum CliError {
     StringRetrievalError(String),
     #[error("Wrong option type was provided. What we are looking for: {}, What we are: {}", .0, .1)]
     OptionTypeMismatch(String, String),
+    #[error("{}", .0 )]
+    StringParseError(String),
 }
 
 pub fn init_error_handlers() {

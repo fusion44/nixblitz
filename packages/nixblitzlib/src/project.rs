@@ -33,6 +33,18 @@ pub struct Project {
 }
 
 impl Project {
+    /// Sets the currently selected application.
+    ///
+    /// This function updates the `selected_app` field of the `Project` struct
+    /// to the specified application.
+    ///
+    /// # Parameters
+    ///
+    /// - `app`: The application to be set as the currently selected app.
+    pub fn set_selected_app(&mut self, app: SupportedApps) {
+        self.selected_app = app;
+    }
+
     /// Loads the project configuration from the specified working directory.
     ///
     /// This function initializes a `Project` instance by loading configuration
@@ -106,7 +118,7 @@ impl Project {
     pub fn get_app_options(&mut self) -> Result<Rc<Vec<OptionData>>, ProjectError> {
         match self.selected_app {
             SupportedApps::NixOS => Ok(Rc::new(self.nix_base.get_options())),
-            SupportedApps::BitcoinCore => todo!(),
+            SupportedApps::BitcoinCore => Ok(Rc::new(self.bitcoin.get_options())),
             SupportedApps::CoreLightning => todo!(),
             SupportedApps::LND => todo!(),
             SupportedApps::BlitzAPI => todo!(),
@@ -145,11 +157,14 @@ impl Project {
             OptionDataChangeNotification::StringList(value) => &value.id,
             OptionDataChangeNotification::TextEdit(value) => &value.id,
             OptionDataChangeNotification::PasswordEdit(value) => &value.id,
+            OptionDataChangeNotification::NumberEdit(value) => &value.id,
+            OptionDataChangeNotification::NetAddress(value) => &value.id,
+            OptionDataChangeNotification::Port(value) => &value.id,
         };
 
         match id.app {
             SupportedApps::NixOS => self.nix_base.app_option_changed(id, &option),
-            SupportedApps::BitcoinCore => todo!(),
+            SupportedApps::BitcoinCore => self.bitcoin.app_option_changed(id, &option),
             SupportedApps::CoreLightning => todo!(),
             SupportedApps::LND => todo!(),
             SupportedApps::BlitzAPI => todo!(),

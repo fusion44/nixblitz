@@ -1,6 +1,12 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+pub enum ArgumentError {
+    #[error("Wrong argument provided: {}, expected: {} ", .0, .1)]
+    InvalidArgument(String, String),
+}
+
+#[derive(Debug, Error)]
 pub enum PasswordError {
     #[error("Password too short")]
     TooShort,
@@ -56,4 +62,12 @@ pub enum ProjectError {
     FileReadError(String),
     #[error("Invalid data type. Got {:?} Expected {:?}", .0, .1)]
     InvalidDataType(String, String),
+}
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Unable to parse address: {:?} ", .0)]
+    AddrParseError(String),
+    #[error("Unable to parse string '{}'", .0)]
+    StringParseError(String),
 }

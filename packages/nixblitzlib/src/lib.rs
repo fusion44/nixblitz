@@ -6,6 +6,7 @@ pub mod errors;
 pub mod lnd;
 pub mod locales;
 pub mod nix_base_config;
+pub mod number_value;
 pub mod project;
 pub mod strings;
 pub mod timezones;

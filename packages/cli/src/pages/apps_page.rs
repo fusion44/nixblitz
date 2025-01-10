@@ -10,7 +10,7 @@ use crate::{
 };
 
 use error_stack::Result;
-use nixblitzlib::{apps::SupportedApps, project::Project};
+use nixblitzlib::project::Project;
 use ratatui::prelude::*;
 use ratatui_macros::constraints;
 use tokio::sync::mpsc::UnboundedSender;
@@ -37,10 +37,6 @@ impl<'a> AppsPage<'a> {
         };
         instance.on_focus_req(FocusableComponent::AppTabList);
         Ok(instance)
-    }
-
-    fn on_app_selected(&mut self, app: SupportedApps) {
-        self.app_options.set_app(app);
     }
 
     fn on_focus_req(&mut self, c: FocusableComponent) {
@@ -126,10 +122,9 @@ impl<'a> Component for AppsPage<'a> {
                     self.on_focus_req(FocusableComponent::AppTabList);
                 }
             }
-            Action::AppTabOptionChangeAccepted => {
+            Action::AppTabOptionChangeAccepted | Action::AppTabAppSelected(_) => {
                 return self.app_options.update(ctx);
             }
-            Action::AppTabAppSelected(app) => self.on_app_selected(app),
             Action::FocusRequest(r) => self.on_focus_req(r),
             Action::PopModal(_) => {
                 self.app_options.update(ctx)?;
