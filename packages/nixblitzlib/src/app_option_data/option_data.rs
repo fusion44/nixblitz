@@ -82,7 +82,7 @@ pub enum OptionDataChangeNotification {
     StringList(StringListOptionChangeData),
     TextEdit(TextOptionChangeData),
     PasswordEdit(PasswordOptionChangeData),
-    NumberEdit(NumberOptionChangeData),
+    Number(NumberOptionChangeData),
     NetAddress(NetAddressOptionChangeData),
     Port(PortOptionChangeData),
 }
@@ -94,7 +94,7 @@ impl GetOptionId for OptionDataChangeNotification {
             OptionDataChangeNotification::StringList(data) => data.id(),
             OptionDataChangeNotification::TextEdit(data) => data.id(),
             OptionDataChangeNotification::PasswordEdit(data) => data.id(),
-            OptionDataChangeNotification::NumberEdit(data) => data.id(),
+            OptionDataChangeNotification::Number(data) => data.id(),
             OptionDataChangeNotification::NetAddress(data) => data.id(),
             OptionDataChangeNotification::Port(data) => data.id(),
         }

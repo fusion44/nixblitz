@@ -65,7 +65,7 @@ impl<'a> NumberOptionComponent<'a> {
     }
 
     fn update_subtitle(&mut self) {
-        self.data.value().to_string();
+        self.subtitle = self.data.value().to_string();
     }
 
     pub fn set_data(&mut self, data: &NumberOptionData) {
@@ -113,7 +113,7 @@ impl<'a> Component for NumberOptionComponent<'a> {
 
                 if let Some(tx) = &self.action_tx {
                     tx.send(Action::AppTabOptionChangeProposal(
-                        OptionDataChangeNotification::NumberEdit(NumberOptionChangeData::new(
+                        OptionDataChangeNotification::Number(NumberOptionChangeData::new(
                             self.data.id().clone(),
                             self.data.value().clone(),
                         )),

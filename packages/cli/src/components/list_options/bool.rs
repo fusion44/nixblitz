@@ -51,7 +51,6 @@ impl OptionListItem for BoolOptionComponent {
     }
 
     fn on_edit(&mut self) -> std::result::Result<(), Report<CliError>> {
-        self.subtitle = Self::format_subtitle(self.data.value());
         if let Some(tx) = &self.action_tx {
             tx.send(Action::AppTabOptionChangeProposal(
                 OptionDataChangeNotification::Bool(BoolOptionChangeData::new(
@@ -59,7 +58,9 @@ impl OptionListItem for BoolOptionComponent {
                     !self.data.value(),
                 )),
             ))
-            .change_context(CliError::Unknown)?
+            .change_context(CliError::Unknown)?;
+            self.data.set_value(!self.data.value());
+            self.subtitle = Self::format_subtitle(self.data.value());
         }
 
         Ok(())

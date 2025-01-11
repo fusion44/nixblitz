@@ -157,7 +157,7 @@ impl Project {
             OptionDataChangeNotification::StringList(value) => &value.id,
             OptionDataChangeNotification::TextEdit(value) => &value.id,
             OptionDataChangeNotification::PasswordEdit(value) => &value.id,
-            OptionDataChangeNotification::NumberEdit(value) => &value.id,
+            OptionDataChangeNotification::Number(value) => &value.id,
             OptionDataChangeNotification::NetAddress(value) => &value.id,
             OptionDataChangeNotification::Port(value) => &value.id,
         };

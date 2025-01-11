@@ -96,7 +96,7 @@ impl<'a> _Comp<'a> {
         }
     }
 
-    fn get_unsigned_num_mut(&mut self) -> Result<&mut NumberOptionComponent<'a>, CliError> {
+    fn get_number_mut(&mut self) -> Result<&mut NumberOptionComponent<'a>, CliError> {
         match self {
             _Comp::Number(ref mut val) => Ok(val),
             _ => Err(Report::new(CliError::OptionTypeMismatch(
@@ -353,7 +353,7 @@ impl<'a> AppOptions<'a> {
                     option_comp.get_password_mut()?.set_data(data);
                 }
                 OptionData::NumberEdit(data) => {
-                    option_comp.get_unsigned_num_mut()?.set_data(data);
+                    option_comp.get_number_mut()?.set_data(data);
                 }
                 OptionData::NetAddress(data) => option_comp.get_net_address_mut()?.set_data(data),
                 OptionData::Port(data) => {
@@ -453,7 +453,7 @@ impl<'a> AppOptions<'a> {
             .enumerate()
             .take(self.max_num_items)
         {
-            if index == self.selected {
+            if index == (self.selected - self.offset) {
                 // defer drawing. The selected option might show a popup,
                 // which must be drawn last to make sure it is not overdrawn
                 // by options listed later
@@ -479,10 +479,6 @@ impl<'a> AppOptions<'a> {
 
     pub fn set_focus(&mut self, focus: bool) {
         self.focus = focus;
-    }
-
-    pub fn set_app(&mut self, app: SupportedApps) {
-        self.app = app;
     }
 
     fn select_previous(&mut self) -> Result<(), CliError> {
