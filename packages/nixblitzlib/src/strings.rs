@@ -7,6 +7,7 @@ use crate::{
     app_option_data::option_data::{OptionId, ToOptionId},
     bitcoind::BitcoindConfigOption,
     cln::ClnConfigOption,
+    lnd::LndConfigOption,
     nix_base_config::NixBaseConfigOption,
 };
 
@@ -149,6 +150,36 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
     map.insert(
         ClnConfigOption::GetPublicAddressCmd.to_option_id(),
         "Get Public Address Command",
+    );
+
+    // LIGHTNING NETWORK DAEMON
+    map.insert(
+        LndConfigOption::Enable.to_option_id(),
+        "Whether to enable the service",
+    );
+    map.insert(LndConfigOption::Address.to_option_id(), "Network Address");
+    map.insert(LndConfigOption::Port.to_option_id(), "Listen Port");
+    map.insert(LndConfigOption::User.to_option_id(), "Service User");
+    map.insert(LndConfigOption::RpcAddress.to_option_id(), "RPC Address");
+    map.insert(LndConfigOption::RpcPort.to_option_id(), "RPC Port");
+    map.insert(LndConfigOption::RestAddress.to_option_id(), "REST Address");
+    map.insert(LndConfigOption::RestPort.to_option_id(), "REST Port");
+    map.insert(LndConfigOption::DataDir.to_option_id(), "Data Directory");
+    map.insert(
+        LndConfigOption::NetworkDir.to_option_id(),
+        "Network Directory",
+    );
+    map.insert(
+        LndConfigOption::CertExtraIps.to_option_id(),
+        "Certificate Extra IPs",
+    );
+    map.insert(
+        LndConfigOption::CertExtraDomains.to_option_id(),
+        "Certificate Extra Domains",
+    );
+    map.insert(
+        LndConfigOption::ExtraConfig.to_option_id(),
+        "Extra Configuration",
     );
     map
 });

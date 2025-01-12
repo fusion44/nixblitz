@@ -130,8 +130,8 @@ impl Project {
         match self.selected_app {
             SupportedApps::NixOS => Ok(Rc::new(self.nix_base.get_options())),
             SupportedApps::BitcoinCore => Ok(Rc::new(self.bitcoin.get_options())),
-            SupportedApps::LND => todo!(),
             SupportedApps::CoreLightning => Ok(Rc::new(self.cln.get_options())),
+            SupportedApps::LND => Ok(Rc::new(self.lnd.get_options())),
             SupportedApps::BlitzAPI => todo!(),
             SupportedApps::WebUI => todo!(),
         }
@@ -176,8 +176,8 @@ impl Project {
         match id.app {
             SupportedApps::NixOS => self.nix_base.app_option_changed(id, &option),
             SupportedApps::BitcoinCore => self.bitcoin.app_option_changed(id, &option),
-            SupportedApps::LND => todo!(),
             SupportedApps::CoreLightning => self.cln.app_option_changed(id, &option),
+            SupportedApps::LND => self.lnd.app_option_changed(id, &option),
             SupportedApps::BlitzAPI => todo!(),
             SupportedApps::WebUI => todo!(),
         }
