@@ -6,6 +6,7 @@ use strum::Display;
 use crate::{
     app_option_data::option_data::{OptionId, ToOptionId},
     bitcoind::BitcoindConfigOption,
+    cln::ClnConfigOption,
     nix_base_config::NixBaseConfigOption,
 };
 
@@ -35,6 +36,7 @@ pub static STRINGS: Lazy<HashMap<Strings, &str>> = Lazy::new(|| {
 
 pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
     let mut map = HashMap::new();
+    // NIX BASE CONFIG
     map.insert(
         NixBaseConfigOption::AllowUnfree.to_option_id(),
         "Allow Unfree Packages",
@@ -50,6 +52,7 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
         "Initial Password",
     );
 
+    // BITCOIN CORE
     map.insert(BitcoindConfigOption::Enable.to_option_id(), "Enable");
     map.insert(
         BitcoindConfigOption::Address.to_option_id(),
@@ -120,5 +123,32 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
         "ZMQ address for zmqpubrawblock",
     );
 
+    // CORE LIGHTNING
+    map.insert(
+        ClnConfigOption::Enable.to_option_id(),
+        "Whether to enable the service",
+    );
+    map.insert(ClnConfigOption::Address.to_option_id(), "Network Address");
+    map.insert(ClnConfigOption::Port.to_option_id(), "Listen Port");
+    map.insert(ClnConfigOption::Proxy.to_option_id(), "Proxy Server");
+    map.insert(
+        ClnConfigOption::AlwaysUseProxy.to_option_id(),
+        "Always Use Proxy",
+    );
+    map.insert(ClnConfigOption::DataDir.to_option_id(), "Data Directory");
+    map.insert(
+        ClnConfigOption::Wallet.to_option_id(),
+        "Wallet Configuration",
+    );
+    map.insert(
+        ClnConfigOption::ExtraConfig.to_option_id(),
+        "Extra Configuration",
+    );
+    map.insert(ClnConfigOption::User.to_option_id(), "Service User");
+    map.insert(ClnConfigOption::Group.to_option_id(), "Service Group");
+    map.insert(
+        ClnConfigOption::GetPublicAddressCmd.to_option_id(),
+        "Get Public Address Command",
+    );
     map
 });

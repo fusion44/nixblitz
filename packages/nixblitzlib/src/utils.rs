@@ -10,6 +10,7 @@ use include_dir::{include_dir, Dir};
 
 use crate::{
     bitcoind::BitcoinDaemonService,
+    cln::CoreLightningService,
     errors::{PasswordError, ProjectError},
     lnd::LightningNetworkDaemonService,
     nix_base_config::{NixBaseConfig, NixBaseConfigsTemplates},
@@ -202,6 +203,8 @@ fn render_template_files(
         if filename.is_empty() {
             return Err(Report::new(ProjectError::GenFilesError))
                 .attach_lazy(|| format!("Unable to get filename from path: {}", filename));
+        } else if filename == "cln.nix" {
+            _create_cln_files(work_dir, force)?;
         } else if filename == "lnd.nix" {
             _create_lnd_files(work_dir, force)?;
         } else if filename == "bitcoind.nix" {
@@ -241,6 +244,35 @@ fn _create_bitcoin_files(work_dir: &Path, force: Option<bool>) -> Result<(), Pro
 
     Ok(())
 }
+
+fn _create_cln_files(work_dir: &Path, force: Option<bool>) -> Result<(), ProjectError> {
+    let cln_cfg = CoreLightningService::default();
+    let rendered_json = cln_cfg
+        .to_json_string()
+        .change_context(ProjectError::GenFilesError)?;
+    let rendered_nix = cln_cfg
+        .render()
+        .change_context(ProjectError::CreateBaseFiles(
+            "Failed at rendering cln config".to_string(),
+        ))?;
+
+    for (key, val) in rendered_nix.iter() {
+        create_file(
+            Path::new(&work_dir.join(key.replace(".templ", ""))),
+            val.as_bytes(),
+            force,
+        )?;
+    }
+
+    create_file(
+        Path::new(&work_dir.join("src/apps/cln.json")),
+        rendered_json.as_bytes(),
+        force,
+    )?;
+
+    Ok(())
+}
+
 fn _create_lnd_files(work_dir: &Path, force: Option<bool>) -> Result<(), ProjectError> {
     let lnd_cfg = LightningNetworkDaemonService::default();
     let rendered_json = lnd_cfg

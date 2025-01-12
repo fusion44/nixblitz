@@ -2,6 +2,7 @@ pub mod app_config;
 pub mod app_option_data;
 pub mod apps;
 pub mod bitcoind;
+pub mod cln;
 pub mod errors;
 pub mod lnd;
 pub mod locales;

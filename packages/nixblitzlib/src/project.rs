@@ -7,6 +7,7 @@ use crate::{
     app_option_data::option_data::{OptionData, OptionDataChangeNotification, OptionId},
     apps::SupportedApps,
     bitcoind::{self, BitcoinDaemonService},
+    cln::{self, CoreLightningService},
     errors::ProjectError,
     lnd::{self, LightningNetworkDaemonService},
     nix_base_config::{self, NixBaseConfig},
@@ -27,6 +28,9 @@ pub struct Project {
 
     /// The bitcoin daemon service
     bitcoin: BitcoinDaemonService,
+
+    /// The Core Lightning service
+    cln: CoreLightningService,
 
     /// The lightning network daemon service
     lnd: LightningNetworkDaemonService,
@@ -84,6 +88,12 @@ impl Project {
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", bitcoind::JSON_FILE_NAME))?;
 
+        let cln_path = work_dir.join(cln::JSON_FILE_NAME);
+        let cln_json = load_json_file(&cln_path).change_context(ProjectError::ProjectLoadError)?;
+        let cln = CoreLightningService::from_json(&cln_json)
+            .change_context(ProjectError::ProjectLoadError)
+            .attach_printable(format!("Trying to load {}", cln::JSON_FILE_NAME))?;
+
         let lnd_path = work_dir.join(lnd::JSON_FILE_NAME);
         let lnd_json = load_json_file(&lnd_path).change_context(ProjectError::ProjectLoadError)?;
         let lnd = LightningNetworkDaemonService::from_json(&lnd_json)
@@ -95,6 +105,7 @@ impl Project {
             work_dir,
             nix_base,
             bitcoin,
+            cln,
             lnd,
         })
     }
@@ -119,8 +130,8 @@ impl Project {
         match self.selected_app {
             SupportedApps::NixOS => Ok(Rc::new(self.nix_base.get_options())),
             SupportedApps::BitcoinCore => Ok(Rc::new(self.bitcoin.get_options())),
-            SupportedApps::CoreLightning => todo!(),
             SupportedApps::LND => todo!(),
+            SupportedApps::CoreLightning => Ok(Rc::new(self.cln.get_options())),
             SupportedApps::BlitzAPI => todo!(),
             SupportedApps::WebUI => todo!(),
         }
@@ -165,8 +176,8 @@ impl Project {
         match id.app {
             SupportedApps::NixOS => self.nix_base.app_option_changed(id, &option),
             SupportedApps::BitcoinCore => self.bitcoin.app_option_changed(id, &option),
-            SupportedApps::CoreLightning => todo!(),
             SupportedApps::LND => todo!(),
+            SupportedApps::CoreLightning => self.cln.app_option_changed(id, &option),
             SupportedApps::BlitzAPI => todo!(),
             SupportedApps::WebUI => todo!(),
         }
