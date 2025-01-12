@@ -7,11 +7,11 @@
     txindex = {{ tx_index }};
     disablewallet = {{ disable_wallet }};
     listen = {{ listen }};
-    address = "{{ address }}";
+    address = {{ address }};
     port = {{ port }};
 
     rpc = {
-      address = "{{ rpc_address }}";
+      address = {{ rpc_address }};
       port = {{ rpc_port }};
       allowip = [ {{rpc_allow_ip}} ];
       users = {

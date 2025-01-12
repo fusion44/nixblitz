@@ -3,9 +3,7 @@ use std::{collections::HashMap, net::IpAddr, str::FromStr};
 
 use alejandra::format;
 
-use cli_log::info;
 use error_stack::{Report, Result, ResultExt};
-use garde::{rules::AsStr, Validate};
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
@@ -171,7 +169,7 @@ impl fmt::Display for BitcoinNetwork {
 ///
 /// let options = PruneOptions::Automatic { prune_at: 1024 };
 /// ```
-#[derive(Debug, Validate, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub enum PruneOptions {
     #[default]
     /// [default] Pruning disabled
@@ -191,7 +189,6 @@ pub enum PruneOptions {
         /// The size in MiB at which automatic pruning should occur.
         ///
         /// This field must be at least 551 MiB.
-        #[garde(range(min = 551))]
         prune_at: u32,
     },
 }
@@ -311,21 +308,18 @@ impl BitcoinDaemonServiceRPCUser {
     }
 }
 
-#[derive(Debug, Validate, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct BitcoinDaemonService {
     /// Whether the service is enabled or not
-    #[garde(skip)]
     pub enable: Box<BoolOptionData>,
 
     /// Address to listen for peer connections
-    #[garde(skip)]
     pub address: Box<NetAddressOptionData>,
 
     /// Port to listen for peer connections.
     ///
     /// Default: mainnet 8333
     ///          regtest 18444
-    #[garde(skip)]
     pub port: Box<PortOptionData>,
 
     /// Port to listen for Tor peer connections.
@@ -334,14 +328,12 @@ pub struct BitcoinDaemonService {
     /// Default: None
     ///          mainnet 8334
     ///          regtest 18445
-    #[garde(skip)]
     pub onion_port: Box<PortOptionData>,
 
     /// Listen for peer connections at `address:port`
     /// and `address:onionPort` (if {option}`onionPort` is set).
     ///
     /// Default: false
-    #[garde(skip)]
     pub listen: Box<BoolOptionData>,
 
     /// Additional configurations to be appended to bitcoin.conf
@@ -354,54 +346,40 @@ pub struct BitcoinDaemonService {
     /// rpcthreads=16
     /// logips=1
     /// ''
-    #[garde(skip)]
     pub extra_config: Box<TextOptionData>,
 
     /// The user as which to run bitcoind.
-    //#[garde(length(min = 3))]
-    #[garde(skip)]
     pub user: Box<TextOptionData>,
 
     /// Which chiain to use
-    #[garde(skip)]
     pub network: Box<StringListOptionData>,
 
     /// Allowed users for JSON-RPC connections.
-    #[garde(skip)]
     pub rpc_users: Box<Vec<BitcoinDaemonServiceRPCUser>>,
 
     /// Address to listen for rpc connections
-    #[garde(skip)]
     pub rpc_address: Box<NetAddressOptionData>,
 
     /// Override the default port on which to listen for JSON-RPC connections.
     /// Default: 8332
-    //#[garde(range(min = 1024, max = 65535))]
-    #[garde(skip)]
     pub rpc_port: Box<PortOptionData>,
 
     /// Hosts that should be allowed to connect to the RPC server
     ///
     /// Example: "192.168.0.0/16"
     /// Default: None
-    #[garde(skip)]
     pub rpc_allow_ip: Box<Vec<NetAddressOptionData>>,
 
     /// Whether to prune the node
-    // #[garde(custom(_check_prune(&self)))]
-    #[garde(skip)]
     pub prune: Box<StringListOptionData>,
 
     /// The size in MiB at which the blockchain on disk will be pruned.
     ///
     /// * Only active if prune is set to automatic
     /// * Must be at least 500 MiB
-    //#[garde(range(min = 500))]
-    #[garde(skip)]
     pub prune_size: Box<NumberOptionData>,
 
     /// Extra command line options to pass to bitcoind. Run bitcoind –help to list all available options.
-    #[garde(skip)]
     pub extra_cmd_line_options: Box<TextOptionData>,
 
     /// Override the default database cache size in MiB.
@@ -409,36 +387,29 @@ pub struct BitcoinDaemonService {
     ///
     /// Example: 4000
     /// Default: None
-    //#[garde(range(min = 4, max = 16384))]
-    #[garde(skip)]
     pub db_cache: Box<NumberOptionData>,
 
     /// The data directory for bitcoind.
     ///
     /// Default: "/var/lib/bitcoind"
-    #[garde(skip)]
     pub data_dir: Box<TextOptionData>,
 
     /// Whether to enable the tx index
-    #[garde(skip)]
     pub tx_index: Box<BoolOptionData>,
 
     /// Whether to enable the integrated wallet
-    #[garde(skip)]
     pub disable_wallet: Box<BoolOptionData>,
 
     /// ZMQ address for zmqpubrawtx notifications
     ///
     /// # Example
     /// "tcp://127.0.0.1:28333"
-    #[garde(skip)]
     pub zmqpubrawtx: Box<NetAddressOptionData>,
 
     /// ZMQ address for zmqpubrawblock notifications
     ///
     /// # Example
     /// "tcp://127.0.0.1:28332"
-    #[garde(skip)]
     pub zmqpubrawblock: Box<NetAddressOptionData>,
 }
 
@@ -613,7 +584,7 @@ impl BitcoinDaemonService {
                 "rpc_allow_ip",
                 self.rpc_allow_ip
                     .iter()
-                    .map(|s| format!("\"{}\"", s.to_nix_string(true)))
+                    .map(|s| s.to_nix_string(true))
                     .collect::<Vec<_>>()
                     .join("\n"),
             ),
@@ -641,6 +612,7 @@ impl BitcoinDaemonService {
             .change_context(TemplatingError::Render)?;
 
         let (status, text) = format::in_memory("<convert bitcoind>".to_string(), res);
+        println!("{}", text.clone());
 
         if let format::Status::Error(e) = status {
             Err(Report::new(TemplatingError::Format)).attach_printable_lazy(|| {
@@ -874,7 +846,6 @@ impl AppConfig for BitcoinDaemonService {
             } else if opt == BitcoindConfigOption::TxIndex {
                 if let OptionDataChangeNotification::Bool(val) = option {
                     res = Ok(self.tx_index.value() != val.value);
-                    info!("txindex: {:?}", res);
                     self.tx_index.set_value(val.value);
                 } else {
                     Err(
@@ -885,7 +856,6 @@ impl AppConfig for BitcoinDaemonService {
             } else if opt == BitcoindConfigOption::DisableWallet {
                 if let OptionDataChangeNotification::Bool(val) = option {
                     res = Ok(self.disable_wallet.value() != val.value);
-                    info!("disablewallet: {:?}", res);
                     self.disable_wallet.set_value(val.value);
                 } else {
                     Err(
@@ -927,174 +897,231 @@ impl AppConfig for BitcoinDaemonService {
     }
 }
 
-//#[cfg(test)]
-//pub mod tests {
-//    use super::*;
-//
-//    fn get_test_daemon() -> BitcoinDaemonService {
-//        let enable = true;
-//        let address = IpAddr::from_str("127.0.0.1").unwrap();
-//        let port = 8333;
-//        let network = BitcoinNetwork::Testnet;
-//        let tx_index = true;
-//        let onion_port = Some(1551);
-//        let listen = false;
-//        let extra_config = "extra_config_value".to_string();
-//        let user = "user_name".to_string();
-//        let rpc_users = vec![
-//            BitcoinDaemonServiceRPCUser::new("rpc_user1".into(), "dsfsdf".into()),
-//            BitcoinDaemonServiceRPCUser::new("rpc_user2".into(), "owieru".into()),
-//        ];
-//
-//        let rpc_address = IpAddr::from_str("128.22.22.4").unwrap();
-//        let rpc_port = 8332;
-//        let rpc_allow_ip: Vec<IpAddr> = vec![
-//            IpAddr::from_str("192.168.1.100").unwrap(),
-//            IpAddr::from_str("192.168.1.111").unwrap(),
-//        ];
-//        let prune = PruneOptions::Automatic { prune_at: 2500 };
-//        let prune_size = 500;
-//        let extra_cmd_line_options: Vec<String> =
-//            vec!["option1".to_string(), "option2=value".to_string()];
-//        let db_cache = Some(2048);
-//        let data_dir = "/path/to/data/dir".to_string();
-//        let disable_wallet = true;
-//        let zmqpubrawtx = Some("zmqpubrawtx_test".to_string());
-//        let zmqpubrawblock = Some("zmqpubrawblock_test".to_string());
-//
-//        BitcoinDaemonService {
-//            enable,
-//            address,
-//            port,
-//            network,
-//            tx_index,
-//            onion_port,
-//            listen,
-//            extra_config: extra_config.clone(),
-//            user: user.clone(),
-//            rpc_users,
-//            rpc_address,
-//            rpc_port,
-//            rpc_allow_ip,
-//            prune,
-//            prune_size,
-//            extra_cmd_line_options,
-//            db_cache,
-//            data_dir: data_dir.clone(),
-//            disable_wallet,
-//            zmqpubrawtx,
-//            zmqpubrawblock,
-//        }
-//    }
-//
-//    #[test]
-//    fn test_bitcoin_daemon_service_defaults() {
-//        let default_service = BitcoinDaemonService::default();
-//        let default_ip = IpAddr::from_str("127.0.0.1").unwrap();
-//        assert!(!default_service.enable);
-//        assert_eq!(default_service.address, default_ip);
-//        assert_eq!(default_service.port, 8333);
-//        assert_eq!(default_service.rpc_address, default_ip);
-//        assert_eq!(default_service.rpc_port, 8332);
-//        assert_eq!(default_service.user, "admin");
-//        assert_eq!(default_service.data_dir, "/var/lib/bitcoind");
-//        assert_eq!(default_service.network, BitcoinNetwork::Mainnet);
-//        assert_eq!(default_service.prune, PruneOptions::Disable);
-//        assert_eq!(default_service.prune_size, 2000);
-//    }
-//
-//    #[test]
-//    fn test_to_json_string() {
-//        let d = get_test_daemon();
-//        let json_str = d.to_json_string().unwrap();
-//        println!("{}", json_str);
-//
-//        assert!(json_str.contains(&format!("\"enable\":{}", d.enable)));
-//        assert!(json_str.contains(&format!("\"address\":\"{}\"", d.address)));
-//        assert!(json_str.contains(&format!("\"port\":{}", d.port)));
-//        assert!(json_str.contains(&format!("\"network\":\"{}\"", d.network)));
-//        assert!(json_str.contains(&format!("\"tx_index\":{}", d.tx_index)));
-//        assert!(json_str.contains(&format!("\"onion_port\":{}", d.onion_port.unwrap())));
-//        assert!(json_str.contains(&format!("\"listen\":{}", d.listen)));
-//        assert!(json_str.contains(&format!("\"extra_config\":\"{}\"", d.extra_config)));
-//        assert!(json_str.contains(&format!("\"user\":\"{}\"", d.user)));
-//        let rpc_users_string = d
-//            .rpc_users
-//            .iter()
-//            .map(|u| {
-//                format!(
-//                    "{{\"password_hmac\":\"{}\",\"name\":\"{}\"}}",
-//                    u.password_hmac, u.name
-//                )
-//            })
-//            .collect::<Vec<_>>()
-//            .join(",");
-//        assert!(json_str.contains(&format!("\"rpc_users\":[{}]", rpc_users_string)));
-//        assert!(json_str.contains(&format!("\"rpc_address\":\"{}\"", d.rpc_address)));
-//        assert!(json_str.contains(&format!("\"rpc_port\":{}", d.rpc_port)));
-//        assert!(json_str
-//            .contains(&"\"rpc_allow_ip\":[\"192.168.1.100\",\"192.168.1.111\"]".to_string()));
-//        assert!(json_str.contains(&"\"prune\":{\"Automatic\":{\"prune_at\":2500}".to_string()));
-//        assert!(json_str.contains(&format!("\"prune_size\":{}", d.prune_size)));
-//        assert!(json_str
-//            .contains(&"\"extra_cmd_line_options\":[\"option1\",\"option2=value\"]".to_string()));
-//        assert!(json_str.contains(&format!("\"db_cache\":{}", d.db_cache.unwrap())));
-//        assert!(json_str.contains(&format!("\"data_dir\":\"{}\"", d.data_dir)));
-//        assert!(json_str.contains(&format!("\"disable_wallet\":{}", d.disable_wallet)));
-//        assert!(json_str.contains(&format!("\"zmqpubrawtx\":\"{}\"", d.zmqpubrawtx.unwrap())));
-//        assert!(json_str.contains(&format!(
-//            "\"zmqpubrawblock\":\"{}\"",
-//            d.zmqpubrawblock.unwrap()
-//        )));
-//    }
-//
-//    #[test]
-//    fn test_from_json_string() {
-//        let source = get_test_daemon();
-//        let data = source.to_json_string().unwrap();
-//
-//        let service = BitcoinDaemonService::from_json(&data);
-//        assert!(service.is_ok());
-//        let target = service.unwrap();
-//        assert!(source == target);
-//    }
-//
-//    #[test]
-//    fn test_render_mainnet() {
-//        let d = get_test_daemon();
-//
-//        let res = d.render().unwrap();
-//        assert!(res.contains_key(TEMPLATE_FILE_NAME));
-//        let nix_str = res.get(TEMPLATE_FILE_NAME).unwrap();
-//
-//        assert!(nix_str.contains(&format!("enable = {};", d.enable)));
-//        assert!(nix_str.contains(&"regtest = false;".to_string()));
-//        assert!(nix_str.contains(&format!("txindex = {}", d.tx_index)));
-//        assert!(nix_str.contains(&format!("disablewallet = {};", d.disable_wallet)));
-//        assert!(nix_str.contains(&format!("listen = {};", d.listen)));
-//        assert!(nix_str.contains(&format!("address = \"{}\";", d.address)));
-//        assert!(nix_str.contains(&format!("port = {};", d.port)));
-//        assert!(nix_str.contains(&format!(
-//            r#"
-//    rpc = {{
-//      address = "{}";
-//      port = {};
-//      allowip = [
-//        "192.168.1.100"
-//        "192.168.1.111"
-//      ];
-//      users = {{
-//        dsfsdf = {{passwordHMAC = "rpc_user1";}};
-//        owieru = {{passwordHMAC = "rpc_user2";}};
-//      }};
-//    }};
-//"#,
-//            d.rpc_address, d.rpc_port
-//        )));
-//        assert!(nix_str.contains(&format!(
-//            "zmqpubrawblock = \"{}\";",
-//            d.zmqpubrawblock.unwrap()
-//        )));
-//        assert!(nix_str.contains(&format!("zmqpubrawtx = \"{}\";", d.zmqpubrawtx.unwrap())));
-//    }
-//}
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    fn get_test_daemon() -> BitcoinDaemonService {
+        let enable = Box::new(BoolOptionData::new(
+            BitcoindConfigOption::Enable.to_option_id(),
+            true,
+        ));
+        let address = Box::new(NetAddressOptionData::new(
+            BitcoindConfigOption::Address.to_option_id(),
+            Some(IpAddr::from_str("127.0.0.1").unwrap()),
+        ));
+        let port = Box::new(PortOptionData::new(
+            BitcoindConfigOption::Port.to_option_id(),
+            NumberValue::U16(Some(8333)),
+        ));
+        let network = Box::new(StringListOptionData::new(
+            BitcoindConfigOption::Network.to_option_id(),
+            BitcoinNetwork::Regtest.to_string(),
+            BitcoinNetwork::to_string_array()
+                .iter()
+                .map(|n| StringListOptionItem::new(n.to_string(), n.to_string()))
+                .collect(),
+        ));
+        let tx_index = Box::new(BoolOptionData::new(
+            BitcoindConfigOption::TxIndex.to_option_id(),
+            true,
+        ));
+        let onion_port = Box::new(PortOptionData::new(
+            BitcoindConfigOption::OnionPort.to_option_id(),
+            NumberValue::U16(Some(1551)),
+        ));
+        let listen = Box::new(BoolOptionData::new(
+            BitcoindConfigOption::Listen.to_option_id(),
+            false,
+        ));
+        let extra_config = Box::new(TextOptionData::new(
+            BitcoindConfigOption::ExtraConfig.to_option_id(),
+            "extra_config_value".to_string(),
+            10000,
+            false,
+            "".into(),
+        ));
+        let user = Box::new(TextOptionData::new(
+            BitcoindConfigOption::User.to_option_id(),
+            "user_name".to_string(),
+            0,
+            false,
+            "".into(),
+        ));
+        let rpc_users = Box::new(vec![
+            BitcoinDaemonServiceRPCUser::new("rpc_user1".into(), "dsfsdf".into()),
+            BitcoinDaemonServiceRPCUser::new("rpc_user2".into(), "owieru".into()),
+        ]);
+
+        let rpc_address = Box::new(NetAddressOptionData::new(
+            BitcoindConfigOption::RpcAddress.to_option_id(),
+            Some(IpAddr::from_str("128.22.22.4").unwrap()),
+        ));
+        let rpc_port = Box::new(PortOptionData::new(
+            BitcoindConfigOption::RpcPort.to_option_id(),
+            NumberValue::U16(Some(8332)),
+        ));
+        let rpc_allow_ip = Box::new(vec![
+            NetAddressOptionData::new(
+                BitcoindConfigOption::RpcAllowIp.to_option_id(),
+                Some(IpAddr::from_str("192.168.1.100").unwrap()),
+            ),
+            NetAddressOptionData::new(
+                BitcoindConfigOption::RpcAllowIp.to_option_id(),
+                Some(IpAddr::from_str("192.168.1.111").unwrap()),
+            ),
+        ]);
+        let prune = Box::new(StringListOptionData::new(
+            BitcoindConfigOption::Prune.to_option_id(),
+            PruneOptions::Automatic { prune_at: 2500 }.to_string(),
+            PruneOptions::to_string_array()
+                .iter()
+                .map(|o| StringListOptionItem::new(o.to_string(), o.to_string()))
+                .collect(),
+        ));
+        let prune_size = Box::new(
+            NumberOptionData::new(
+                BitcoindConfigOption::PruneSize.to_option_id(),
+                NumberValue::UInt(Some(500)),
+                551,
+                99999,
+                false,
+                NumberValue::UInt(Some(500)),
+            )
+            .unwrap(),
+        );
+        let extra_cmd_line_options = Box::new(TextOptionData::new(
+            BitcoindConfigOption::ExtraCmdLineOptions.to_option_id(),
+            "option1\noption2=value".to_string(),
+            9999,
+            false,
+            "".to_string(),
+        ));
+        let db_cache = Box::new(
+            NumberOptionData::new(
+                BitcoindConfigOption::DbCache.to_option_id(),
+                NumberValue::U16(Some(2048)),
+                4,
+                16384,
+                false,
+                NumberValue::U16(Some(2048)),
+            )
+            .unwrap(),
+        );
+        let data_dir = Box::new(TextOptionData::new(
+            BitcoindConfigOption::DataDir.to_option_id(),
+            "/path/to/data/dir".to_string(),
+            1,
+            false,
+            "".into(),
+        ));
+        let disable_wallet = Box::new(BoolOptionData::new(
+            BitcoindConfigOption::DisableWallet.to_option_id(),
+            true,
+        ));
+        let zmqpubrawtx = Box::new(NetAddressOptionData::new(
+            BitcoindConfigOption::ZmqPubRawTx.to_option_id(),
+            Some(IpAddr::from_str("227.0.0.1").unwrap()),
+        ));
+        let zmqpubrawblock = Box::new(NetAddressOptionData::new(
+            BitcoindConfigOption::ZmqPubRawBlock.to_option_id(),
+            Some(IpAddr::from_str("247.0.0.1").unwrap()),
+        ));
+
+        BitcoinDaemonService {
+            enable,
+            address,
+            port,
+            network,
+            tx_index,
+            onion_port,
+            listen,
+            extra_config,
+            user,
+            rpc_users,
+            rpc_address,
+            rpc_port,
+            rpc_allow_ip,
+            prune,
+            prune_size,
+            extra_cmd_line_options,
+            db_cache,
+            data_dir,
+            disable_wallet,
+            zmqpubrawtx,
+            zmqpubrawblock,
+        }
+    }
+
+    #[test]
+    fn test_bitcoin_daemon_service_defaults() {
+        let default_service = BitcoinDaemonService::default();
+        let default_ip = IpAddr::from_str("127.0.0.1").unwrap();
+        assert!(!default_service.enable.value());
+        assert_eq!(default_service.address.value(), Some(default_ip));
+        assert_eq!(*default_service.port.value(), NumberValue::U16(Some(8333)));
+        assert_eq!(default_service.rpc_address.value(), Some(default_ip));
+        assert_eq!(
+            *default_service.rpc_port.value(),
+            NumberValue::U16(Some(8332))
+        );
+        assert_eq!(default_service.user.value(), "admin");
+        assert_eq!(default_service.data_dir.value(), "/var/lib/bitcoind");
+        assert_eq!(
+            default_service.network.value(),
+            BitcoinNetwork::Mainnet.to_string()
+        );
+        assert_eq!(
+            default_service.prune.value(),
+            PruneOptions::Disable.to_string()
+        );
+        assert_eq!(
+            *default_service.prune_size.value(),
+            NumberValue::UInt(Some(2048))
+        );
+    }
+
+    #[test]
+    fn test_render_mainnet() {
+        let mut d = get_test_daemon();
+        d.network.set_value(BitcoinNetwork::Mainnet.to_string());
+
+        let res = d.render().unwrap();
+        assert!(res.contains_key(TEMPLATE_FILE_NAME));
+        let nix_str = res.get(TEMPLATE_FILE_NAME).unwrap();
+
+        assert!(nix_str.contains(&format!("enable = {};", d.enable.value())));
+        assert!(nix_str.contains(&"regtest = false;".to_string()));
+        assert!(nix_str.contains(&format!("txindex = {};", d.tx_index.value())));
+        assert!(nix_str.contains(&format!("disablewallet = {};", d.disable_wallet.value())));
+        assert!(nix_str.contains(&format!("listen = {};", d.listen.value())));
+        assert!(nix_str.contains(&format!("address = {};", d.address.to_nix_string(true))));
+        assert!(nix_str.contains(&format!("port = {};", d.port.value().to_string_or("8333"))));
+        assert!(nix_str.contains(&format!(
+            r#"
+    rpc = {{
+      address = {};
+      port = {};
+      allowip = [
+        "192.168.1.100"
+        "192.168.1.111"
+      ];
+      users = {{
+        dsfsdf = {{passwordHMAC = "rpc_user1";}};
+        owieru = {{passwordHMAC = "rpc_user2";}};
+      }};
+    }};
+"#,
+            d.rpc_address.to_nix_string(true),
+            d.rpc_port.value().to_string_or("8332")
+        )));
+        assert!(nix_str.contains(&format!(
+            "zmqpubrawblock = {};",
+            d.zmqpubrawblock.to_nix_string(true)
+        )));
+        assert!(nix_str.contains(&format!(
+            "zmqpubrawtx = {};",
+            d.zmqpubrawtx.to_nix_string(true)
+        )));
+    }
+}
