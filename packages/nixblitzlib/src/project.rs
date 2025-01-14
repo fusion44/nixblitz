@@ -7,6 +7,8 @@ use crate::{
     app_option_data::option_data::{OptionData, OptionDataChangeNotification, OptionId},
     apps::SupportedApps,
     bitcoind::{self, BitcoinDaemonService},
+    blitz_api::{self, BlitzApiService},
+    blitz_webui::{self, BlitzWebUiService},
     cln::{self, CoreLightningService},
     errors::ProjectError,
     lnd::{self, LightningNetworkDaemonService},
@@ -34,6 +36,12 @@ pub struct Project {
 
     /// The lightning network daemon service
     lnd: LightningNetworkDaemonService,
+
+    /// Blitz API service
+    blitz_api: BlitzApiService,
+
+    /// Blitz Web UI service
+    blitz_webui: BlitzWebUiService,
 }
 
 impl Project {
@@ -100,6 +108,20 @@ impl Project {
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", lnd::JSON_FILE_NAME))?;
 
+        let blitz_api_path = work_dir.join(blitz_api::JSON_FILE_NAME);
+        let blitz_api_json =
+            load_json_file(&blitz_api_path).change_context(ProjectError::ProjectLoadError)?;
+        let blitz_api = BlitzApiService::from_json(&blitz_api_json)
+            .change_context(ProjectError::ProjectLoadError)
+            .attach_printable(format!("Trying to load {}", blitz_api::JSON_FILE_NAME))?;
+
+        let blitz_webui_path = work_dir.join(blitz_webui::JSON_FILE_NAME);
+        let blitz_webui_json =
+            load_json_file(&blitz_webui_path).change_context(ProjectError::ProjectLoadError)?;
+        let blitz_webui = BlitzWebUiService::from_json(&blitz_webui_json)
+            .change_context(ProjectError::ProjectLoadError)
+            .attach_printable(format!("Trying to load {}", blitz_webui::JSON_FILE_NAME))?;
+
         Ok(Self {
             selected_app: SupportedApps::NixOS,
             work_dir,
@@ -107,6 +129,8 @@ impl Project {
             bitcoin,
             cln,
             lnd,
+            blitz_api,
+            blitz_webui,
         })
     }
 
@@ -132,8 +156,8 @@ impl Project {
             SupportedApps::BitcoinCore => Ok(Rc::new(self.bitcoin.get_options())),
             SupportedApps::CoreLightning => Ok(Rc::new(self.cln.get_options())),
             SupportedApps::LND => Ok(Rc::new(self.lnd.get_options())),
-            SupportedApps::BlitzAPI => todo!(),
-            SupportedApps::WebUI => todo!(),
+            SupportedApps::BlitzAPI => Ok(Rc::new(self.blitz_api.get_options())),
+            SupportedApps::WebUI => Ok(Rc::new(self.blitz_webui.get_options())),
         }
     }
 
@@ -178,8 +202,8 @@ impl Project {
             SupportedApps::BitcoinCore => self.bitcoin.app_option_changed(id, &option),
             SupportedApps::CoreLightning => self.cln.app_option_changed(id, &option),
             SupportedApps::LND => self.lnd.app_option_changed(id, &option),
-            SupportedApps::BlitzAPI => todo!(),
-            SupportedApps::WebUI => todo!(),
+            SupportedApps::BlitzAPI => self.blitz_api.app_option_changed(id, &option),
+            SupportedApps::WebUI => self.blitz_webui.app_option_changed(id, &option),
         }
     }
 }

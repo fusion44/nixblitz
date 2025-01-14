@@ -10,6 +10,8 @@ use include_dir::{include_dir, Dir};
 
 use crate::{
     bitcoind::BitcoinDaemonService,
+    blitz_api::BlitzApiService,
+    blitz_webui::BlitzWebUiService,
     cln::CoreLightningService,
     errors::{PasswordError, ProjectError},
     lnd::LightningNetworkDaemonService,
@@ -211,6 +213,10 @@ fn render_template_files(
             _create_bitcoin_files(work_dir, force)?;
         } else if filename == "configuration.common.nix" {
             _create_nix_base_config(work_dir, force)?;
+        } else if filename == "blitz_api.nix" {
+            _create_blitz_api_files(work_dir, force)?;
+        } else if filename == "blitz_web.nix" {
+            _create_blitz_webui_files(work_dir, force)?;
         }
     }
 
@@ -238,6 +244,62 @@ fn _create_bitcoin_files(work_dir: &Path, force: Option<bool>) -> Result<(), Pro
 
     create_file(
         Path::new(&work_dir.join("src/apps/bitcoind.json")),
+        rendered_json.as_bytes(),
+        force,
+    )?;
+
+    Ok(())
+}
+
+fn _create_blitz_webui_files(work_dir: &Path, force: Option<bool>) -> Result<(), ProjectError> {
+    let blitz_webui_cfg = BlitzWebUiService::default();
+    let rendered_json = blitz_webui_cfg
+        .to_json_string()
+        .change_context(ProjectError::GenFilesError)?;
+    let rendered_nix = blitz_webui_cfg
+        .render()
+        .change_context(ProjectError::CreateBaseFiles(
+            "Failed at rendering blitz web ui config".to_string(),
+        ))?;
+
+    for (key, val) in rendered_nix.iter() {
+        create_file(
+            Path::new(&work_dir.join(key.replace(".templ", ""))),
+            val.as_bytes(),
+            force,
+        )?;
+    }
+
+    create_file(
+        Path::new(&work_dir.join("src/apps/blitz_web.json")),
+        rendered_json.as_bytes(),
+        force,
+    )?;
+
+    Ok(())
+}
+
+fn _create_blitz_api_files(work_dir: &Path, force: Option<bool>) -> Result<(), ProjectError> {
+    let blitz_api_cfg = BlitzApiService::default();
+    let rendered_json = blitz_api_cfg
+        .to_json_string()
+        .change_context(ProjectError::GenFilesError)?;
+    let rendered_nix = blitz_api_cfg
+        .render()
+        .change_context(ProjectError::CreateBaseFiles(
+            "Failed at rendering blitz api config".to_string(),
+        ))?;
+
+    for (key, val) in rendered_nix.iter() {
+        create_file(
+            Path::new(&work_dir.join(key.replace(".templ", ""))),
+            val.as_bytes(),
+            force,
+        )?;
+    }
+
+    create_file(
+        Path::new(&work_dir.join("src/apps/blitz_api.json")),
         rendered_json.as_bytes(),
         force,
     )?;

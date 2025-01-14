@@ -6,6 +6,8 @@ use strum::Display;
 use crate::{
     app_option_data::option_data::{OptionId, ToOptionId},
     bitcoind::BitcoindConfigOption,
+    blitz_api::BlitzApiConfigOption,
+    blitz_webui::BlitzWebUiConfigOption,
     cln::ClnConfigOption,
     lnd::LndConfigOption,
     nix_base_config::NixBaseConfigOption,
@@ -181,5 +183,54 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
         LndConfigOption::ExtraConfig.to_option_id(),
         "Extra Configuration",
     );
+
+    // BLITZ API
+    map.insert(
+        BlitzApiConfigOption::Enable.to_option_id(),
+        "Enable Blitz API",
+    );
+    map.insert(
+        BlitzApiConfigOption::ConnectionType.to_option_id(),
+        "The node to connect to",
+    );
+    map.insert(
+        BlitzApiConfigOption::LogLevel.to_option_id(),
+        "The log level",
+    );
+    map.insert(
+        BlitzApiConfigOption::EnvFile.to_option_id(),
+        "Environment file path",
+    );
+    map.insert(
+        BlitzApiConfigOption::PasswordFile.to_option_id(),
+        "Password file path",
+    );
+    map.insert(
+        BlitzApiConfigOption::RootPath.to_option_id(),
+        "The root path",
+    );
+    map.insert(
+        BlitzApiConfigOption::NginxEnable.to_option_id(),
+        "Expose the API via nginx",
+    );
+    map.insert(
+        BlitzApiConfigOption::NginxOpenFirewall.to_option_id(),
+        "Open the nginx port",
+    );
+    map.insert(
+        BlitzApiConfigOption::NginxLocation.to_option_id(),
+        "The nginx path",
+    );
+
+    // BLITZ WEB UI
+    map.insert(
+        BlitzWebUiConfigOption::Enable.to_option_id(),
+        "Enable Blitz WEB UI",
+    );
+    map.insert(
+        BlitzWebUiConfigOption::NginxEnable.to_option_id(),
+        "Expose via nginx",
+    );
+
     map
 });

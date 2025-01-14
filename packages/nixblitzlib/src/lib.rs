@@ -2,6 +2,8 @@ pub mod app_config;
 pub mod app_option_data;
 pub mod apps;
 pub mod bitcoind;
+pub mod blitz_api;
+pub mod blitz_webui;
 pub mod cln;
 pub mod errors;
 pub mod lnd;
