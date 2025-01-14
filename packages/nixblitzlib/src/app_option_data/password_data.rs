@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::option_data::{GetOptionId, OptionId};
+use super::option_data::{GetOptionId, OptionId, ToNixString};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
 pub struct PasswordOptionData {
@@ -72,6 +72,16 @@ impl PasswordOptionData {
     }
 }
 
+impl ToNixString for PasswordOptionData {
+    fn to_nix_string(&self, quote: bool) -> String {
+        if quote {
+            format!("\"{}\"", self.hashed_value)
+        } else {
+            self.hashed_value().to_string()
+        }
+    }
+}
+
 impl GetOptionId for PasswordOptionData {
     fn id(&self) -> &OptionId {
         &self.id
@@ -94,5 +104,68 @@ impl PasswordOptionChangeData {
 impl GetOptionId for PasswordOptionChangeData {
     fn id(&self) -> &OptionId {
         &self.id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        app_option_data::{
+            option_data::{ToNixString, ToOptionId},
+            password_data::PasswordOptionData,
+        },
+        nix_base_config::NixBaseConfigOption,
+        utils::unix_hash_password,
+    };
+
+    fn test_password_option_data_creation() {
+        let id = NixBaseConfigOption::InitialPassword.to_option_id();
+        let hashed_value = "hashed_password".to_string();
+        let confirm = true;
+        let min_length = 8;
+        let dirty = false;
+        let subtitle = "Test Subtitle".to_string();
+
+        let password_option = PasswordOptionData::new(
+            id.clone(),
+            hashed_value.clone(),
+            confirm,
+            min_length,
+            dirty,
+            subtitle.clone(),
+        );
+
+        assert_eq!(password_option.id, id);
+        assert_eq!(password_option.hashed_value(), &hashed_value);
+        assert_eq!(password_option.confirm(), confirm);
+        assert_eq!(password_option.min_length(), min_length);
+        assert_eq!(password_option.dirty(), dirty);
+        assert_eq!(password_option.subtitle(), subtitle);
+    }
+
+    #[test]
+    fn test_password_option_data_setters() {
+        let id = NixBaseConfigOption::InitialPassword.to_option_id();
+        let pw = unix_hash_password("initial password").unwrap();
+        let mut password_option =
+            PasswordOptionData::new(id, pw.clone(), false, 8, false, pw.clone());
+
+        // user is responsible to hash the value, so we can set just "new_hash"
+        password_option.set_hashed_value("new_hash".to_string());
+        assert_eq!(password_option.hashed_value(), "new_hash");
+
+        password_option.set_subtitle("New Subtitle".to_string());
+        assert_eq!(password_option.subtitle(), "New Subtitle");
+    }
+
+    #[test]
+    fn test_password_option_data_to_nix_string() {
+        let id = NixBaseConfigOption::InitialPassword.to_option_id();
+        let pw = unix_hash_password("initial password").unwrap();
+        let password_option =
+            PasswordOptionData::new(id, pw.clone(), false, 8, false, "".to_string());
+
+        assert_eq!(password_option.to_nix_string(true), format!("\"{}\"", pw));
+        assert_eq!(password_option.to_nix_string(false), format!("{}", pw));
     }
 }

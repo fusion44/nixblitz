@@ -428,13 +428,50 @@ pub fn load_json_file(file_path: &Path) -> Result<String, ProjectError> {
     Ok(contents)
 }
 
+/// Trims leading whitespace from each line in the input string. Blank lines
+/// will be conserved.
+///
+/// # Arguments
+///
+/// * `input` - A string slice that holds the text to be processed.
+///
+/// # Returns
+///
+/// * A `String` with leading whitespace removed from each line.
+///
+/// # Example
+///
+/// ```
+/// use nixblitzlib::utils::trim_lines_left;
+///
+/// let input = "\n  line 1\n  line 2\n\n";
+/// let result = trim_lines_left(input);
+/// assert_eq!(result, "\nline 1\nline 2\n\n");
+/// ```
+pub fn trim_lines_left(input: &str) -> String {
+    let mut result = input
+        .lines()
+        .map(|line| line.trim_start())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if input.ends_with('\n') {
+        result.push('\n');
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs::{self, create_dir, create_dir_all, File};
 
     use crate::{
         errors::ProjectError,
-        utils::{check_password_validity_confirm, create_file, safety_checks, unix_hash_password},
+        utils::{
+            check_password_validity_confirm, create_file, safety_checks, trim_lines_left,
+            unix_hash_password,
+        },
     };
     use sha_crypt::sha512_check;
 
@@ -600,5 +637,27 @@ mod tests {
         //     println!("error: {}", e);
         // }
         // assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_trim_lines_left() {
+        let input = r#"
+
+        line 1
+            line 2
+        line 3
+
+        "#;
+        let expected_output = "\n\nline 1\nline 2\nline 3\n\n";
+        let result = trim_lines_left(input);
+        assert_eq!(result, expected_output);
+
+        let expected_output = "\nline 1 \nline 2\nline 3\n";
+        let result = trim_lines_left("\nline 1 \nline 2\nline 3\n     ");
+        assert_eq!(result, expected_output);
+
+        let expected_output = "line 1    \nline 2 \nline 3  ";
+        let result = trim_lines_left("         line 1    \nline 2 \n    line 3  ");
+        assert_eq!(result, expected_output);
     }
 }

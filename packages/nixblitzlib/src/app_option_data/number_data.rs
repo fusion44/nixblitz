@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{errors::ArgumentError, number_value::NumberValue};
 
-use super::option_data::{GetOptionId, OptionId};
+use super::option_data::{GetOptionId, OptionId, ToNixString};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct NumberOptionData {
@@ -66,6 +66,16 @@ impl NumberOptionData {
 
     pub fn range_max(&self) -> usize {
         self.range_max
+    }
+}
+
+impl ToNixString for NumberOptionData {
+    fn to_nix_string(&self, quote: bool) -> String {
+        if quote {
+            format!("\"{}\"", self.value)
+        } else {
+            self.value.to_string()
+        }
     }
 }
 
@@ -141,5 +151,19 @@ mod tests {
 
         assert_eq!(number_option.range_min(), 5);
         assert_eq!(number_option.range_max(), 50);
+    }
+
+    #[test]
+    fn test_to_nix_string() {
+        let id = OptionId::new(crate::apps::SupportedApps::BitcoinCore, "test".into());
+        let value = NumberValue::UInt(Some(10));
+        let original = NumberValue::UInt(Some(10));
+        let number_option = NumberOptionData::new(id, value, 0, 100, false, original).unwrap();
+
+        let quoted_string = number_option.to_nix_string(true);
+        assert_eq!(quoted_string, "\"10\"");
+
+        let unquoted_string = number_option.to_nix_string(false);
+        assert_eq!(unquoted_string, "10");
     }
 }
