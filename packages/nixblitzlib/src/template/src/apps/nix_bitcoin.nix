@@ -1,4 +1,8 @@
 {
+  lib,
+  cfg,
+  ...
+}: {
   nix-bitcoin = {
     generateSecrets = true;
     operator = {

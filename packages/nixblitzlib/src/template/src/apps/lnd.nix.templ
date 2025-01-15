@@ -1,5 +1,9 @@
 # https://github.com/fort-nix/nix-bitcoin/blob/master/modules/lnd.nix
 {
+  lib,
+  cfg,
+  ...
+}: {
   services.lnd = {
     enable = {{ enable }};
     address = "{{ address }}";

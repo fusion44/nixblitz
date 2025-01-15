@@ -1,5 +1,9 @@
-# https://github.com/fort-nix/nix-bitcoin/blob/master/modules/lnd.nix
+# https://github.com/fort-nix/nix-bitcoin/blob/master/modules/clightning.nix
 {
+  lib,
+  cfg,
+  ...
+}: {
   services.clightning = {
     enable = {{ enable }};
     address = "{{ address }}";

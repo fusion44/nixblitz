@@ -299,10 +299,10 @@ impl Default for LightningNetworkDaemonService {
             )),
             network_dir: Box::new(TextOptionData::new(
                 LndConfigOption::NetworkDir.to_option_id(),
-                "${cfg.dataDir}/chain/bitcoin/${bitcoind.network}".to_string(),
+                "${cfg.lnd.dataDir}/chain/bitcoin/${cfg.bitcoind.network}".to_string(),
                 1,
                 false,
-                "${cfg.dataDir}/chain/bitcoin/${bitcoind.network}".to_string(),
+                "${cfg.lnd.dataDir}/chain/bitcoin/${cfg.bitcoind.network}".to_string(),
             )),
             cert_extra_ips: Box::new(Vec::new()),
             cert_extra_domains: Box::new(Vec::new()),
