@@ -391,7 +391,7 @@ fn _create_nix_base_config(work_dir: &Path, force: Option<bool>) -> Result<(), P
     Ok(())
 }
 
-fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), ProjectError> {
+pub fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), ProjectError> {
     fs::create_dir_all(
         path.parent()
             .ok_or_else(|| Report::new(ProjectError::GenFilesError))?,
@@ -436,6 +436,53 @@ fn create_file(path: &Path, contents: &[u8], force: Option<bool>) -> Result<(), 
         .attach_printable_lazy(|| {
             format!(
                 "Unable to write file contents to {}",
+                path.to_str().unwrap_or_default()
+            )
+        })?;
+
+    Ok(())
+}
+
+/// Updates the contents of an existing file.
+///
+/// # Arguments
+///
+/// * `path` - A reference to the path of the file to update.
+/// * `contents` - The new contents to write to the file.
+///
+/// # Returns
+///
+/// * `Ok(())` - If the file is successfully updated.
+/// * `Err(ProjectError)` - An error if the file does not exist or cannot be updated.
+///
+/// # Errors
+///
+/// This function will return an error if:
+///
+/// * The file does not exist.
+/// * The file cannot be opened for writing.
+/// * The file cannot be written to.
+pub fn update_file(path: &Path, contents: &[u8]) -> Result<(), ProjectError> {
+    if !path.exists() {
+        return Err(Report::new(ProjectError::FileNotFound(
+            path.to_str().unwrap_or("Unable to unwrap path").to_string(),
+        )));
+    }
+
+    let mut file = File::create(path)
+        .change_context(ProjectError::GenFilesError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Unable to open file {} for updating",
+                path.to_str().unwrap_or("Unable to unwrap path")
+            )
+        })?;
+
+    file.write_all(contents)
+        .change_context(ProjectError::GenFilesError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Unable to write updated contents to {}",
                 path.to_str().unwrap_or_default()
             )
         })?;
@@ -532,7 +579,7 @@ mod tests {
         errors::ProjectError,
         utils::{
             check_password_validity_confirm, create_file, safety_checks, trim_lines_left,
-            unix_hash_password,
+            unix_hash_password, update_file,
         },
     };
     use sha_crypt::sha512_check;
@@ -650,6 +697,25 @@ mod tests {
 
         let actual_contents = fs::read_to_string(&file_path).unwrap();
         assert_eq!(actual_contents, CONTENTS);
+    }
+
+    #[test]
+    fn test_update_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let file_path = temp_dir.path().join("update_test.txt");
+        const INITIAL_CONTENTS: &str = "Initial contents";
+        const UPDATED_CONTENTS: &str = "Updated contents";
+
+        // Create the file with initial contents
+        fs::write(&file_path, INITIAL_CONTENTS).unwrap();
+
+        // Update the file with new contents
+        let result = update_file(&file_path, UPDATED_CONTENTS.as_bytes());
+        assert!(result.is_ok());
+
+        // Verify the file contents have been updated
+        let actual_contents = fs::read_to_string(&file_path).unwrap();
+        assert_eq!(actual_contents, UPDATED_CONTENTS);
     }
 
     #[test]

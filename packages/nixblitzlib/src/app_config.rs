@@ -3,6 +3,7 @@ use crate::{
     errors::ProjectError,
 };
 use error_stack::Result;
+use std::{fmt::Debug, path::Path};
 
 pub trait AppConfig: Debug {
     fn app_option_changed(
@@ -11,4 +12,6 @@ pub trait AppConfig: Debug {
     ) -> Result<bool, ProjectError>;
 
     fn get_options(&self) -> Vec<OptionData>;
+
+    fn save(&mut self, work_dir: &Path) -> Result<(), ProjectError>;
 }

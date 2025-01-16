@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, path::Path, str::FromStr};
 
 use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
@@ -107,6 +107,29 @@ impl AppConfig for BlitzWebUiService {
 
         res
     }
+
+    fn save(&mut self, work_dir: &Path) -> Result<(), ProjectError> {
+        let rendered_json = self
+            .to_json_string()
+            .change_context(ProjectError::GenFilesError)?;
+        let rendered_nix = self.render().change_context(ProjectError::CreateBaseFiles(
+            "Failed at rendering blitz webui config".to_string(),
+        ))?;
+
+        for (key, val) in rendered_nix.iter() {
+            update_file(
+                Path::new(&work_dir.join(key.replace(".templ", ""))),
+                val.as_bytes(),
+            )?;
+        }
+
+        update_file(
+            Path::new(&work_dir.join(JSON_FILE_NAME)),
+            rendered_json.as_bytes(),
+        )?;
+
+        Ok(())
+    }
 }
 
 impl Default for BlitzWebUiService {
@@ -191,11 +214,14 @@ impl BlitzWebUiService {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::trim_lines_left;
+    use crate::utils::{init_default_project, trim_lines_left};
+
+    use std::fs;
+    use tempfile::tempdir;
 
     use super::*;
 
-    fn get_test_daemon() -> BlitzWebUiService {
+    fn get_test_service() -> BlitzWebUiService {
         BlitzWebUiService {
             enable: Box::new(BoolOptionData::new(
                 BlitzWebUiConfigOption::Enable.to_option_id(),
@@ -209,8 +235,70 @@ mod tests {
     }
 
     #[test]
+    fn test_save_function() {
+        // Note: maybe test every field? Right now we just check if
+        //       enable is set to true or false respectively
+
+        // Create a temporary directory
+        let temp_dir = tempdir().unwrap();
+        let work_dir = temp_dir.path();
+
+        let _ = init_default_project(work_dir, Some(false));
+        let mut config = get_test_service();
+
+        // force enable to "true"
+        let _ = config
+            .app_option_changed(&OptionDataChangeNotification::Bool(
+                crate::app_option_data::bool_data::BoolOptionChangeData {
+                    id: BlitzWebUiConfigOption::Enable.to_option_id(),
+                    value: true,
+                },
+            ))
+            .unwrap();
+
+        // Call the save function
+        let result = config.save(work_dir);
+
+        // Assert that the save function returns Ok
+        assert!(result.is_ok());
+
+        let json_file_path = work_dir.join(JSON_FILE_NAME);
+        // Check that the JSON file contains the expected content
+        let json_content = fs::read_to_string(&json_file_path).unwrap();
+        let expected_json_content = config.to_json_string().unwrap();
+        assert_eq!(json_content, expected_json_content);
+
+        // Check that the Nix file contains the expected content
+        let nix_file_path = work_dir.join(TEMPLATE_FILE_NAME.replace(".templ", ""));
+        let rendered_nix = config.render().unwrap();
+        let expected_nix_content = rendered_nix.get(TEMPLATE_FILE_NAME).unwrap();
+        let nix_content = fs::read_to_string(&nix_file_path).unwrap();
+        assert_eq!(nix_content, *expected_nix_content);
+
+        // force enable to "false"
+        let _ = config
+            .app_option_changed(&OptionDataChangeNotification::Bool(
+                crate::app_option_data::bool_data::BoolOptionChangeData {
+                    id: BlitzWebUiConfigOption::Enable.to_option_id(),
+                    value: false,
+                },
+            ))
+            .unwrap();
+        let _ = config.save(work_dir);
+
+        let json_content = fs::read_to_string(&json_file_path).unwrap();
+        let expected_json_content = config.to_json_string().unwrap();
+        assert_eq!(json_content, expected_json_content);
+
+        let rendered_nix = config.render().unwrap();
+        let expected_nix_content = rendered_nix.get(TEMPLATE_FILE_NAME).unwrap();
+        let nix_content = fs::read_to_string(nix_file_path).unwrap();
+        assert_eq!(nix_content, *expected_nix_content);
+    }
+
+    #[test]
     fn test_render() {
-        let s = get_test_daemon();
+        let s = get_test_service();
 
         let result = s.render();
         if let Ok(data) = &result {

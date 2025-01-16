@@ -1,5 +1,5 @@
 use core::{fmt, str};
-use std::{collections::HashMap, net::IpAddr, str::FromStr};
+use std::{collections::HashMap, net::IpAddr, path::Path, str::FromStr};
 
 use alejandra::format;
 
@@ -26,7 +26,7 @@ use crate::{
     apps::SupportedApps,
     errors::{ProjectError, TemplatingError},
     number_value::NumberValue,
-    utils::BASE_TEMPLATE,
+    utils::{update_file, BASE_TEMPLATE},
 };
 
 pub const TEMPLATE_FILE_NAME: &str = "src/apps/bitcoind.nix.templ";
@@ -895,13 +895,41 @@ impl AppConfig for BitcoinDaemonService {
             OptionData::NetAddress(self.zmqpubrawblock.clone()),
         ]
     }
+
+    fn save(&mut self, work_dir: &Path) -> Result<(), ProjectError> {
+        let rendered_json = self
+            .to_json_string()
+            .change_context(ProjectError::GenFilesError)?;
+        let rendered_nix = self.render().change_context(ProjectError::CreateBaseFiles(
+            "Failed at rendering bitcoind config".to_string(),
+        ))?;
+
+        for (key, val) in rendered_nix.iter() {
+            update_file(
+                Path::new(&work_dir.join(key.replace(".templ", ""))),
+                val.as_bytes(),
+            )?;
+        }
+
+        update_file(
+            Path::new(&work_dir.join(JSON_FILE_NAME)),
+            rendered_json.as_bytes(),
+        )?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 pub mod tests {
+    use crate::utils::init_default_project;
+
     use super::*;
 
-    fn get_test_daemon() -> BitcoinDaemonService {
+    use std::fs;
+    use tempfile::tempdir;
+
+    fn get_test_service() -> BitcoinDaemonService {
         let enable = Box::new(BoolOptionData::new(
             BitcoindConfigOption::Enable.to_option_id(),
             true,
@@ -1054,6 +1082,69 @@ pub mod tests {
     }
 
     #[test]
+    fn test_save_function() {
+        // Note: maybe test every field? Right now we just check if
+        //       enable is set to true or false respectively
+
+        // Create a temporary directory
+        let temp_dir = tempdir().unwrap();
+        let work_dir = temp_dir.path();
+
+        let _ = init_default_project(work_dir, Some(false));
+
+        // Create a test instance of BitcoinDaemonService
+        let mut service = get_test_service();
+        // force enable to "true"
+        let _ = service
+            .app_option_changed(&OptionDataChangeNotification::Bool(
+                crate::app_option_data::bool_data::BoolOptionChangeData {
+                    id: BitcoindConfigOption::Enable.to_option_id(),
+                    value: true,
+                },
+            ))
+            .unwrap();
+
+        // Call the save function
+        let result = service.save(work_dir);
+
+        // Assert that the save function returns Ok
+        assert!(result.is_ok());
+
+        let json_file_path = work_dir.join(JSON_FILE_NAME);
+        // Check that the JSON file contains the expected content
+        let json_content = fs::read_to_string(&json_file_path).unwrap();
+        let expected_json_content = service.to_json_string().unwrap();
+        assert_eq!(json_content, expected_json_content);
+
+        // Check that the Nix file contains the expected content
+        let nix_file_path = work_dir.join(TEMPLATE_FILE_NAME.replace(".templ", ""));
+        let rendered_nix = service.render().unwrap();
+        let expected_nix_content = rendered_nix.get(TEMPLATE_FILE_NAME).unwrap();
+        let nix_content = fs::read_to_string(&nix_file_path).unwrap();
+        assert_eq!(nix_content, *expected_nix_content);
+
+        // force enable to "false"
+        let _ = service
+            .app_option_changed(&OptionDataChangeNotification::Bool(
+                crate::app_option_data::bool_data::BoolOptionChangeData {
+                    id: BitcoindConfigOption::Enable.to_option_id(),
+                    value: false,
+                },
+            ))
+            .unwrap();
+        let _ = service.save(work_dir);
+
+        let json_content = fs::read_to_string(&json_file_path).unwrap();
+        let expected_json_content = service.to_json_string().unwrap();
+        assert_eq!(json_content, expected_json_content);
+
+        let rendered_nix = service.render().unwrap();
+        let expected_nix_content = rendered_nix.get(TEMPLATE_FILE_NAME).unwrap();
+        let nix_content = fs::read_to_string(nix_file_path).unwrap();
+        assert_eq!(nix_content, *expected_nix_content);
+    }
+
+    #[test]
     fn test_bitcoin_daemon_service_defaults() {
         let default_service = BitcoinDaemonService::default();
         let default_ip = IpAddr::from_str("127.0.0.1").unwrap();
@@ -1083,7 +1174,7 @@ pub mod tests {
 
     #[test]
     fn test_render_mainnet() {
-        let mut d = get_test_daemon();
+        let mut d = get_test_service();
         d.network.set_value(BitcoinNetwork::Mainnet.to_string());
 
         let res = d.render().unwrap();

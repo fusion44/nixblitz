@@ -2,7 +2,7 @@ use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Display, str::FromStr};
+use std::{collections::HashMap, fmt::Display, path::Path, str::FromStr};
 use strum::EnumCount;
 
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
     locales::LOCALES,
     strings::INITIAL_PASSWORD,
     timezones::TIMEZONES,
-    utils::{check_password_validity_confirm, unix_hash_password, BASE_TEMPLATE},
+    utils::{check_password_validity_confirm, unix_hash_password, update_file, BASE_TEMPLATE},
 };
 
 pub const TEMPLATE_FILE_NAME: &str = "src/configuration.common.nix.templ";
@@ -494,12 +494,101 @@ impl AppConfig for NixBaseConfig {
             OptionData::PasswordEdit(self.hashed_password.clone()),
         ]
     }
+
+    fn save(&mut self, work_dir: &Path) -> Result<(), ProjectError> {
+        let rendered_json = self
+            .to_json_string()
+            .change_context(ProjectError::GenFilesError)?;
+        let rendered_nix = self
+            .render(NixBaseConfigsTemplates::Common)
+            .change_context(ProjectError::CreateBaseFiles(
+                "Failed at rendering the nix base config".to_string(),
+            ))?;
+
+        for (key, val) in rendered_nix.iter() {
+            update_file(
+                Path::new(&work_dir.join(key.replace(".templ", ""))),
+                val.as_bytes(),
+            )?;
+        }
+
+        update_file(
+            Path::new(&work_dir.join(JSON_FILE_NAME)),
+            rendered_json.as_bytes(),
+        )?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::unix_hash_password;
+    use crate::utils::{init_default_project, unix_hash_password};
+
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_save_function() {
+        // Note: maybe test every field? Right now we just check if
+        //       enable is set to true or false respectively
+        // Create a temporary directory
+        let temp_dir = tempdir().unwrap();
+        let work_dir = temp_dir.path();
+
+        let _ = init_default_project(work_dir, Some(false));
+        let mut config = NixBaseConfig::default();
+
+        // force enable to "true"
+        let _ = config
+            .app_option_changed(&OptionDataChangeNotification::Bool(
+                crate::app_option_data::bool_data::BoolOptionChangeData {
+                    id: NixBaseConfigOption::AllowUnfree.to_option_id(),
+                    value: true,
+                },
+            ))
+            .unwrap();
+
+        // Call the save function
+        let result = config.save(work_dir);
+
+        // Assert that the save function returns Ok
+        assert!(result.is_ok());
+
+        let json_file_path = work_dir.join(JSON_FILE_NAME);
+        // Check that the JSON file contains the expected content
+        let json_content = fs::read_to_string(&json_file_path).unwrap();
+        let expected_json_content = config.to_json_string().unwrap();
+        assert_eq!(json_content, expected_json_content);
+
+        // Check that the Nix file contains the expected content
+        let nix_file_path = work_dir.join(TEMPLATE_FILE_NAME.replace(".templ", ""));
+        let rendered_nix = config.render(NixBaseConfigsTemplates::Common).unwrap();
+        let expected_nix_content = rendered_nix.get(TEMPLATE_FILE_NAME).unwrap();
+        let nix_content = fs::read_to_string(&nix_file_path).unwrap();
+        assert_eq!(nix_content, *expected_nix_content);
+
+        // force enable to "false"
+        let _ = config
+            .app_option_changed(&OptionDataChangeNotification::Bool(
+                crate::app_option_data::bool_data::BoolOptionChangeData {
+                    id: NixBaseConfigOption::AllowUnfree.to_option_id(),
+                    value: false,
+                },
+            ))
+            .unwrap();
+        let _ = config.save(work_dir);
+
+        let json_content = fs::read_to_string(&json_file_path).unwrap();
+        let expected_json_content = config.to_json_string().unwrap();
+        assert_eq!(json_content, expected_json_content);
+
+        let rendered_nix = config.render(NixBaseConfigsTemplates::Common).unwrap();
+        let expected_nix_content = rendered_nix.get(TEMPLATE_FILE_NAME).unwrap();
+        let nix_content = fs::read_to_string(nix_file_path).unwrap();
+        assert_eq!(nix_content, *expected_nix_content);
+    }
 
     #[test]
     fn test_default_config() {

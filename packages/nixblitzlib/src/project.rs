@@ -195,6 +195,8 @@ impl Project {
         option: OptionDataChangeNotification,
     ) -> Result<bool, ProjectError> {
         let res = self.selected_app.borrow_mut().app_option_changed(&option)?;
+        if res {
+            self.selected_app.borrow_mut().save(&self.work_dir)?;
         };
 
         Ok(res)
