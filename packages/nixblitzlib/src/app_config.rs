@@ -1,5 +1,5 @@
 use crate::{
-    app_option_data::option_data::{OptionDataChangeNotification, OptionId},
+    app_option_data::option_data::{OptionData, OptionDataChangeNotification, OptionId},
     errors::ProjectError,
 };
 use error_stack::Result;
@@ -13,5 +13,9 @@ pub trait AppConfig {
         // to prevent unused variable warnings in from Clippy
         let _ = (id, option);
         todo!()
+    }
+
+    fn get_options(&self) -> Vec<OptionData> {
+        todo!();
     }
 }

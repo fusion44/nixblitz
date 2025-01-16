@@ -7,6 +7,7 @@ use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
         option_data::{OptionData, OptionDataChangeNotification, OptionId, ToOptionId},
@@ -203,8 +204,8 @@ impl fmt::Display for BlitzApiConfigOption {
     }
 }
 
-impl BlitzApiService {
-    pub fn get_options(&self) -> Vec<OptionData> {
+impl AppConfig for BlitzApiService {
+    fn get_options(&self) -> Vec<OptionData> {
         vec![
             OptionData::Bool(self.enable.clone()),
             OptionData::StringList(Box::new(StringListOptionData::new(
@@ -230,7 +231,7 @@ impl BlitzApiService {
         ]
     }
 
-    pub fn app_option_changed(
+    fn app_option_changed(
         &mut self,
         id: &OptionId,
         option: &OptionDataChangeNotification,
@@ -564,6 +565,7 @@ mod tests {
                 s.nginx_open_firewall.to_nix_string(false),
                 s.nginx_location.to_nix_string(true),
             ));
+            assert!(data.contains(&text));
         } else if let Err(e) = result {
             let msg = e.to_string();
             panic!("{msg}");

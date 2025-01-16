@@ -7,6 +7,7 @@ use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
         net_address_data::NetAddressOptionData,
@@ -148,8 +149,8 @@ impl fmt::Display for ClnConfigOption {
     }
 }
 
-impl CoreLightningService {
-    pub fn get_options(&self) -> Vec<OptionData> {
+impl AppConfig for CoreLightningService {
+    fn get_options(&self) -> Vec<OptionData> {
         vec![
             OptionData::Bool(self.enable.clone()),
             OptionData::NetAddress(self.address.clone()),
@@ -165,7 +166,7 @@ impl CoreLightningService {
         ]
     }
 
-    pub fn app_option_changed(
+    fn app_option_changed(
         &mut self,
         id: &OptionId,
         option: &OptionDataChangeNotification,

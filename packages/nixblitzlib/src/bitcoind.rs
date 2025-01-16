@@ -612,7 +612,6 @@ impl BitcoinDaemonService {
             .change_context(TemplatingError::Render)?;
 
         let (status, text) = format::in_memory("<convert bitcoind>".to_string(), res);
-        println!("{}", text.clone());
 
         if let format::Status::Error(e) = status {
             Err(Report::new(TemplatingError::Format)).attach_printable_lazy(|| {
@@ -631,46 +630,6 @@ impl BitcoinDaemonService {
 
     pub(crate) fn from_json(json_data: &str) -> Result<BitcoinDaemonService, TemplatingError> {
         serde_json::from_str(json_data).change_context(TemplatingError::JsonLoadError)
-    }
-
-    pub fn get_options(&self) -> Vec<OptionData> {
-        vec![
-            OptionData::Bool(self.enable.clone()),
-            OptionData::NetAddress(self.address.clone()),
-            OptionData::Port(self.port.clone()),
-            OptionData::Port(self.onion_port.clone()),
-            OptionData::Bool(self.listen.clone()),
-            OptionData::TextEdit(self.extra_config.clone()),
-            OptionData::TextEdit(self.user.clone()),
-            OptionData::StringList(Box::new(StringListOptionData::new(
-                BitcoindConfigOption::Network.to_option_id(),
-                self.network.value().to_string(),
-                BitcoinNetwork::to_string_array()
-                    .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
-                    .to_vec(),
-            ))),
-            //// TODO: implement me
-            ////OptionData::RpcUsers(self.rpc_users.clone()),
-            OptionData::NetAddress(self.rpc_address.clone()),
-            OptionData::Port(self.rpc_port.clone()),
-            //// TODO: implement me
-            //OptionData::IpList(self.rpc_allow_ip.clone()),
-            OptionData::StringList(Box::new(StringListOptionData::new(
-                BitcoindConfigOption::Prune.to_option_id(),
-                self.prune.value().to_string(),
-                PruneOptions::to_string_array()
-                    .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
-                    .to_vec(),
-            ))),
-            OptionData::NumberEdit(self.prune_size.clone()),
-            OptionData::TextEdit(self.extra_cmd_line_options.clone()),
-            OptionData::NumberEdit(self.db_cache.clone()),
-            OptionData::TextEdit(self.data_dir.clone()),
-            OptionData::Bool(self.tx_index.clone()),
-            OptionData::Bool(self.disable_wallet.clone()),
-            OptionData::NetAddress(self.zmqpubrawtx.clone()),
-            OptionData::NetAddress(self.zmqpubrawblock.clone()),
-        ]
     }
 }
 
@@ -894,6 +853,46 @@ impl AppConfig for BitcoinDaemonService {
         }
 
         Ok(false)
+    }
+
+    fn get_options(&self) -> Vec<OptionData> {
+        vec![
+            OptionData::Bool(self.enable.clone()),
+            OptionData::NetAddress(self.address.clone()),
+            OptionData::Port(self.port.clone()),
+            OptionData::Port(self.onion_port.clone()),
+            OptionData::Bool(self.listen.clone()),
+            OptionData::TextEdit(self.extra_config.clone()),
+            OptionData::TextEdit(self.user.clone()),
+            OptionData::StringList(Box::new(StringListOptionData::new(
+                BitcoindConfigOption::Network.to_option_id(),
+                self.network.value().to_string(),
+                BitcoinNetwork::to_string_array()
+                    .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
+                    .to_vec(),
+            ))),
+            //// TODO: implement me
+            ////OptionData::RpcUsers(self.rpc_users.clone()),
+            OptionData::NetAddress(self.rpc_address.clone()),
+            OptionData::Port(self.rpc_port.clone()),
+            //// TODO: implement me
+            //OptionData::IpList(self.rpc_allow_ip.clone()),
+            OptionData::StringList(Box::new(StringListOptionData::new(
+                BitcoindConfigOption::Prune.to_option_id(),
+                self.prune.value().to_string(),
+                PruneOptions::to_string_array()
+                    .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
+                    .to_vec(),
+            ))),
+            OptionData::NumberEdit(self.prune_size.clone()),
+            OptionData::TextEdit(self.extra_cmd_line_options.clone()),
+            OptionData::NumberEdit(self.db_cache.clone()),
+            OptionData::TextEdit(self.data_dir.clone()),
+            OptionData::Bool(self.tx_index.clone()),
+            OptionData::Bool(self.disable_wallet.clone()),
+            OptionData::NetAddress(self.zmqpubrawtx.clone()),
+            OptionData::NetAddress(self.zmqpubrawblock.clone()),
+        ]
     }
 }
 

@@ -395,22 +395,6 @@ impl NixBaseConfig {
 
         Ok(res)
     }
-
-    pub fn get_options(&self) -> Vec<OptionData> {
-        vec![
-            OptionData::Bool(self.allow_unfree.clone()),
-            OptionData::StringList(self.time_zone.clone()),
-            OptionData::StringList(self.default_locale.clone()),
-            OptionData::TextEdit(Box::new(TextOptionData::new(
-                NixBaseConfigOption::Username.to_option_id(),
-                self.username.clone(),
-                1,
-                false,
-                self.username.clone(),
-            ))),
-            OptionData::PasswordEdit(self.hashed_password.clone()),
-        ]
-    }
 }
 
 impl AppConfig for NixBaseConfig {
@@ -491,6 +475,22 @@ impl AppConfig for NixBaseConfig {
         }
 
         Ok(false)
+    }
+
+    fn get_options(&self) -> Vec<OptionData> {
+        vec![
+            OptionData::Bool(self.allow_unfree.clone()),
+            OptionData::StringList(self.time_zone.clone()),
+            OptionData::StringList(self.default_locale.clone()),
+            OptionData::TextEdit(Box::new(TextOptionData::new(
+                NixBaseConfigOption::Username.to_option_id(),
+                self.username.clone(),
+                1,
+                false,
+                self.username.clone(),
+            ))),
+            OptionData::PasswordEdit(self.hashed_password.clone()),
+        ]
     }
 }
 

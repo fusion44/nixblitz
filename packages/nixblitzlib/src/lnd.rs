@@ -7,6 +7,7 @@ use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
         net_address_data::NetAddressOptionData,
@@ -137,8 +138,8 @@ impl fmt::Display for LndConfigOption {
     }
 }
 
-impl LightningNetworkDaemonService {
-    pub fn get_options(&self) -> Vec<OptionData> {
+impl AppConfig for LightningNetworkDaemonService {
+    fn get_options(&self) -> Vec<OptionData> {
         vec![
             OptionData::Bool(self.enable.clone()),
             OptionData::NetAddress(self.address.clone()),
@@ -156,7 +157,7 @@ impl LightningNetworkDaemonService {
         ]
     }
 
-    pub fn app_option_changed(
+    fn app_option_changed(
         &mut self,
         id: &OptionId,
         option: &OptionDataChangeNotification,
