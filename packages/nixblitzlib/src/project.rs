@@ -1,10 +1,10 @@
-use std::{path::PathBuf, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use error_stack::{Result, ResultExt};
 
 use crate::{
     app_config::AppConfig,
-    app_option_data::option_data::{OptionData, OptionDataChangeNotification, OptionId},
+    app_option_data::option_data::{OptionData, OptionDataChangeNotification},
     apps::SupportedApps,
     bitcoind::{self, BitcoinDaemonService},
     blitz_api::{self, BlitzApiService},
@@ -16,32 +16,32 @@ use crate::{
     utils::load_json_file,
 };
 
-/// Represents a system config that is stored at the [System::path].
-#[derive(Default, Debug)]
+/// Represents a system config that is stored at :Wathe [System::path].
+#[derive(Debug)]
 pub struct Project {
     /// The working directory we operate in
     work_dir: PathBuf,
 
     /// The currently selected app
-    selected_app: SupportedApps,
+    selected_app: Box<Rc<RefCell<dyn AppConfig>>>,
 
     /// The nix base config
-    pub nix_base: NixBaseConfig,
+    nix_base: Rc<RefCell<NixBaseConfig>>,
 
     /// The bitcoin daemon service
-    bitcoin: BitcoinDaemonService,
+    bitcoin: Rc<RefCell<BitcoinDaemonService>>,
 
     /// The Core Lightning service
-    cln: CoreLightningService,
+    cln: Rc<RefCell<CoreLightningService>>,
 
     /// The lightning network daemon service
-    lnd: LightningNetworkDaemonService,
+    lnd: Rc<RefCell<LightningNetworkDaemonService>>,
 
     /// Blitz API service
-    blitz_api: BlitzApiService,
+    blitz_api: Rc<RefCell<BlitzApiService>>,
 
     /// Blitz Web UI service
-    blitz_webui: BlitzWebUiService,
+    blitz_webui: Rc<RefCell<BlitzWebUiService>>,
 }
 
 impl Project {
@@ -54,7 +54,14 @@ impl Project {
     ///
     /// - `app`: The application to be set as the currently selected app.
     pub fn set_selected_app(&mut self, app: SupportedApps) {
-        self.selected_app = app;
+        self.selected_app = match app {
+            SupportedApps::NixOS => Box::new(self.nix_base.clone()),
+            SupportedApps::BitcoinCore => Box::new(self.bitcoin.clone()),
+            SupportedApps::CoreLightning => Box::new(self.cln.clone()),
+            SupportedApps::LND => Box::new(self.lnd.clone()),
+            SupportedApps::BlitzAPI => Box::new(self.blitz_api.clone()),
+            SupportedApps::WebUI => Box::new(self.blitz_webui.clone()),
+        };
     }
 
     /// Loads the project configuration from the specified working directory.
@@ -88,6 +95,7 @@ impl Project {
                 "Trying to load {}",
                 nix_base_config::JSON_FILE_NAME
             ))?;
+        let nix_base = Rc::new(RefCell::new(nix_base));
 
         let bitcoind_path = work_dir.join(bitcoind::JSON_FILE_NAME);
         let bitcoind_json =
@@ -95,18 +103,21 @@ impl Project {
         let bitcoin = BitcoinDaemonService::from_json(&bitcoind_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", bitcoind::JSON_FILE_NAME))?;
+        let bitcoin = Rc::new(RefCell::new(bitcoin));
 
         let cln_path = work_dir.join(cln::JSON_FILE_NAME);
         let cln_json = load_json_file(&cln_path).change_context(ProjectError::ProjectLoadError)?;
         let cln = CoreLightningService::from_json(&cln_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", cln::JSON_FILE_NAME))?;
+        let cln = Rc::new(RefCell::new(cln));
 
         let lnd_path = work_dir.join(lnd::JSON_FILE_NAME);
         let lnd_json = load_json_file(&lnd_path).change_context(ProjectError::ProjectLoadError)?;
         let lnd = LightningNetworkDaemonService::from_json(&lnd_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", lnd::JSON_FILE_NAME))?;
+        let lnd = Rc::new(RefCell::new(lnd));
 
         let blitz_api_path = work_dir.join(blitz_api::JSON_FILE_NAME);
         let blitz_api_json =
@@ -114,6 +125,7 @@ impl Project {
         let blitz_api = BlitzApiService::from_json(&blitz_api_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", blitz_api::JSON_FILE_NAME))?;
+        let blitz_api = Rc::new(RefCell::new(blitz_api));
 
         let blitz_webui_path = work_dir.join(blitz_webui::JSON_FILE_NAME);
         let blitz_webui_json =
@@ -121,9 +133,10 @@ impl Project {
         let blitz_webui = BlitzWebUiService::from_json(&blitz_webui_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", blitz_webui::JSON_FILE_NAME))?;
+        let blitz_webui = Rc::new(RefCell::new(blitz_webui));
 
         Ok(Self {
-            selected_app: SupportedApps::NixOS,
+            selected_app: Box::new(nix_base.clone()),
             work_dir,
             nix_base,
             bitcoin,
@@ -151,14 +164,9 @@ impl Project {
     /// This function will return an error if the options cannot be retrieved
     /// for the specified application.
     pub fn get_app_options(&mut self) -> Result<Rc<Vec<OptionData>>, ProjectError> {
-        match self.selected_app {
-            SupportedApps::NixOS => Ok(Rc::new(self.nix_base.get_options())),
-            SupportedApps::BitcoinCore => Ok(Rc::new(self.bitcoin.get_options())),
-            SupportedApps::CoreLightning => Ok(Rc::new(self.cln.get_options())),
-            SupportedApps::LND => Ok(Rc::new(self.lnd.get_options())),
-            SupportedApps::BlitzAPI => Ok(Rc::new(self.blitz_api.get_options())),
-            SupportedApps::WebUI => Ok(Rc::new(self.blitz_webui.get_options())),
-        }
+        Ok(Rc::new(
+            self.selected_app.clone().borrow_mut().get_options(),
+        ))
     }
 
     /// Handles changes to application options.
@@ -186,24 +194,9 @@ impl Project {
         &mut self,
         option: OptionDataChangeNotification,
     ) -> Result<bool, ProjectError> {
-        // TODO: figure out how to implement this with a trait.
-        let id: &OptionId = match &option {
-            OptionDataChangeNotification::Bool(value) => &value.id,
-            OptionDataChangeNotification::StringList(value) => &value.id,
-            OptionDataChangeNotification::TextEdit(value) => &value.id,
-            OptionDataChangeNotification::PasswordEdit(value) => &value.id,
-            OptionDataChangeNotification::Number(value) => &value.id,
-            OptionDataChangeNotification::NetAddress(value) => &value.id,
-            OptionDataChangeNotification::Port(value) => &value.id,
+        let res = self.selected_app.borrow_mut().app_option_changed(&option)?;
         };
 
-        match id.app {
-            SupportedApps::NixOS => self.nix_base.app_option_changed(id, &option),
-            SupportedApps::BitcoinCore => self.bitcoin.app_option_changed(id, &option),
-            SupportedApps::CoreLightning => self.cln.app_option_changed(id, &option),
-            SupportedApps::LND => self.lnd.app_option_changed(id, &option),
-            SupportedApps::BlitzAPI => self.blitz_api.app_option_changed(id, &option),
-            SupportedApps::WebUI => self.blitz_webui.app_option_changed(id, &option),
-        }
+        Ok(res)
     }
 }

@@ -12,7 +12,8 @@ use crate::{
         bool_data::BoolOptionData,
         net_address_data::NetAddressOptionData,
         option_data::{
-            OptionData, OptionDataChangeNotification, OptionId, ToNixString, ToOptionId,
+            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToNixString,
+            ToOptionId,
         },
         port_data::PortOptionData,
         text_edit_data::TextOptionData,
@@ -159,9 +160,9 @@ impl AppConfig for LightningNetworkDaemonService {
 
     fn app_option_changed(
         &mut self,
-        id: &OptionId,
         option: &OptionDataChangeNotification,
     ) -> Result<bool, ProjectError> {
+        let id = option.id();
         if let Ok(opt) = LndConfigOption::from_str(&id.option) {
             let mut res = Ok(false);
             match opt {
@@ -246,6 +247,7 @@ impl AppConfig for LightningNetworkDaemonService {
                     }
                 }
             }
+
             return res;
         }
 

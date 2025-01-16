@@ -10,11 +10,13 @@ use crate::{
     app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
-        option_data::{OptionData, OptionDataChangeNotification, OptionId, ToOptionId},
+        option_data::{
+            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToOptionId,
+        },
     },
     apps::SupportedApps,
     errors::{ProjectError, TemplatingError},
-    utils::BASE_TEMPLATE,
+    utils::{update_file, BASE_TEMPLATE},
 };
 
 pub const TEMPLATE_FILE_NAME: &str = "src/apps/blitz_web.nix.templ";
@@ -72,11 +74,11 @@ impl AppConfig for BlitzWebUiService {
 
     fn app_option_changed(
         &mut self,
-        id: &OptionId,
         option: &OptionDataChangeNotification,
     ) -> Result<bool, ProjectError> {
+        let id = option.id();
+        let mut res = Ok(false);
         if let Ok(opt) = BlitzWebUiConfigOption::from_str(&id.option) {
-            let mut res = Ok(false);
             match opt {
                 BlitzWebUiConfigOption::Enable => {
                     if let OptionDataChangeNotification::Bool(val) = option {
@@ -103,7 +105,7 @@ impl AppConfig for BlitzWebUiService {
             return res;
         }
 
-        Ok(false)
+        res
     }
 }
 

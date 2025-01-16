@@ -10,7 +10,9 @@ use crate::{
     app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
-        option_data::{OptionData, OptionDataChangeNotification, OptionId, ToOptionId},
+        option_data::{
+            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToOptionId,
+        },
         string_list_data::{StringListOptionData, StringListOptionItem},
         text_edit_data::TextOptionData,
     },
@@ -233,9 +235,9 @@ impl AppConfig for BlitzApiService {
 
     fn app_option_changed(
         &mut self,
-        id: &OptionId,
         option: &OptionDataChangeNotification,
     ) -> Result<bool, ProjectError> {
+        let id = option.id();
         if let Ok(opt) = BlitzApiConfigOption::from_str(&id.option) {
             let mut res = Ok(false);
             if opt == BlitzApiConfigOption::Enable {

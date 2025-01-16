@@ -15,7 +15,8 @@ use crate::{
         net_address_data::NetAddressOptionData,
         number_data::NumberOptionData,
         option_data::{
-            OptionData, OptionDataChangeNotification, OptionId, ToNixString, ToOptionId,
+            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToNixString,
+            ToOptionId,
         },
         password_data::PasswordOptionData,
         port_data::PortOptionData,
@@ -636,9 +637,9 @@ impl BitcoinDaemonService {
 impl AppConfig for BitcoinDaemonService {
     fn app_option_changed(
         &mut self,
-        id: &OptionId,
         option: &OptionDataChangeNotification,
     ) -> Result<bool, ProjectError> {
+        let id = option.id();
         if let Ok(opt) = BitcoindConfigOption::from_str(&id.option) {
             let mut res = Ok(false);
             if opt == BitcoindConfigOption::Enable {
