@@ -11,10 +11,11 @@ use crate::{
     app_option_data::{
         bool_data::BoolOptionData,
         option_data::{
-            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToOptionId,
+            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToNixString,
+            ToOptionId,
         },
+        path_data::PathOptionData,
         string_list_data::{StringListOptionData, StringListOptionItem},
-        text_edit_data::TextOptionData,
     },
     apps::SupportedApps,
     errors::{ProjectError, TemplatingError},
@@ -132,15 +133,15 @@ pub struct BlitzApiService {
     pub log_level: Box<StringListOptionData>,
 
     /// Where to write the env file
-    pub env_file: Box<TextOptionData>,
+    pub env_file: Box<PathOptionData>,
 
     /// Where to write the password file
-    pub password_file: Box<TextOptionData>,
+    pub password_file: Box<PathOptionData>,
 
     /// The root directory for Blitz API
     /// e.g. where the endpoint will be reachable:
     /// example: '/api' -> 'http://localhost:8080/api'
-    pub root_path: Box<TextOptionData>,
+    pub root_path: Box<PathOptionData>,
 
     /// Whether to expose this service via nginx
     pub nginx_enable: Box<BoolOptionData>,
@@ -149,7 +150,7 @@ pub struct BlitzApiService {
     pub nginx_open_firewall: Box<BoolOptionData>,
 
     /// Where to which path the service should be mounted to
-    pub nginx_location: Box<TextOptionData>,
+    pub nginx_location: Box<PathOptionData>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -224,12 +225,12 @@ impl AppConfig for BlitzApiService {
                     .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
                     .to_vec(),
             ))),
-            OptionData::TextEdit(self.env_file.clone()),
-            OptionData::TextEdit(self.password_file.clone()),
-            OptionData::TextEdit(self.root_path.clone()),
+            OptionData::Path(self.env_file.clone()),
+            OptionData::Path(self.password_file.clone()),
+            OptionData::Path(self.root_path.clone()),
             OptionData::Bool(self.nginx_enable.clone()),
             OptionData::Bool(self.nginx_open_firewall.clone()),
-            OptionData::TextEdit(self.nginx_location.clone()),
+            OptionData::Path(self.nginx_location.clone()),
         ]
     }
 
@@ -268,7 +269,7 @@ impl AppConfig for BlitzApiService {
                     )));
                 }
             } else if opt == BlitzApiConfigOption::EnvFile {
-                if let OptionDataChangeNotification::TextEdit(val) = option {
+                if let OptionDataChangeNotification::Path(val) = option {
                     res = Ok(self.env_file.value() != val.value);
                     self.env_file.set_value(val.value.clone());
                 } else {
@@ -277,7 +278,7 @@ impl AppConfig for BlitzApiService {
                     )));
                 }
             } else if opt == BlitzApiConfigOption::PasswordFile {
-                if let OptionDataChangeNotification::TextEdit(val) = option {
+                if let OptionDataChangeNotification::Path(val) = option {
                     res = Ok(self.password_file.value() != val.value);
                     self.password_file.set_value(val.value.clone());
                 } else {
@@ -286,7 +287,7 @@ impl AppConfig for BlitzApiService {
                     )));
                 }
             } else if opt == BlitzApiConfigOption::RootPath {
-                if let OptionDataChangeNotification::TextEdit(val) = option {
+                if let OptionDataChangeNotification::Path(val) = option {
                     res = Ok(self.root_path.value() != val.value);
                     self.root_path.set_value(val.value.clone());
                 } else {
@@ -313,7 +314,7 @@ impl AppConfig for BlitzApiService {
                     )));
                 }
             } else if opt == BlitzApiConfigOption::NginxLocation {
-                if let OptionDataChangeNotification::TextEdit(val) = option {
+                if let OptionDataChangeNotification::Path(val) = option {
                     res = Ok(self.nginx_location.value() != val.value);
                     self.nginx_location.set_value(val.value.clone());
                 } else {
@@ -374,26 +375,17 @@ impl Default for BlitzApiService {
                     .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
                     .to_vec(),
             )),
-            env_file: Box::new(TextOptionData::new(
+            env_file: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::EnvFile.to_option_id(),
-                "/etc/blitz_api/env".to_string(),
-                1,
-                false,
-                "/etc/blitz_api/env".to_string(),
+                Some("/etc/blitz_api/env".to_string()),
             )),
-            password_file: Box::new(TextOptionData::new(
+            password_file: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::PasswordFile.to_option_id(),
-                "/etc/blitz_api/password".to_string(),
-                1,
-                false,
-                "/etc/blitz_api/password".to_string(),
+                Some("/etc/blitz_api/password".to_string()),
             )),
-            root_path: Box::new(TextOptionData::new(
+            root_path: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::RootPath.to_option_id(),
-                "/api".to_string(),
-                1,
-                false,
-                "/api".to_string(),
+                Some("/api".to_string()),
             )),
             nginx_enable: Box::new(BoolOptionData::new(
                 BlitzApiConfigOption::NginxEnable.to_option_id(),
@@ -403,12 +395,9 @@ impl Default for BlitzApiService {
                 BlitzApiConfigOption::NginxOpenFirewall.to_option_id(),
                 false,
             )),
-            nginx_location: Box::new(TextOptionData::new(
+            nginx_location: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::NginxLocation.to_option_id(),
-                "/".to_string(),
-                1,
-                false,
-                "/".to_string(),
+                Some("/".to_string()),
             )),
         }
     }
@@ -452,15 +441,15 @@ impl BlitzApiService {
             ("enable", self.enable.value().to_string()),
             ("connection_type", self.connection_type.value().to_string()),
             ("log_level", self.log_level.value().to_string()),
-            ("env_file", self.env_file.value().to_string()),
-            ("password_file", self.password_file.value().to_string()),
-            ("root_path", self.root_path.value().to_string()),
+            ("env_file", self.env_file.to_nix_string(false)),
+            ("password_file", self.password_file.to_nix_string(false)),
+            ("root_path", self.root_path.to_nix_string(false)),
             ("nginx_enable", format!("{}", self.nginx_enable.value())),
             (
                 "nginx_open_firewall",
                 format!("{}", self.nginx_open_firewall.value()),
             ),
-            ("nginx_location", self.nginx_location.value().to_string()),
+            ("nginx_location", self.nginx_location.to_nix_string(false)),
         ]);
 
         let res = handlebars
@@ -523,26 +512,17 @@ mod tests {
                     .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
                     .to_vec(),
             )),
-            env_file: Box::new(TextOptionData::new(
+            env_file: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::EnvFile.to_option_id(),
-                "/etc/blitz_api/env".to_string(),
-                1,
-                false,
-                "/etc/blitz_api/env".to_string(),
+                Some("/etc/blitz_api/env".to_string()),
             )),
-            password_file: Box::new(TextOptionData::new(
+            password_file: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::PasswordFile.to_option_id(),
-                "/etc/blitz_api/password".to_string(),
-                1,
-                false,
-                "/etc/blitz_api/password".to_string(),
+                Some("/etc/blitz_api/password".to_string()),
             )),
-            root_path: Box::new(TextOptionData::new(
+            root_path: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::RootPath.to_option_id(),
-                "/api".to_string(),
-                1,
-                false,
-                "/api".to_string(),
+                Some("/api".to_string()),
             )),
             nginx_enable: Box::new(BoolOptionData::new(
                 BlitzApiConfigOption::NginxEnable.to_option_id(),
@@ -552,12 +532,9 @@ mod tests {
                 BlitzApiConfigOption::NginxOpenFirewall.to_option_id(),
                 false,
             )),
-            nginx_location: Box::new(TextOptionData::new(
+            nginx_location: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::NginxLocation.to_option_id(),
-                "/".to_string(),
-                1,
-                false,
-                "/".to_string(),
+                Some("/".to_string()),
             )),
         }
     }

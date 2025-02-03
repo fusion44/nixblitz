@@ -5,8 +5,8 @@ use super::{
     list_options::{
         base_option::OptionListItem, bool::BoolOptionComponent,
         net_address::NetAddressOptionComponent, number::NumberOptionComponent,
-        password::PasswordOptionComponent, string_list::StringListOptionComponent,
-        text::TextOptionComponent,
+        password::PasswordOptionComponent, path::PathOptionComponent,
+        string_list::StringListOptionComponent, text::TextOptionComponent,
     },
     theme::block,
     Component,
@@ -35,6 +35,7 @@ enum _Comp<'a> {
     Bool(BoolOptionComponent),
     StringList(StringListOptionComponent),
     EditText(TextOptionComponent<'a>),
+    Path(PathOptionComponent<'a>),
     Password(PasswordOptionComponent<'a>),
     Number(NumberOptionComponent<'a>),
     NetAddress(NetAddressOptionComponent<'a>),
@@ -47,6 +48,7 @@ impl<'a> fmt::Display for _Comp<'a> {
             _Comp::Bool(_) => write!(f, "_Comp::Bool"),
             _Comp::StringList(_) => write!(f, "_Comp::StringList"),
             _Comp::EditText(_) => write!(f, "_Comp::EditText"),
+            _Comp::Path(_) => write!(f, "_Comp::Path"),
             _Comp::Password(_) => write!(f, "_Comp::Password"),
             _Comp::Number(_) => write!(f, "_Comp::Number"),
             _Comp::NetAddress(_) => write!(f, "_Comp::NetAddress"),
@@ -81,6 +83,16 @@ impl<'a> _Comp<'a> {
             _Comp::EditText(ref mut val) => Ok(val),
             _ => Err(Report::new(CliError::OptionTypeMismatch(
                 "_Comp::EditText".to_string(),
+                format!("{}", self),
+            ))),
+        }
+    }
+
+    fn get_path_mut(&mut self) -> Result<&mut PathOptionComponent<'a>, CliError> {
+        match self {
+            _Comp::Path(ref mut val) => Ok(val),
+            _ => Err(Report::new(CliError::OptionTypeMismatch(
+                "_Comp::Path".to_string(),
                 format!("{}", self),
             ))),
         }
@@ -131,6 +143,7 @@ impl<'a> _Comp<'a> {
             _Comp::Bool(comp) => comp.set_selected(selected),
             _Comp::StringList(comp) => comp.set_selected(selected),
             _Comp::EditText(comp) => comp.set_selected(selected),
+            _Comp::Path(comp) => comp.set_selected(selected),
             _Comp::Password(comp) => comp.set_selected(selected),
             _Comp::Number(comp) => comp.set_selected(selected),
             _Comp::NetAddress(comp) => comp.set_selected(selected),
@@ -174,6 +187,7 @@ impl<'a> OptionMap<'a> {
             _Comp::Bool(bool_option_component) => Ok(bool_option_component),
             _Comp::StringList(string_list_option_component) => Ok(string_list_option_component),
             _Comp::EditText(text_option_component) => Ok(text_option_component),
+            _Comp::Path(path_option_component) => Ok(path_option_component),
             _Comp::Password(password_option_component) => Ok(password_option_component),
             _Comp::Number(unum_option_component) => Ok(unum_option_component),
             _Comp::NetAddress(net_address_option_component) => Ok(net_address_option_component),
@@ -189,6 +203,7 @@ impl<'a> OptionMap<'a> {
                 _Comp::Bool(bool_option_component) => bool_option_component as &mut dyn Component,
                 _Comp::StringList(string_list_option_component) => string_list_option_component,
                 _Comp::EditText(text_option_component) => text_option_component,
+                _Comp::Path(path_option_component) => path_option_component,
                 _Comp::Password(password_option_component) => password_option_component,
                 _Comp::Number(unum_option_component) => unum_option_component,
                 _Comp::NetAddress(net_address_option_component) => net_address_option_component,
@@ -211,6 +226,7 @@ impl<'a> OptionMap<'a> {
             _Comp::Bool(bool_option_component) => Ok(bool_option_component),
             _Comp::StringList(string_list_option_component) => Ok(string_list_option_component),
             _Comp::EditText(text_option_component) => Ok(text_option_component),
+            _Comp::Path(path_option_component) => Ok(path_option_component),
             _Comp::Password(password_option_component) => Ok(password_option_component),
             _Comp::Number(unum_option_component) => Ok(unum_option_component),
             _Comp::NetAddress(net_address_option_component) => Ok(net_address_option_component),
@@ -277,6 +293,13 @@ impl<'a> AppOptions<'a> {
                     OptionData::TextEdit(opt) => (
                         opt.id().to_string(),
                         Box::new(_Comp::EditText(TextOptionComponent::new(
+                            opt,
+                            index == selected,
+                        )?)),
+                    ),
+                    OptionData::Path(opt) => (
+                        opt.id().to_string(),
+                        Box::new(_Comp::Path(PathOptionComponent::new(
                             opt,
                             index == selected,
                         )?)),
@@ -349,6 +372,7 @@ impl<'a> AppOptions<'a> {
                 OptionData::TextEdit(data) => {
                     option_comp.get_edit_text_mut()?.set_data(data);
                 }
+                OptionData::Path(data) => option_comp.get_path_mut()?.set_data(data),
                 OptionData::PasswordEdit(data) => {
                     option_comp.get_password_mut()?.set_data(data);
                 }
@@ -553,6 +577,7 @@ impl<'a> AppOptions<'a> {
             _Comp::Bool(c) => Ok(c.draw(frame, index, ctx)?),
             _Comp::StringList(c) => Ok(c.draw(frame, index, ctx)?),
             _Comp::EditText(c) => Ok(c.draw(frame, index, ctx)?),
+            _Comp::Path(c) => Ok(c.draw(frame, index, ctx)?),
             _Comp::Password(c) => Ok(c.draw(frame, index, ctx)?),
             _Comp::Number(c) => Ok(c.draw(frame, index, ctx)?),
             _Comp::NetAddress(c) => Ok(c.draw(frame, index, ctx)?),
