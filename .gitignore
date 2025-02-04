@@ -6,7 +6,8 @@
 
 .remotes.json
 
+result
+
 packages/cli/target
 packages/target
 packages/nixblitz.log
-

@@ -14,6 +14,11 @@
         inherit system;
       };
     in {
+      packages = {
+        nixblitz = pkgs.callPackage ./default.nix {};
+        default = self.packages.${system}.nixblitz;
+      };
+
       devShell = with pkgs;
         mkShell {
           buildInputs = [

@@ -40,8 +40,9 @@ dependencies = [
 
 [[package]]
 name = "alejandra"
-version = "3.0.0"
-source = "git+https://github.com/kamadorueda/alejandra#d7552fef2ccf1bbf0d36b27f6fddb19073f205b7"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bc05c61ca4cc9ccd139efa86d1e8414e2e0f2dc6584edc3de33f04eebfa1dee"
 dependencies = [
  "mimalloc",
  "rnix",
