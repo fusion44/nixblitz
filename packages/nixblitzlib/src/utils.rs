@@ -213,9 +213,9 @@ fn render_template_files(
             _create_bitcoin_files(work_dir, force)?;
         } else if filename == "configuration.common.nix" {
             _create_nix_base_config(work_dir, force)?;
-        } else if filename == "blitz_api.nix" {
+        } else if filename == "api.nix" {
             _create_blitz_api_files(work_dir, force)?;
-        } else if filename == "blitz_web.nix" {
+        } else if filename == "web.nix" {
             _create_blitz_webui_files(work_dir, force)?;
         }
     }
@@ -243,7 +243,7 @@ fn _create_bitcoin_files(work_dir: &Path, force: Option<bool>) -> Result<(), Pro
     }
 
     create_file(
-        Path::new(&work_dir.join("src/apps/bitcoind.json")),
+        Path::new(&work_dir.join("src/btc/bitcoind.json")),
         rendered_json.as_bytes(),
         force,
     )?;
@@ -271,7 +271,7 @@ fn _create_blitz_webui_files(work_dir: &Path, force: Option<bool>) -> Result<(),
     }
 
     create_file(
-        Path::new(&work_dir.join("src/apps/blitz_web.json")),
+        Path::new(&work_dir.join("src/blitz/web.json")),
         rendered_json.as_bytes(),
         force,
     )?;
@@ -299,7 +299,7 @@ fn _create_blitz_api_files(work_dir: &Path, force: Option<bool>) -> Result<(), P
     }
 
     create_file(
-        Path::new(&work_dir.join("src/apps/blitz_api.json")),
+        Path::new(&work_dir.join("src/blitz/api.json")),
         rendered_json.as_bytes(),
         force,
     )?;
@@ -327,7 +327,7 @@ fn _create_cln_files(work_dir: &Path, force: Option<bool>) -> Result<(), Project
     }
 
     create_file(
-        Path::new(&work_dir.join("src/apps/cln.json")),
+        Path::new(&work_dir.join("src/btc/cln.json")),
         rendered_json.as_bytes(),
         force,
     )?;
@@ -355,7 +355,7 @@ fn _create_lnd_files(work_dir: &Path, force: Option<bool>) -> Result<(), Project
     }
 
     create_file(
-        Path::new(&work_dir.join("src/apps/lnd.json")),
+        Path::new(&work_dir.join("src/btc/lnd.json")),
         rendered_json.as_bytes(),
         force,
     )?;

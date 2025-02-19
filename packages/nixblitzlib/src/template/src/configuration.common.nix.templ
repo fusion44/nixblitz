@@ -1,10 +1,13 @@
-{pkgs, ...}: {
+{
+  lib,
+  pkgs,
+  ...
+}: let
+in {
   imports = [
-    ./apps/bitcoind.nix
-    ./apps/lnd.nix
-    ./apps/blitz_api.nix
-    ./apps/blitz_web.nix
-    ./apps/nix_bitcoin.nix
+    ./nix-bitcoin/secure-node.nix
+    ./blitz.nix
+    ./btc.nix
   ];
 
   boot.loader.grub.enable = false;
@@ -13,37 +16,60 @@
   time.timeZone = "{{ time_zone }}";
   i18n.defaultLocale = "{{ default_locale }}";
 
+  nix.extraOptions = ''
+    experimental-features = nix-command flakes
+  '';
+
   console = {
     font = "Lat2-Terminus16";
-    useXkbConfig = true; # use xkb.options in tty.
+    useXkbConfig = true;
   };
 
   users = {
     defaultUserShell = pkgs.nushell;
-    users."{{ username }}" = {
+    users."admin" = {
       isNormalUser = true;
       extraGroups = ["wheel"];
       hashedPassword = "{{ initial_password }}";
       openssh.authorizedKeys.keys = [
         {{ openssh_auth_keys }}
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC7M6/mq5kcNEjSiUrb8syQT+Y9uY4AHdHoWITIQ463Q some.fusion@gmail.com"
       ];
     };
   };
 
-  home-manager.users."{{ username }}" = {pkgs, ...}: {
-    home.packages = [];
+  home-manager.users."admin" = {pkgs, ...}: {
     programs.nushell = {
-	   enable = true;
-		configFile.source = ./configs/nushell/config.nu;
-		envFile.source = ./configs/nushell/env.nu;
-	 };
+      enable = true;
+      configFile.source = ./configs/nushell/config.nu;
+      envFile.source = ./configs/nushell/env.nu;
+    };
 
-    home.stateVersion = "24.05";
+    home = {
+      packages = [];
+      #file.".config/orig_nixblitz_config" = {
+      #  source = ../src;
+      #  recursive = true;
+      #};
+
+      stateVersion = "25.05";
+    };
   };
 
   environment.systemPackages = with pkgs; [
     {{ system_packages }}
   ];
+
+  blitz.enable = true;
+  btc.enable = true;
+
+  nix-bitcoin = {
+    generateSecrets = true;
+    operator = {
+      enable = true;
+      name = "admin";
+    };
+  };
 
   services = {
     openssh = {
@@ -51,7 +77,7 @@
       ports = [22];
       settings = {
         PasswordAuthentication = {{ ssh_password_auth }};
-        AllowUsers = ["{{ username }}"];
+        AllowUsers = ["admin"];
         UseDns = true;
         X11Forwarding = false;
         PermitRootLogin = "prohibit-password";
@@ -61,6 +87,8 @@
     redis.servers."".enable = true;
   };
 
-  networking.firewall.allowedTCPPorts = [ {{ ports }} ];
-  system.stateVersion = "24.05";
+  networking.firewall.allowedTCPPorts = [
+    {{ ports }}
+  ];
+  system.stateVersion = "25.05";
 }

@@ -19,8 +19,8 @@ use crate::{
     utils::{update_file, BASE_TEMPLATE},
 };
 
-pub const TEMPLATE_FILE_NAME: &str = "src/apps/blitz_web.nix.templ";
-pub const JSON_FILE_NAME: &str = "src/apps/blitz_web.json";
+pub const TEMPLATE_FILE_NAME: &str = "src/blitz/web.nix.templ";
+pub const JSON_FILE_NAME: &str = "src/blitz/web.json";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct BlitzWebUiService {

@@ -1,0 +1,24 @@
+{
+  config,
+  ...
+} : {
+  enable = {{ enable }};
+  address = "{{ address }}";
+  port = {{ port }};
+  rpcAddress = "{{ rpc_address }}";
+  rpcPort = {{ rpc_port }};
+  restAddress = "{{ rest_address }}";
+  restPort = {{ rest_port }};
+  dataDir = "{{ data_dir }}";
+  certificate = {
+    extraIPs = [
+      {{ cert_extra_ips }}
+    ];
+    extraDomains = [
+      {{ cert_extra_domains }}
+    ];
+  };
+  extraConfig = ''
+    {{ extra_config }}
+  '';
+}

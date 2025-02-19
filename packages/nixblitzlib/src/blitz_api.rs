@@ -22,8 +22,8 @@ use crate::{
     utils::{update_file, BASE_TEMPLATE},
 };
 
-pub const TEMPLATE_FILE_NAME: &str = "src/apps/blitz_api.nix.templ";
-pub const JSON_FILE_NAME: &str = "src/apps/blitz_api.json";
+pub const TEMPLATE_FILE_NAME: &str = "src/blitz/api.nix.templ";
+pub const JSON_FILE_NAME: &str = "src/blitz/api.json";
 
 /// To which node to connect to
 enum ConnectionType {
@@ -132,6 +132,9 @@ pub struct BlitzApiService {
     /// Log level
     pub log_level: Box<StringListOptionData>,
 
+    /// Whether to auto generate the env file
+    pub generate_env_file: Box<BoolOptionData>,
+
     /// Where to write the env file
     pub env_file: Box<PathOptionData>,
 
@@ -158,7 +161,8 @@ pub enum BlitzApiConfigOption {
     Enable,
     ConnectionType,
     LogLevel,
-    EnvFile,
+    GenerateEnvFile,
+    EnvFilePath,
     PasswordFile,
     RootPath,
     NginxEnable,
@@ -179,7 +183,7 @@ impl FromStr for BlitzApiConfigOption {
             "enable" => Ok(BlitzApiConfigOption::Enable),
             "connection_type" => Ok(BlitzApiConfigOption::ConnectionType),
             "log_level" => Ok(BlitzApiConfigOption::LogLevel),
-            "env_file" => Ok(BlitzApiConfigOption::EnvFile),
+            "env_file" => Ok(BlitzApiConfigOption::EnvFilePath),
             "password_file" => Ok(BlitzApiConfigOption::PasswordFile),
             "root_path" => Ok(BlitzApiConfigOption::RootPath),
             "nginx_enable" => Ok(BlitzApiConfigOption::NginxEnable),
@@ -196,7 +200,8 @@ impl fmt::Display for BlitzApiConfigOption {
             BlitzApiConfigOption::Enable => "enable",
             BlitzApiConfigOption::ConnectionType => "connection_type",
             BlitzApiConfigOption::LogLevel => "log_level",
-            BlitzApiConfigOption::EnvFile => "env_file",
+            BlitzApiConfigOption::GenerateEnvFile => "generate_env_file",
+            BlitzApiConfigOption::EnvFilePath => "env_file",
             BlitzApiConfigOption::PasswordFile => "password_file",
             BlitzApiConfigOption::RootPath => "root_path",
             BlitzApiConfigOption::NginxEnable => "nginx_enable",
@@ -225,6 +230,7 @@ impl AppConfig for BlitzApiService {
                     .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
                     .to_vec(),
             ))),
+            OptionData::Bool(self.generate_env_file.clone()),
             OptionData::Path(self.env_file.clone()),
             OptionData::Path(self.password_file.clone()),
             OptionData::Path(self.root_path.clone()),
@@ -268,7 +274,16 @@ impl AppConfig for BlitzApiService {
                         opt.to_string(),
                     )));
                 }
-            } else if opt == BlitzApiConfigOption::EnvFile {
+            } else if opt == BlitzApiConfigOption::GenerateEnvFile {
+                if let OptionDataChangeNotification::Bool(val) = option {
+                    res = Ok(self.generate_env_file.value() != val.value);
+                    self.generate_env_file.set_value(val.value);
+                } else {
+                    return Err(Report::new(ProjectError::ChangeOptionValueError(
+                        opt.to_string(),
+                    )));
+                }
+            } else if opt == BlitzApiConfigOption::EnvFilePath {
                 if let OptionDataChangeNotification::Path(val) = option {
                     res = Ok(self.env_file.value() != val.value);
                     self.env_file.set_value(val.value.clone());
@@ -375,13 +390,17 @@ impl Default for BlitzApiService {
                     .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
                     .to_vec(),
             )),
+            generate_env_file: Box::new(BoolOptionData::new(
+                BlitzApiConfigOption::GenerateEnvFile.to_option_id(),
+                true,
+            )),
             env_file: Box::new(PathOptionData::default_from(
-                BlitzApiConfigOption::EnvFile.to_option_id(),
+                BlitzApiConfigOption::EnvFilePath.to_option_id(),
                 Some("/etc/blitz_api/env".to_string()),
             )),
             password_file: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::PasswordFile.to_option_id(),
-                Some("/etc/blitz_api/password".to_string()),
+                None,
             )),
             root_path: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::RootPath.to_option_id(),
@@ -439,17 +458,21 @@ impl BlitzApiService {
 
         let data: HashMap<&str, String> = HashMap::from([
             ("enable", self.enable.value().to_string()),
-            ("connection_type", self.connection_type.value().to_string()),
-            ("log_level", self.log_level.value().to_string()),
-            ("env_file", self.env_file.to_nix_string(false)),
-            ("password_file", self.password_file.to_nix_string(false)),
-            ("root_path", self.root_path.to_nix_string(false)),
+            ("connection_type", self.connection_type.to_nix_string(true)),
+            ("log_level", self.log_level.to_nix_string(true)),
+            (
+                "generate_env_file",
+                self.generate_env_file.value().to_string(),
+            ),
+            ("env_file", self.env_file.to_nix_string(true)),
+            ("password_file", self.password_file.to_nix_string(true)),
+            ("root_path", self.root_path.to_nix_string(true)),
             ("nginx_enable", format!("{}", self.nginx_enable.value())),
             (
                 "nginx_open_firewall",
                 format!("{}", self.nginx_open_firewall.value()),
             ),
-            ("nginx_location", self.nginx_location.to_nix_string(false)),
+            ("nginx_location", self.nginx_location.to_nix_string(true)),
         ]);
 
         let res = handlebars
@@ -512,8 +535,12 @@ mod tests {
                     .map(|entry| StringListOptionItem::new(entry.to_string(), entry.to_string()))
                     .to_vec(),
             )),
+            generate_env_file: Box::new(BoolOptionData::new(
+                BlitzApiConfigOption::GenerateEnvFile.to_option_id(),
+                true,
+            )),
             env_file: Box::new(PathOptionData::default_from(
-                BlitzApiConfigOption::EnvFile.to_option_id(),
+                BlitzApiConfigOption::EnvFilePath.to_option_id(),
                 Some("/etc/blitz_api/env".to_string()),
             )),
             password_file: Box::new(PathOptionData::default_from(
@@ -612,29 +639,44 @@ mod tests {
             println!("{}", data);
             assert!(data.contains(&format!("enable = {};", s.enable.value())));
             let text = &format!(
-                "ln.connectionType = {};",
-                s.connection_type.to_nix_string(true)
+                "ln.connectionType = \"{}\";",
+                s.connection_type.to_nix_string(false)
             );
             assert!(data.contains(text));
-            assert!(data.contains(&format!("logLevel = {};", s.log_level.to_nix_string(true))));
-            assert!(data.contains(&format!("dotEnvFile = {};", s.env_file.to_nix_string(true))));
             assert!(data.contains(&format!(
-                "passwordFile = {};",
-                s.password_file.to_nix_string(true)
+                "logLevel = \"{}\";",
+                s.log_level.to_nix_string(false)
             )));
-            assert!(data.contains(&format!("rootPath = {};", s.root_path.to_nix_string(true))));
+            assert!(data.contains(&format!(
+                "generateDotEnvFile = {};",
+                s.generate_env_file.to_nix_string(false)
+            )));
+            assert!(data.contains(&format!(
+                "dotEnvFile = \"{}\";",
+                s.env_file.to_nix_string(false)
+            )));
+            assert!(data.contains(&format!(
+                "passwordFile = \"{}\";",
+                s.password_file.to_nix_string(false)
+            )));
+            assert!(data.contains(&format!(
+                "rootPath = \"{}\";",
+                s.root_path.to_nix_string(false)
+            )));
             let data = trim_lines_left(data);
+            println!("{}", data);
             let text = trim_lines_left(&format!(
                 r#"
                 nginx = {{
                   enable = {};
                   openFirewall = {};
-                  location = {};
+                  location = "{}";
                 }};"#,
-                s.nginx_enable.to_nix_string(false),
-                s.nginx_open_firewall.to_nix_string(false),
-                s.nginx_location.to_nix_string(true),
+                s.nginx_enable.value(),
+                s.nginx_open_firewall.value(),
+                s.nginx_location.to_nix_string(false),
             ));
+            println!("{}", text);
             assert!(data.contains(&text));
         } else if let Err(e) = result {
             let msg = e.to_string();

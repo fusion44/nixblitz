@@ -168,10 +168,6 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
     map.insert(LndConfigOption::RestPort.to_option_id(), "REST Port");
     map.insert(LndConfigOption::DataDir.to_option_id(), "Data Directory");
     map.insert(
-        LndConfigOption::NetworkDir.to_option_id(),
-        "Network Directory",
-    );
-    map.insert(
         LndConfigOption::CertExtraIps.to_option_id(),
         "Certificate Extra IPs",
     );
@@ -198,7 +194,7 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
         "The log level",
     );
     map.insert(
-        BlitzApiConfigOption::EnvFile.to_option_id(),
+        BlitzApiConfigOption::EnvFilePath.to_option_id(),
         "Environment file path",
     );
     map.insert(

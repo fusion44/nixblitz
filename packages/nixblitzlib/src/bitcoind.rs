@@ -29,8 +29,8 @@ use crate::{
     utils::{update_file, BASE_TEMPLATE},
 };
 
-pub const TEMPLATE_FILE_NAME: &str = "src/apps/bitcoind.nix.templ";
-pub const JSON_FILE_NAME: &str = "src/apps/bitcoind.json";
+pub const TEMPLATE_FILE_NAME: &str = "src/btc/bitcoind.nix.templ";
+pub const JSON_FILE_NAME: &str = "src/btc/bitcoind.json";
 
 #[derive(Debug, Clone, Copy, EnumCount, Hash, PartialEq, Serialize, Deserialize)]
 pub enum BitcoindConfigOption {
@@ -521,13 +521,14 @@ impl Default for BitcoinDaemonService {
                 BitcoindConfigOption::DisableWallet.to_option_id(),
                 true,
             )),
+            // TODO: add ports
             zmqpubrawtx: Box::new(NetAddressOptionData::new(
                 BitcoindConfigOption::ZmqPubRawTx.to_option_id(),
-                None,
+                Some(IpAddr::from_str("127.0.0.1").unwrap()),
             )),
             zmqpubrawblock: Box::new(NetAddressOptionData::new(
                 BitcoindConfigOption::ZmqPubRawBlock.to_option_id(),
-                None,
+                Some(IpAddr::from_str("127.0.0.1").unwrap()),
             )),
         }
     }
@@ -603,8 +604,20 @@ impl BitcoinDaemonService {
                     .collect::<Vec<_>>()
                     .join("\n"),
             ),
-            ("zmqpubrawblock", self.zmqpubrawblock.to_nix_string(true)),
-            ("zmqpubrawtx", self.zmqpubrawtx.to_nix_string(true)),
+            (
+                "zmqpubrawblock",
+                format!(
+                    "\"tcp://{}:28332\"",
+                    self.zmqpubrawblock.to_nix_string(false)
+                ),
+            ),
+            (
+                "zmqpubrawtx",
+                format!(
+                    "\"tcp://{}:28333\"",
+                    self.zmqpubrawblock.to_nix_string(false)
+                ),
+            ),
         ]);
 
         let res = handlebars
@@ -1180,39 +1193,43 @@ pub mod tests {
         let res = d.render().unwrap();
         assert!(res.contains_key(TEMPLATE_FILE_NAME));
         let nix_str = res.get(TEMPLATE_FILE_NAME).unwrap();
+        println!("{}", nix_str);
 
         assert!(nix_str.contains(&format!("enable = {};", d.enable.value())));
         assert!(nix_str.contains(&"regtest = false;".to_string()));
         assert!(nix_str.contains(&format!("txindex = {};", d.tx_index.value())));
         assert!(nix_str.contains(&format!("disablewallet = {};", d.disable_wallet.value())));
         assert!(nix_str.contains(&format!("listen = {};", d.listen.value())));
-        assert!(nix_str.contains(&format!("address = {};", d.address.to_nix_string(true))));
+        assert!(nix_str.contains(&format!(
+            "address = \"{}\";",
+            d.address.to_nix_string(false)
+        )));
         assert!(nix_str.contains(&format!("port = {};", d.port.value().to_string_or("8333"))));
         assert!(nix_str.contains(&format!(
             r#"
-    rpc = {{
-      address = {};
-      port = {};
-      allowip = [
-        "192.168.1.100"
-        "192.168.1.111"
-      ];
-      users = {{
-        dsfsdf = {{passwordHMAC = "rpc_user1";}};
-        owieru = {{passwordHMAC = "rpc_user2";}};
-      }};
+  rpc = {{
+    address = "{}";
+    port = {};
+    allowip = [
+      "192.168.1.100"
+      "192.168.1.111"
+    ];
+    users = {{
+      dsfsdf = {{passwordHMAC = "rpc_user1";}};
+      owieru = {{passwordHMAC = "rpc_user2";}};
     }};
+  }};
 "#,
-            d.rpc_address.to_nix_string(true),
+            d.rpc_address.to_nix_string(false),
             d.rpc_port.value().to_string_or("8332")
         )));
         assert!(nix_str.contains(&format!(
-            "zmqpubrawblock = {};",
-            d.zmqpubrawblock.to_nix_string(true)
+            "zmqpubrawblock = \"{}\";",
+            d.zmqpubrawblock.to_nix_string(false)
         )));
         assert!(nix_str.contains(&format!(
-            "zmqpubrawtx = {};",
-            d.zmqpubrawtx.to_nix_string(true)
+            "zmqpubrawtx = \"{}\";",
+            d.zmqpubrawtx.to_nix_string(false)
         )));
     }
 }

@@ -1,0 +1,15 @@
+{
+  enable = {{ enable }};
+  address = "{{ address }}";
+  port = {{ port }};
+  proxy = {{ proxy }};
+  always-use-proxy = {{ always_use_proxy }};
+  dataDir = {{ data_dir }};
+  wallet = "{{ wallet }}";
+  extraConfig = ''
+    {{ extra_config }}
+  '';
+  user = "{{ user }}";
+  group = "{{ group }}";
+  getPublicAddressCmd = "{{ get_public_address_cmd }}";
+}

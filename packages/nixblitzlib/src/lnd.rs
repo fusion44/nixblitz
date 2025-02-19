@@ -24,8 +24,8 @@ use crate::{
     utils::{update_file, BASE_TEMPLATE},
 };
 
-pub const TEMPLATE_FILE_NAME: &str = "src/apps/lnd.nix.templ";
-pub const JSON_FILE_NAME: &str = "src/apps/lnd.json";
+pub const TEMPLATE_FILE_NAME: &str = "src/btc/lnd.nix.templ";
+pub const JSON_FILE_NAME: &str = "src/btc/lnd.json";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct LightningNetworkDaemonService {
@@ -56,9 +56,6 @@ pub struct LightningNetworkDaemonService {
     /// The data directory for LND.
     pub data_dir: Box<TextOptionData>,
 
-    /// The network data directory.
-    pub network_dir: Box<TextOptionData>,
-
     /// Extra `subjectAltName` IPs added to the certificate.
     /// This works the same as lnd option {option}`tlsextraip`.
     pub cert_extra_ips: Box<Vec<NetAddressOptionData>>,
@@ -84,7 +81,6 @@ pub enum LndConfigOption {
     RestAddress,
     RestPort,
     DataDir,
-    NetworkDir,
     CertExtraIps,
     CertExtraDomains,
     ExtraConfig,
@@ -109,7 +105,6 @@ impl FromStr for LndConfigOption {
             "rest_address" => Ok(LndConfigOption::RestAddress),
             "rest_port" => Ok(LndConfigOption::RestPort),
             "data_dir" => Ok(LndConfigOption::DataDir),
-            "network_dir" => Ok(LndConfigOption::NetworkDir),
             "cert_extra_ips" => Ok(LndConfigOption::CertExtraIps),
             "cert_extra_domains" => Ok(LndConfigOption::CertExtraDomains),
             "extra_config" => Ok(LndConfigOption::ExtraConfig),
@@ -130,7 +125,6 @@ impl fmt::Display for LndConfigOption {
             LndConfigOption::RestAddress => "rest_address",
             LndConfigOption::RestPort => "rest_port",
             LndConfigOption::DataDir => "data_dir",
-            LndConfigOption::NetworkDir => "network_dir",
             LndConfigOption::CertExtraIps => "cert_extra_ips",
             LndConfigOption::CertExtraDomains => "cert_extra_domains",
             LndConfigOption::ExtraConfig => "extra_config",
@@ -150,8 +144,7 @@ impl AppConfig for LightningNetworkDaemonService {
             OptionData::Port(self.rpc_port.clone()),
             OptionData::NetAddress(self.rest_address.clone()),
             OptionData::Port(self.rest_port.clone()),
-            OptionData::TextEdit(self.data_dir.clone()),
-            OptionData::TextEdit(self.network_dir.clone()),
+            //OptionData::TextEdit(self.data_dir.clone()),
             //OptionData::IpList(self.cert_extra_ips.clone()),
             //OptionData::TextList(self.cert_extra_domains.clone()),
             OptionData::TextEdit(self.extra_config.clone()),
@@ -218,12 +211,6 @@ impl AppConfig for LightningNetworkDaemonService {
                     if let OptionDataChangeNotification::TextEdit(val) = option {
                         res = Ok(self.data_dir.value() != val.value);
                         self.data_dir.set_value(val.value.clone());
-                    }
-                }
-                LndConfigOption::NetworkDir => {
-                    if let OptionDataChangeNotification::TextEdit(val) = option {
-                        res = Ok(self.network_dir.value() != val.value);
-                        self.network_dir.set_value(val.value.clone());
                     }
                 }
                 LndConfigOption::CertExtraIps => {
@@ -323,13 +310,6 @@ impl Default for LightningNetworkDaemonService {
                 false,
                 "/var/lib/lnd".to_string(),
             )),
-            network_dir: Box::new(TextOptionData::new(
-                LndConfigOption::NetworkDir.to_option_id(),
-                "${cfg.lnd.dataDir}/chain/bitcoin/${cfg.bitcoind.network}".to_string(),
-                1,
-                false,
-                "${cfg.lnd.dataDir}/chain/bitcoin/${cfg.bitcoind.network}".to_string(),
-            )),
             cert_extra_ips: Box::new(Vec::new()),
             cert_extra_domains: Box::new(Vec::new()),
             extra_config: Box::new(TextOptionData::new(
@@ -388,10 +368,9 @@ impl LightningNetworkDaemonService {
             ("rest_address", self.rest_address.to_nix_string(false)),
             ("rest_port", format!("{}", self.rest_port.value())),
             ("data_dir", self.data_dir.value().to_string()),
-            ("network_dir", self.network_dir.value().to_string()),
             (
                 // TODO: implement me
-                "extra_ips",
+                "cert_extra_ips",
                 self.cert_extra_ips
                     .iter()
                     .map(|s| s.to_nix_string(true).to_string())
@@ -399,7 +378,7 @@ impl LightningNetworkDaemonService {
                     .join("\n"),
             ),
             (
-                "extra_domains",
+                "cert_extra_domains",
                 self.cert_extra_domains
                     .iter()
                     .map(|s| format!("\"{}\"", s.value()))
@@ -489,13 +468,6 @@ mod tests {
                 1,
                 false,
                 "/tmp/testing/lnd".to_string(),
-            )),
-            network_dir: Box::new(TextOptionData::new(
-                LndConfigOption::NetworkDir.to_option_id(),
-                "/mnt/hdd/somewhere".to_string(),
-                1,
-                false,
-                "/mnt/hdd/somewhere".to_string(),
             )),
             cert_extra_ips: Box::new(vec![
                 NetAddressOptionData::new(
@@ -616,20 +588,22 @@ mod tests {
             assert!(&data.contains_key(TEMPLATE_FILE_NAME));
             let data = &data[TEMPLATE_FILE_NAME];
             assert!(data.contains(&format!("enable = {};", s.enable.value())));
-            assert!(data.contains(&format!("address = {};", s.address.to_nix_string(true))));
+            assert!(data.contains(&format!(
+                "address = \"{}\";",
+                s.address.to_nix_string(false)
+            )));
             assert!(data.contains(&format!("port = {};", s.port.value())));
             assert!(data.contains(&format!(
-                "rpcAddress = {};",
-                s.rpc_address.to_nix_string(true)
+                "rpcAddress = \"{}\";",
+                s.rpc_address.to_nix_string(false)
             )));
             assert!(data.contains(&format!("rpcPort = {};", s.rpc_port.value())));
             assert!(data.contains(&format!(
-                "restAddress = {};",
-                s.rest_address.to_nix_string(true)
+                "restAddress = \"{}\";",
+                s.rest_address.to_nix_string(false)
             )));
             assert!(data.contains(&format!("restPort = {};", s.rest_port.value())));
-            assert!(data.contains(&format!("dataDir = \"{}\";", s.data_dir.value())));
-            assert!(data.contains(&format!("networkDir = \"{}\";", s.network_dir.value())));
+            assert!(data.contains(&format!("dataDir = {};", s.data_dir.value())));
             s.cert_extra_ips
                 .iter()
                 .for_each(|ip| assert!(data.contains(&format!("\"{}\"", ip.to_nix_string(false)))));

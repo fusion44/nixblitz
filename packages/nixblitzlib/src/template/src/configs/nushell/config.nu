@@ -798,14 +798,17 @@ alias ports = netstat -tulanp
 alias readlink = readlink -f
 alias apijournal = journalctl -u blitz-api.service
 alias apijournalf = journalctl -u blitz-api.service -f
+alias apijournalenvservice = journalctl -u blitz-api-setup-env.service
+alias apijournalenvservicef = journalctl -u blitz-api-setup-env.service
 alias apibatdotenv = sudo bat /var/lib/blitz_api/.env
-alias nginxjournalf = journalctl -u nginx.service -f -n 50
 alias bitcoindjournal = journalctl -u bitcoind.service
 alias bitcoindjournalf = journalctl -u bitcoind.service -f
 alias bitcoindbatcfg = sudo bat /var/lib/bitcoind/bitcoin.conf
 
+alias nginxjournal = journalctl -u nginx.service
+alias nginxjournalf = journalctl -u nginx.service -f -n 50
 # Prints the current nginx.conf file in use using the bat command
-def batnginxconf [] {
+def nginxbatconf [] {
   let res = open /etc/systemd/system/nginx.service
   $res | split row "\n" | where { str starts-with 'ExecStart=/nix/store' } | first | split row "'" | get 1 | bat $in
 }
@@ -823,11 +826,9 @@ def regsend [
   bitcoin-cli -named -regtest sendtoaddress address="$address" amount=$amount fee_rate=100
 }
 
-# [regtest] Generates regtest blocks 
+# [regtest] Generates regtest blocks
 def reggen [
   num_blocks: int=10 # The number of blocks to generate
   ] {
   bitcoin-cli -generate $num_blocks
 }
-
-

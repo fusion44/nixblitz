@@ -21,6 +21,7 @@
             qemu
             just
             nushell
+            statix
           ];
         };
     });

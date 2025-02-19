@@ -24,8 +24,8 @@ use crate::{
     utils::{update_file, BASE_TEMPLATE},
 };
 
-pub const TEMPLATE_FILE_NAME: &str = "src/apps/cln.nix.templ";
-pub const JSON_FILE_NAME: &str = "src/apps/cln.json";
+pub const TEMPLATE_FILE_NAME: &str = "src/btc/cln.nix.templ";
+pub const JSON_FILE_NAME: &str = "src/btc/cln.json";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct CoreLightningService {
@@ -394,14 +394,14 @@ impl CoreLightningService {
                 "always_use_proxy",
                 format!("{}", self.always_use_proxy.value()),
             ),
-            ("data_dir", format!("\"{}\"", self.data_dir.value())),
-            ("wallet", format!("\"{}\"", self.wallet.value())),
+            ("data_dir", self.data_dir.to_nix_string(false)),
+            ("wallet", self.wallet.to_nix_string(false)),
             ("extra_config", self.extra_config.value().to_string()),
-            ("user", format!("\"{}\"", self.user.value())),
-            ("group", format!("\"{}\"", self.group.value())),
+            ("user", self.user.to_nix_string(false)),
+            ("group", self.group.to_nix_string(false)),
             (
                 "get_public_address_cmd",
-                format!("\"{}\"", self.get_public_address_cmd.value()),
+                self.get_public_address_cmd.to_nix_string(false),
             ),
         ]);
 
@@ -503,10 +503,10 @@ mod tests {
             )),
             get_public_address_cmd: Box::new(TextOptionData::new(
                 ClnConfigOption::GetPublicAddressCmd.to_option_id(),
-                "".to_string(),
+                "this is a command".to_string(),
                 1,
                 false,
-                "".to_string(),
+                "this is a command".to_string(),
             )),
         }
     }
@@ -594,18 +594,21 @@ mod tests {
             assert!(&data.contains_key(TEMPLATE_FILE_NAME));
             let data = &data[TEMPLATE_FILE_NAME];
             assert!(data.contains(&format!("enable = {};", s.enable.value())));
-            assert!(data.contains(&format!("address = {};", s.address.to_nix_string(true))));
+            assert!(data.contains(&format!(
+                "address = \"{}\";",
+                s.address.to_nix_string(false)
+            )));
             assert!(data.contains(&format!("port = {};", s.port.value())));
-            assert!(data.contains(&format!("dataDir = \"{}\";", s.data_dir.value())));
+            assert!(data.contains(&format!("dataDir = {};", s.data_dir.value())));
             s.extra_config
                 .value()
                 .lines()
                 .for_each(|line| assert!(data.contains(line)));
-            assert!(data.contains(&format!("user = \"{}\";", s.user.value())));
-            assert!(data.contains(&format!("group = \"{}\";", s.group.value())));
+            assert!(data.contains(&format!("user = \"{}\";", s.user.to_nix_string(false))));
+            assert!(data.contains(&format!("group = \"{}\";", s.group.to_nix_string(false))));
             assert!(data.contains(&format!(
                 "getPublicAddressCmd = \"{}\";",
-                s.get_public_address_cmd.value()
+                s.get_public_address_cmd.to_nix_string(false)
             )));
         } else if let Err(e) = &result {
             println!("{}", e);
