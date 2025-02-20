@@ -36,6 +36,8 @@ pub enum CliError {
     OptionTypeMismatch(String, String),
     #[error("{}", .0 )]
     StringParseError(String),
+    #[error("{}", .0 )]
+    UnableCanonicalizeWorkDir(String),
 }
 
 pub fn init_error_handlers() {
