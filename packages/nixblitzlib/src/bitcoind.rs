@@ -613,10 +613,7 @@ impl BitcoinDaemonService {
             ),
             (
                 "zmqpubrawtx",
-                format!(
-                    "\"tcp://{}:28333\"",
-                    self.zmqpubrawblock.to_nix_string(false)
-                ),
+                format!("\"tcp://{}:28333\"", self.zmqpubrawtx.to_nix_string(false)),
             ),
         ]);
 
@@ -1217,6 +1214,10 @@ pub mod tests {
     users = {{
       dsfsdf = {{passwordHMAC = "rpc_user1";}};
       owieru = {{passwordHMAC = "rpc_user2";}};
+      "public" = {{
+        name = "public";
+        passwordHMAC = "4ce7bb39c206211e9e601615a2deb379$9fe8f6e710c87d471dee7649dc47f596766892a89c71a18506d616b0111c27ce";
+      }};
     }};
   }};
 "#,
@@ -1224,11 +1225,11 @@ pub mod tests {
             d.rpc_port.value().to_string_or("8332")
         )));
         assert!(nix_str.contains(&format!(
-            "zmqpubrawblock = \"{}\";",
+            "zmqpubrawblock = \"tcp://{}:28332\";",
             d.zmqpubrawblock.to_nix_string(false)
         )));
         assert!(nix_str.contains(&format!(
-            "zmqpubrawtx = \"{}\";",
+            "zmqpubrawtx = \"tcp://{}:28333\";",
             d.zmqpubrawtx.to_nix_string(false)
         )));
     }

@@ -603,7 +603,7 @@ mod tests {
                 s.rest_address.to_nix_string(false)
             )));
             assert!(data.contains(&format!("restPort = {};", s.rest_port.value())));
-            assert!(data.contains(&format!("dataDir = {};", s.data_dir.value())));
+            assert!(data.contains(&format!("dataDir = \"{}\";", s.data_dir.value())));
             s.cert_extra_ips
                 .iter()
                 .for_each(|ip| assert!(data.contains(&format!("\"{}\"", ip.to_nix_string(false)))));
