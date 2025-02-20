@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use cli_log::error;
 use error_stack::Result;
+use log::error;
 
 use crate::{
     app::App,

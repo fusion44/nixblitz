@@ -18,11 +18,12 @@ use crate::{
     constants::FocusableComponent,
     errors::CliError,
 };
-use cli_log::{error, warn};
+
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::{Report, Result, ResultExt};
 
 use indexmap::IndexMap;
+use log::{error, warn};
 use nixblitzlib::{
     app_option_data::option_data::{GetOptionId, OptionData},
     apps::SupportedApps,

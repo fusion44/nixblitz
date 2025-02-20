@@ -14,6 +14,7 @@ use crossterm::{
 };
 use error_stack::{Report, Result, ResultExt};
 use futures::{FutureExt, StreamExt};
+use log::{info, trace};
 use ratatui::backend::CrosstermBackend as Backend;
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -55,11 +56,17 @@ pub struct Tui {
 
 impl Tui {
     pub fn new() -> Result<Self, CliError> {
+        trace!("Initializing TUI");
         let (event_tx, event_rx) = mpsc::unbounded_channel();
+
+        trace!("Creating terminal backend");
+        let terminal = ratatui::Terminal::new(Backend::new(stdout()))
+            .attach_lazy(|| "Unable to open Ratatui terminal")
+            .change_context(CliError::Unknown)?;
+
+        info!("TUI initialization complete");
         Ok(Self {
-            terminal: ratatui::Terminal::new(Backend::new(stdout()))
-                .attach_lazy(|| "Unable to open Ratatui terminal")
-                .change_context(CliError::Unknown)?,
+            terminal,
             task: tokio::spawn(async {}),
             cancellation_token: CancellationToken::new(),
             event_rx,

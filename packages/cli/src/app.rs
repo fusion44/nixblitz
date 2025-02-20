@@ -1,8 +1,8 @@
 use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
 
-use cli_log::{error, trace};
 use crossterm::event::KeyEvent;
 use error_stack::{Report, Result, ResultExt};
+use log::{error, info, trace};
 use nixblitzlib::project::Project;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
@@ -75,11 +75,15 @@ enum ComponentIndex {
 
 impl App {
     pub fn new(tick_rate: f64, frame_rate: f64, work_dir: PathBuf) -> Result<Self, CliError> {
+        trace!("Creating new App instance");
         let project =
             Project::load(work_dir).change_context(CliError::UnableToInitProjectStruct)?;
         let project = Rc::new(RefCell::new(project));
+        info!("Project loaded successfully");
 
         let (action_tx, action_rx) = mpsc::unbounded_channel();
+
+        info!("Initializing UI components");
         let mut map: HashMap<ComponentIndex, Box<dyn Component>> = HashMap::new();
         map.insert(
             ComponentIndex::Title,
@@ -96,16 +100,21 @@ impl App {
         map.insert(ComponentIndex::SettingsPage, Box::new(SettingsPage::new()));
         map.insert(ComponentIndex::ActionsPage, Box::new(ActionsPage::new()));
         map.insert(ComponentIndex::HelpPage, Box::new(HelpPage::new()));
+        trace!("All UI components initialized");
 
+        trace!("Creating config");
+        let config = Config::new()
+            .attach_printable_lazy(|| "Unable to create new config")
+            .change_context(CliError::Unknown)?;
+
+        info!("App initialization complete");
         Ok(Self {
             tick_rate,
             frame_rate,
             components_map: map,
             should_quit: false,
             should_suspend: false,
-            config: Config::new()
-                .attach_printable_lazy(|| "Unable to create new config")
-                .change_context(CliError::Unknown)?,
+            config,
             mode: Mode::Home,
             last_tick_key_events: Vec::new(),
             action_tx,
@@ -120,14 +129,19 @@ impl App {
     }
 
     pub async fn run(&mut self) -> Result<(), CliError> {
+        info!("Running app");
         self.theme.borrow_mut().set_theme("pale-green", "dark")?;
 
+        trace!("Creating and configuring TUI");
         let mut tui = Tui::new()?
             .mouse(true)
             .tick_rate(self.tick_rate)
             .frame_rate(self.frame_rate);
+
+        trace!("Entering TUI alternate screen");
         tui.enter()?;
 
+        info!("Registering component handlers");
         for component in self.components_map.iter_mut() {
             component
                 .1
@@ -136,6 +150,8 @@ impl App {
         for component in self.components_map.iter_mut() {
             component.1.register_config_handler(self.config.clone())?;
         }
+
+        info!("Initializing component layouts");
         for component in self.components_map.iter_mut() {
             let size = tui
                 .size()
@@ -145,11 +161,13 @@ impl App {
             component.1.init(r)?;
         }
 
+        trace!("Entering main event loop");
         let action_tx = self.action_tx.clone();
         loop {
             self.handle_events(&mut tui).await?;
             self.handle_actions(&mut tui)?;
             if self.should_suspend {
+                trace!("Suspending TUI");
                 tui.suspend()?;
                 action_tx
                     .send(Action::Resume)
@@ -160,13 +178,16 @@ impl App {
                     .attach_printable_lazy(|| "Unable to send the clear screen action")
                     .change_context(CliError::Unknown)?;
 
-                // tui.mouse(true);
+                trace!("Re-entering TUI");
                 tui.enter()?;
             } else if self.should_quit {
+                info!("Quit signal received, stopping TUI");
                 tui.stop()?;
                 break;
             }
         }
+
+        info!("Exiting TUI and cleanup");
         tui.exit()?;
         Ok(())
     }

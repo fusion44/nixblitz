@@ -86,6 +86,7 @@ impl Project {
     /// This function will return an error if any of the configuration files
     /// cannot be loaded or parsed correctly.
     pub fn load(work_dir: PathBuf) -> Result<Self, ProjectError> {
+        log::info!("Loading project from work_dir: {work_dir:?}");
         let nix_path = work_dir.join(nix_base_config::JSON_FILE_NAME);
         let nix_base_config_json =
             load_json_file(&nix_path).change_context(ProjectError::ProjectLoadError)?;

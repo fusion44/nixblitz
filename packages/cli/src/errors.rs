@@ -1,7 +1,7 @@
 use std::panic;
 
-use cli_log::error;
 use error_stack::Report;
+use log::error;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

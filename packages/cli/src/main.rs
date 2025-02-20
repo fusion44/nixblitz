@@ -1,6 +1,5 @@
 use clap::Parser;
 use cli::Cli;
-use cli_log::init_cli_log;
 use commands::{init::init_default_project_cmd, tui::start_tui};
 use error_stack::Result;
 use errors::CliError;
@@ -15,15 +14,19 @@ mod components;
 mod config;
 mod constants;
 mod errors;
+mod logging;
 mod pages;
 mod tui;
 mod utils;
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
-    init_cli_log!();
 
     let cli = Cli::parse();
+
+    // Initialize logging with CLI args
+    logging::init_logging(&cli);
+
     match &cli.command {
         Some(commands::Commands::Tui {
             tick_rate,
