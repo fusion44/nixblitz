@@ -1,0 +1,10 @@
+{self, ...}: {
+  imports = [
+    ../configuration.common.nix
+  ];
+
+  boot.loader.generic-extlinux-compatible.enable = true;
+
+  networking.hostName = "{{ hostname }}";
+  raspberry-pi-nix.board = "bcm2712";
+}

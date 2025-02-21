@@ -121,10 +121,15 @@ pub struct NixBaseConfig {
     /// [nisos.org:networking.hostName](https://search.nixos.org/options?show=networking.hostName)
     pub hostname_vm: String,
 
-    /// Hostname of the system when started as a virtual machine
+    /// Hostname of the system when started on a PI4
     ///
     /// [nisos.org:networking.hostName](https://search.nixos.org/options?show=networking.hostName)
-    pub hostname_pi: String,
+    pub hostname_pi4: String,
+
+    /// Hostname of the system when started on a PI5
+    ///
+    /// [nisos.org:networking.hostName](https://search.nixos.org/options?show=networking.hostName)
+    pub hostname_pi5: String,
 }
 
 impl Default for NixBaseConfig {
@@ -177,7 +182,8 @@ impl Default for NixBaseConfig {
             ],
             ports: vec![22],
             hostname_vm: "nixblitzvm".to_string(),
-            hostname_pi: "nixblitzpi".to_string(),
+            hostname_pi4: "nixblitzpi4".to_string(),
+            hostname_pi5: "nixblitzpi5".to_string(),
         }
     }
 }
@@ -230,14 +236,15 @@ impl Display for NixBaseConfigOption {
     }
 }
 
-const _FILES: [&str; 3] = [
+const _FILES: [&str; 4] = [
     "src/configuration.common.nix.templ",
     "src/vm/configuration.nix.templ",
-    "src/pi/configuration.nix.templ",
+    "src/pi4/configuration.nix.templ",
+    "src/pi5/configuration.nix.templ",
 ];
 
 impl NixBaseConfigsTemplates {
-    fn files(&self) -> [&str; 3] {
+    fn files(&self) -> [&str; 4] {
         match self {
             NixBaseConfigsTemplates::Common => _FILES,
         }
@@ -268,7 +275,8 @@ impl NixBaseConfig {
         system_packages: Vec<String>,
         ports: Vec<usize>,
         hostname_vm: String,
-        hostname_pi: String,
+        hostname_pi4: String,
+        hostname_pi5: String,
     ) -> Self {
         Self {
             allow_unfree,
@@ -281,7 +289,8 @@ impl NixBaseConfig {
             system_packages,
             ports,
             hostname_vm,
-            hostname_pi,
+            hostname_pi4,
+            hostname_pi5,
         }
     }
 
@@ -358,8 +367,10 @@ impl NixBaseConfig {
                 ]);
             } else if file_name == "src/vm/configuration.nix.templ" {
                 data = HashMap::from([("hostname", self.hostname_vm.clone())]);
-            } else if file_name == "src/pi/configuration.nix.templ" {
-                data = HashMap::from([("hostname", self.hostname_pi.clone())]);
+            } else if file_name == "src/pi4/configuration.nix.templ" {
+                data = HashMap::from([("hostname", self.hostname_pi4.clone())]);
+            } else if file_name == "src/pi5/configuration.nix.templ" {
+                data = HashMap::from([("hostname", self.hostname_pi5.clone())]);
             } else {
                 Err(
                     Report::new(TemplatingError::FileNotFound(file_name.to_owned()))
@@ -643,7 +654,8 @@ mod tests {
             vec![String::from("bat"), String::from("yazi")],
             vec![22, 1337],
             "nixblitzvm".to_string(),
-            "nixblitzpi".to_string(),
+            "nixblitzpi4".to_string(),
+            "nixblitzpi5".to_string(),
         );
 
         let result = config.render(NixBaseConfigsTemplates::Common);
@@ -694,12 +706,21 @@ mod tests {
         )));
 
         #[allow(clippy::unnecessary_to_owned)]
-        let res_pi = texts.get(&templates.get(2).unwrap().to_string());
-        assert!(res_pi.is_some());
-        let res_pi = res_pi.unwrap();
+        let res_pi4 = texts.get(&templates.get(2).unwrap().to_string());
+        assert!(res_pi4.is_some());
+        let res_pi = res_pi4.unwrap();
         assert!(res_pi.contains(&format!(
             "networking.hostName = \"{}\";",
-            config.hostname_pi
+            config.hostname_pi4
+        )));
+
+        #[allow(clippy::unnecessary_to_owned)]
+        let res_pi5 = texts.get(&templates.get(3).unwrap().to_string());
+        assert!(res_pi5.is_some());
+        let res_pi = res_pi5.unwrap();
+        assert!(res_pi.contains(&format!(
+            "networking.hostName = \"{}\";",
+            config.hostname_pi5
         )));
     }
 

@@ -11,6 +11,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nixos-hardware.url = "github:nixos/nixos-hardware";
+    raspberry-pi-nix.url = "github:nix-community/raspberry-pi-nix";
   };
 
   outputs = {
@@ -22,6 +23,7 @@
     nixblitz,
     home-mgr,
     nixos-hardware,
+    raspberry-pi-nix,
     ...
   }: let
     name = "nixblitz";
@@ -38,21 +40,35 @@
       ];
     };
 
-    nixosConfigurations.nixblitzpi = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.nixblitzpi4 = nixpkgs.lib.nixosSystem {
       system = "aarch64-linux";
 
       modules = [
         home-mgr.nixosModules.home-manager
-        nixos-hardware.nixosModules.raspberry-pi-5
+        nixos-hardware.nixosModules.raspberry-pi-4
         "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
         nix-bitcoin.nixosModules.default
         blitz-api.nixosModules.default
         blitz-web.nixosModules.default
         nixblitz.nixosModules.default
-        ./pi/configuration.nix
+        ./pi4/configuration.nix
       ];
     };
 
+    nixosConfigurations.nixblitzpi5 = nixpkgs.lib.nixosSystem {
+      system = "aarch64-linux";
+
+      modules = [
+        home-mgr.nixosModules.home-manager
+        raspberry-pi-nix.nixosModules.raspberry-pi
+        "${nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64.nix"
+        nix-bitcoin.nixosModules.default
+        blitz-api.nixosModules.default
+        blitz-web.nixosModules.default
+        nixblitz.nixosModules.default
+        ./pi5/configuration.nix
+      ];
+    };
     overlays.overlays = {
       default = final: prev: {
         ${name} = self.packages.${prev.stdenv.hostPlatform.system}.${name};
@@ -60,7 +76,8 @@
     };
 
     images = {
-      pi = self.nixosConfigurations.nixblitzpi.config.system.build.sdImage;
+      pi4 = self.nixosConfigurations.nixblitzpi4.config.system.build.sdImage;
+      pi5 = self.nixosConfigurations.nixblitzpi5.config.system.build.sdImage;
     };
   };
 }
