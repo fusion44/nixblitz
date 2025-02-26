@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Subcommand;
 
 pub mod init;
+pub mod install;
 pub mod tui;
 
 #[derive(Debug, Subcommand)]
@@ -30,6 +31,11 @@ pub enum Commands {
         /// Whether to force overwrite existing files
         #[arg(short, long)]
         force: bool,
+    },
+    Install {
+        /// The working directory to operate on
+        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        work_dir: PathBuf,
     },
     /// Analyze the project for common problems
     Doctor {},

@@ -17,6 +17,10 @@ format:
   alejandra	.
   cd {{rust_src}}; cargo fmt
 
+# inside the test vm: sync from shared folder to dev
+sync-src-temp:
+  rsync -av --exclude='target/' --exclude='.git' --exclude='result' /mnt/shared/ /home/nixos/dev
+
 # Run lints and checks; Pass -f to apply auto fix where possible
 lint fix="":
   #!/usr/bin/env nu

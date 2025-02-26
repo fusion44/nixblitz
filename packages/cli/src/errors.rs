@@ -38,6 +38,8 @@ pub enum CliError {
     StringParseError(String),
     #[error("{}", .0 )]
     UnableCanonicalizeWorkDir(String),
+    #[error("Error while running command: {}\nError: {}", .0,.1 )]
+    CommandError(String, String),
 }
 
 pub fn init_error_handlers() {

@@ -39,6 +39,8 @@ log = "0.4.25"
 fern = "0.7.1"
 indexmap = "2.7.0"
 chrono = "0.4.39"
+sysinfo = "0.33.1"
+inquire = "0.7.5"
 
 [build-dependencies]
 vergen = { version = "8.2.6", features = [ "build", "git", "gitoxide", "cargo" ]}

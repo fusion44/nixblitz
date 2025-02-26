@@ -8,6 +8,8 @@ in {
     ./nix-bitcoin/secure-node.nix
     ./blitz.nix
     ./btc.nix
+    "${builtins.fetchTarball "https://github.com/nix-community/disko/archive/master.tar.gz"}/module.nix"
+    ./disko-config.nix
   ];
 
   boot.loader.grub.enable = false;
