@@ -7,6 +7,7 @@ use std::{
 
 use error_stack::{Report, Result, ResultExt};
 use include_dir::{include_dir, Dir};
+use log::info;
 
 use crate::{
     bitcoind::BitcoinDaemonService,
@@ -217,6 +218,8 @@ fn render_template_files(
             _create_blitz_api_files(work_dir, force)?;
         } else if filename == "web.nix" {
             _create_blitz_webui_files(work_dir, force)?;
+        } else {
+            info!("Unknown template file: {}", filename);
         }
     }
 
