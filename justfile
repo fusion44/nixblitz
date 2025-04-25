@@ -85,3 +85,47 @@ rsync target:
     let cmd = $data.user + "@" + $data.host + ":" + $data.path
     rsync -rvz --exclude .git --exclude docs/ --exclude packages/target/ . $cmd
   }
+
+build-installer:
+  #!/usr/bin/env nu
+  nix build --option distributed-builds false './installer#nixosConfigurations.nixblitzx86installer.config.system.build.isoImage'
+
+
+run-installer-vm target='default':
+  #!/usr/bin/env nu
+  if not ('result/iso' | path exists) {
+    print "Iso file not found. Run 'just build-installer' first."
+    exit 1
+  }
+
+  let iso_name = ls result/iso | first | get name
+
+  if not ('nixblitz-disk.qcow2' | path exists) {
+    try {
+      print "Enter the size of the image in GB:"
+      let res = input | into int
+      print $"Creating image file 'nixblitz-disk.qcow2' with ($res)G."
+      qemu-img create -f qcow2 nixblitz-disk.qcow2 $'($res)G'
+    } catch {
+      print "Input must be a number."
+      exit 1
+    }
+  }
+
+  if ("{{target}}" == "default" or "{{target}}" == "single") {
+    print "Running installer VM with a single virtio disk"
+    (qemu-system-x86_64 -enable-kvm -m 16384 -smp 4
+      -netdev user,id=mynet0,hostfwd=tcp::10022-:22
+      -device virtio-net-pci,netdev=mynet0
+      -drive file=nixblitz-disk.qcow2,if=none,id=virtio0,format=qcow2
+      -device virtio-blk-pci,drive=virtio0
+      -cdrom $iso_name)
+  } else if ("{{target}}" == "dual") {
+    print "Running installer with a local disk and usb attached disk"
+  } else {
+    print "Unknown target '{{target}}'. Valid targets are 'default', 'single' and 'dual'."
+  }
+
+run-installed-vm:
+  #!/usr/bin/env nu
+  nu installer/tools/run_vm.nu

@@ -11,3 +11,6 @@ result
 packages/cli/target
 packages/target
 packages/nixblitz.log
+
+*qcow2*
+*OVMF*
