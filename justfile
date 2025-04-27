@@ -86,9 +86,40 @@ rsync target:
     rsync -rvz --exclude .git --exclude docs/ --exclude packages/target/ . $cmd
   }
 
-build-installer:
+build-installer verbosity="normal":
   #!/usr/bin/env nu
-  nix build --option distributed-builds false './installer#nixosConfigurations.nixblitzx86installer.config.system.build.isoImage'
+  let has_untracked_files = (
+    try {
+        git status --porcelain=v1 | lines | where { |it| $it | str starts-with "?? packages" } | is-not-empty
+    } catch {
+        # If git status fails, assume there might be issues (treat as "changes found")
+        true
+    }
+  )
+
+  if $has_untracked_files {
+    # Nix builds the CLI and runs tests, but skips untracked git files,
+    # causing potential build failures if templates are missing.
+    print -e $"\e[33m\u{26A0} Warning: You have unstaged changes or untracked files. Build and tests may fail.\e[0m"
+  }
+
+  if ("{{verbosity}}" == "verbose") {
+    print "Building installer ISO image with verbosity level '{{verbosity}}'"
+    (
+      nix build
+        -L
+        --no-update-lock-file
+        './installer#nixosConfigurations.nixblitzx86installer.config.system.build.isoImage'
+    )
+  } else {
+    print "Building installer ISO image with verbosity level '{{verbosity}}'"
+    (
+      nix build
+        --no-update-lock-file
+        './installer#nixosConfigurations.nixblitzx86installer.config.system.build.isoImage'
+    )
+  }
+
 
 
 run-installer-vm target='default':

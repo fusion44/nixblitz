@@ -2,9 +2,8 @@
   "nodes": {
     "blitz-api": {
       "inputs": {
-        "flake-utils": "flake-utils_2",
+        "flake-utils": "flake-utils",
         "nixpkgs": [
-          "targetSystem",
           "nixpkgs"
         ],
         "poetry2nix": "poetry2nix"
@@ -26,9 +25,8 @@
     },
     "blitz-web": {
       "inputs": {
-        "flake-utils": "flake-utils_4",
+        "flake-utils": "flake-utils_3",
         "nixpkgs": [
-          "targetSystem",
           "nixpkgs"
         ]
       },
@@ -47,36 +45,13 @@
         "type": "github"
       }
     },
-    "disko": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1736864502,
-        "narHash": "sha256-ItkIZyebGvNH2dK9jVGzJHGPtb6BSWLN8Gmef16NeY0=",
-        "owner": "nix-community",
-        "repo": "disko",
-        "rev": "0141aabed359f063de7413f80d906e1d98c0c123",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-community",
-        "ref": "latest",
-        "repo": "disko",
-        "type": "github"
-      }
-    },
     "extra-container": {
       "inputs": {
         "flake-utils": [
-          "targetSystem",
           "nix-bitcoin",
           "flake-utils"
         ],
         "nixpkgs": [
-          "targetSystem",
           "nix-bitcoin",
           "nixpkgs"
         ]
@@ -119,11 +94,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1731533236,
-        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "lastModified": 1726560853,
+        "narHash": "sha256-X6rJYSESBVr3hBoH0WbKE5KvhPU5bloyZ2L4K60/fPQ=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "rev": "c1dfcf08411b08f6b8615f7d8971a2bfa81d5e8a",
         "type": "github"
       },
       "original": {
@@ -134,14 +109,14 @@
     },
     "flake-utils_3": {
       "inputs": {
-        "systems": "systems_3"
+        "systems": "systems_4"
       },
       "locked": {
-        "lastModified": 1726560853,
-        "narHash": "sha256-X6rJYSESBVr3hBoH0WbKE5KvhPU5bloyZ2L4K60/fPQ=",
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "c1dfcf08411b08f6b8615f7d8971a2bfa81d5e8a",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
         "type": "github"
       },
       "original": {
@@ -186,28 +161,9 @@
         "type": "github"
       }
     },
-    "flake-utils_6": {
-      "inputs": {
-        "systems": "systems_7"
-      },
-      "locked": {
-        "lastModified": 1731533236,
-        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "type": "github"
-      }
-    },
     "home-mgr": {
       "inputs": {
         "nixpkgs": [
-          "targetSystem",
           "nixpkgs"
         ]
       },
@@ -262,9 +218,8 @@
     "nix-bitcoin": {
       "inputs": {
         "extra-container": "extra-container",
-        "flake-utils": "flake-utils_5",
+        "flake-utils": "flake-utils_4",
         "nixpkgs": [
-          "targetSystem",
           "nixpkgs"
         ],
         "nixpkgs-unstable": "nixpkgs-unstable"
@@ -286,7 +241,6 @@
     "nix-github-actions": {
       "inputs": {
         "nixpkgs": [
-          "targetSystem",
           "blitz-api",
           "poetry2nix",
           "nixpkgs"
@@ -308,26 +262,8 @@
     },
     "nixblitz": {
       "inputs": {
-        "flake-utils": "flake-utils",
+        "flake-utils": "flake-utils_5",
         "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "path": "..",
-        "type": "path"
-      },
-      "original": {
-        "path": "..",
-        "type": "path"
-      },
-      "parent": []
-    },
-    "nixblitz_2": {
-      "inputs": {
-        "flake-utils": "flake-utils_6",
-        "nixpkgs": [
-          "targetSystem",
           "nixpkgs"
         ]
       },
@@ -347,21 +283,6 @@
       }
     },
     "nixos-hardware": {
-      "locked": {
-        "lastModified": 1745503349,
-        "narHash": "sha256-bUGjvaPVsOfQeTz9/rLTNLDyqbzhl0CQtJJlhFPhIYw=",
-        "owner": "nixos",
-        "repo": "nixos-hardware",
-        "rev": "f7bee55a5e551bd8e7b5b82c9bc559bc50d868d1",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nixos",
-        "repo": "nixos-hardware",
-        "type": "github"
-      }
-    },
-    "nixos-hardware_2": {
       "locked": {
         "lastModified": 1745503349,
         "narHash": "sha256-bUGjvaPVsOfQeTz9/rLTNLDyqbzhl0CQtJJlhFPhIYw=",
@@ -410,14 +331,13 @@
     },
     "poetry2nix": {
       "inputs": {
-        "flake-utils": "flake-utils_3",
+        "flake-utils": "flake-utils_2",
         "nix-github-actions": "nix-github-actions",
         "nixpkgs": [
-          "targetSystem",
           "blitz-api",
           "nixpkgs"
         ],
-        "systems": "systems_4",
+        "systems": "systems_3",
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
@@ -439,7 +359,6 @@
         "libcamera-src": "libcamera-src",
         "libpisp-src": "libpisp-src",
         "nixpkgs": [
-          "targetSystem",
           "nixpkgs"
         ],
         "rpi-bluez-firmware-src": "rpi-bluez-firmware-src",
@@ -466,11 +385,14 @@
     },
     "root": {
       "inputs": {
-        "disko": "disko",
+        "blitz-api": "blitz-api",
+        "blitz-web": "blitz-web",
+        "home-mgr": "home-mgr",
+        "nix-bitcoin": "nix-bitcoin",
         "nixblitz": "nixblitz",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs",
-        "targetSystem": "targetSystem"
+        "raspberry-pi-nix": "raspberry-pi-nix"
       }
     },
     "rpi-bluez-firmware-src": {
@@ -682,48 +604,9 @@
         "type": "github"
       }
     },
-    "systems_7": {
-      "locked": {
-        "lastModified": 1681028828,
-        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
-        "owner": "nix-systems",
-        "repo": "default",
-        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-systems",
-        "repo": "default",
-        "type": "github"
-      }
-    },
-    "targetSystem": {
-      "inputs": {
-        "blitz-api": "blitz-api",
-        "blitz-web": "blitz-web",
-        "home-mgr": "home-mgr",
-        "nix-bitcoin": "nix-bitcoin",
-        "nixblitz": "nixblitz_2",
-        "nixos-hardware": "nixos-hardware_2",
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "raspberry-pi-nix": "raspberry-pi-nix"
-      },
-      "locked": {
-        "path": "./nix_store_cfg",
-        "type": "path"
-      },
-      "original": {
-        "path": "./nix_store_cfg",
-        "type": "path"
-      },
-      "parent": []
-    },
     "treefmt-nix": {
       "inputs": {
         "nixpkgs": [
-          "targetSystem",
           "blitz-api",
           "poetry2nix",
           "nixpkgs"

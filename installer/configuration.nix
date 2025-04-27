@@ -1,10 +1,12 @@
 {
   lib,
   pkgs,
+  inputs,
   ...
 }: let
   user = "nixos";
   isoLabel = "NIXBLITZ";
+  targetSystemConfig = inputs.targetSystem.nixosConfigurations.nixblitzx86vm;
 in {
   boot.loader.grub.enable = false;
 
@@ -13,19 +15,29 @@ in {
   i18n.defaultLocale = "en_US.utf8";
 
   system.nixos.label = isoLabel;
-  isoImage.volumeID = isoLabel;
   boot.kernelParams = ["iso_label=${isoLabel}"];
-
-  nix = {
-    distributedBuilds = true;
-
-    settings = {
-      builders-use-substitutes = true;
-      auto-optimise-store = true;
-      experimental-features = "nix-command flakes";
-    };
+  isoImage = {
+    volumeID = isoLabel;
+    storeContents = [targetSystemConfig.config.system.build.toplevel];
   };
 
+  nix = {
+    settings = {
+      experimental-features = "nix-command flakes";
+      # TODO: fix this
+      # uncommenting this will force the installer to use the local nix store only,
+      # problem at the moment is that some paths are not included in the storeContents
+      # builders-use-substitutes = false;
+      # substituters = lib.mkForce [];
+
+      # extra-trusted-substituters = [
+      #   "http://192.168.8.202/cache"
+      # ];
+      # extra-trusted-public-keys = [
+      #   "localhost:YYTdZJwWoH5/wtNI1gxWkpG0wRz0Kgpeo/fCfGnqlj4="
+      # ];
+    };
+  };
   console = {
     font = "Lat2-Terminus16";
     useXkbConfig = true;
@@ -42,6 +54,7 @@ in {
     neovim
     lazygit
     ripgrep
+    bandwhich
     superfile
     nixos-anywhere
   ];
@@ -76,7 +89,10 @@ in {
       wantedBy = ["multi-user.target"];
       serviceConfig.Type = "oneshot";
       script = ''
+        BLITZ_CONFIG_PATH="/home/${user}/config"
+
         FILE="/home/${user}/.bash_profile"
+
         cat <<EOL > "$FILE"
         clear
         # https://patorjk.com/software/taag/#p=display&f=Epic&t=NixBlitz
@@ -88,13 +104,15 @@ in {
         echo '  |_| \_|_/_/\_\____/|_|_|\__/___|'
         echo ""
 
-        alias build_nixblitz="sudo nix build --no-update-lock-file --max-jobs 0 '/home/${user}/config/src#nixosConfigurations.nixblitzx86vm.config.system.build.toplevel'"
+        alias build_nixblitz="sudo nix build -vvv --no-update-lock-file --max-jobs 0 '$BLITZ_CONFIG_PATH/src#nixosConfigurations.nixblitzx86vm.config.system.build.toplevel'"
         alias inst_nixblitz_vda="sudo disko-install --flake '/home/${user}/config/src#nixblitzx86vm' --disk main /dev/vda"
+        alias test_remote_build="sudo ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i /root/.ssh/remotebuild remotebuild@192.168.8.202"
+        alias sync_config="sudo mkdir -p /mnt/data && sudo mount /dev/vda3 /mnt/data && sudo rsync -av --delete /home/${user}/config/ /mnt/data/config"
 
         if [ ! -d "config" ]; then
-          nixblitz init -w config
+          nixblitz init -w $BLITZ_CONFIG_PATH
         fi
-        nixblitz install
+        nixblitz install -w $BLITZ_CONFIG_PATH
         EOL
 
         chown "${user}":"users" "$FILE"
