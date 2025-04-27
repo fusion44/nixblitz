@@ -8,8 +8,11 @@ in {
     ./nix-bitcoin/secure-node.nix
     ./blitz.nix
     ./btc.nix
-    "${builtins.fetchTarball "https://github.com/nix-community/disko/archive/master.tar.gz"}/module.nix"
-    ./disko-config.nix
+    "${builtins.fetchTarball {
+      url = "https://github.com/nix-community/disko/archive/refs/tags/v1.11.0.tar.gz";
+      sha256 = "sha256:13brimg7z7k9y36n4jc1pssqyw94nd8qvgfjv53z66lv4xkhin92";
+    }}/module.nix"
+    ./disko-config-single-disk.nix
   ];
 
   boot.loader.grub.enable = false;
@@ -18,9 +21,19 @@ in {
   time.timeZone = "{{ time_zone }}";
   i18n.defaultLocale = "{{ default_locale }}";
 
-  nix.extraOptions = ''
-    experimental-features = nix-command flakes
-  '';
+  nix = {
+    settings = {
+      experimental-features = "nix-command flakes";
+      auto-optimise-store = true;
+
+      extra-trusted-substituters = [
+        "http://192.168.8.202/cache"
+      ];
+      extra-trusted-public-keys = [
+        "localhost:YYTdZJwWoH5/wtNI1gxWkpG0wRz0Kgpeo/fCfGnqlj4="
+      ];
+    };
+  };
 
   console = {
     font = "Lat2-Terminus16";

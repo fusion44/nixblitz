@@ -758,15 +758,12 @@ $env.config = {
 
 # rebuild the system
 def rebuild [
-  --rmlock # deletes the flake.lock file
+  --update # updates the system
 ] {
-  # for some reason we have to reset the git repos in the source folders sometimes
-  rm -rf ~/dev/web/.git; rm -rf ~/dev/api/.git; cd ~/dev/api/; git init .; git add --all; cd ~/dev/web; git init .; git add --all;
+  let hostname = sys host | get hostname
+  cd ~/src/
 
-  let hostname = sys | get host.hostname
-  cd ~/dev/sys/
-
-  if $rmlock {
+  if $update {
     rm -f flake.lock
   }
 
@@ -789,6 +786,7 @@ def get_api_login_pw [] {
     | get 1
 }
 
+alias sudo = doas
 alias cp = cp -i
 alias ll = ls -l
 alias lla = ls -la

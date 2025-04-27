@@ -130,6 +130,11 @@ pub struct NixBaseConfig {
     ///
     /// [nisos.org:networking.hostName](https://search.nixos.org/options?show=networking.hostName)
     pub hostname_pi5: String,
+
+    /// Hostname of the system when started on an X86 machine
+    ///
+    /// [nisos.org:networking.hostName](https://search.nixos.org/options?show=networking.hostName)
+    pub hostname_x86: String,
 }
 
 impl Default for NixBaseConfig {
@@ -184,6 +189,7 @@ impl Default for NixBaseConfig {
             hostname_vm: "nixblitzvm".to_string(),
             hostname_pi4: "nixblitzpi4".to_string(),
             hostname_pi5: "nixblitzpi5".to_string(),
+            hostname_x86: "nixblitzx86".to_string(),
         }
     }
 }
@@ -236,15 +242,16 @@ impl Display for NixBaseConfigOption {
     }
 }
 
-const _FILES: [&str; 4] = [
+const _FILES: [&str; 5] = [
     "src/configuration.common.nix.templ",
     "src/vm/configuration.nix.templ",
     "src/pi4/configuration.nix.templ",
     "src/pi5/configuration.nix.templ",
+    "src/x86/configuration.nix.templ",
 ];
 
 impl NixBaseConfigsTemplates {
-    fn files(&self) -> [&str; 4] {
+    fn files(&self) -> [&str; 5] {
         match self {
             NixBaseConfigsTemplates::Common => _FILES,
         }
@@ -277,6 +284,7 @@ impl NixBaseConfig {
         hostname_vm: String,
         hostname_pi4: String,
         hostname_pi5: String,
+        hostname_x86: String,
     ) -> Self {
         Self {
             allow_unfree,
@@ -291,6 +299,7 @@ impl NixBaseConfig {
             hostname_vm,
             hostname_pi4,
             hostname_pi5,
+            hostname_x86,
         }
     }
 
@@ -371,6 +380,8 @@ impl NixBaseConfig {
                 data = HashMap::from([("hostname", self.hostname_pi4.clone())]);
             } else if file_name == "src/pi5/configuration.nix.templ" {
                 data = HashMap::from([("hostname", self.hostname_pi5.clone())]);
+            } else if file_name == "src/x86/configuration.nix.templ" {
+                data = HashMap::from([("hostname", self.hostname_x86.clone())]);
             } else {
                 Err(
                     Report::new(TemplatingError::FileNotFound(file_name.to_owned()))
@@ -656,6 +667,7 @@ mod tests {
             "nixblitzvm".to_string(),
             "nixblitzpi4".to_string(),
             "nixblitzpi5".to_string(),
+            "nixblitzx86".to_string(),
         );
 
         let result = config.render(NixBaseConfigsTemplates::Common);
@@ -721,6 +733,16 @@ mod tests {
         assert!(res_pi.contains(&format!(
             "networking.hostName = \"{}\";",
             config.hostname_pi5
+        )));
+
+        #[allow(clippy::unnecessary_to_owned)]
+        let res_x86 = texts.get(&templates.get(4).unwrap().to_string());
+        assert!(res_x86.is_some());
+        let res_x86 = res_x86.unwrap();
+        println!("{res_x86}");
+        assert!(res_x86.contains(&format!(
+            "networking.hostName = \"{}\";",
+            config.hostname_x86
         )));
     }
 

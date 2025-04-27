@@ -9,16 +9,16 @@
     disk = {
       main = {
         type = "disk";
-        device = "{{ disko_device }}";
         content = {
           type = "gpt";
           partitions = {
-            boot = {
+            MBR = {
               size = "1M";
               type = "EF02"; # for grub MBR
+              priority = 1; # Needs to be first partition
             };
             ESP = {
-              size = "1G";
+              size = "500M";
               type = "EF00";
               content = {
                 type = "filesystem";
@@ -44,7 +44,7 @@
               };
             };
             blockchain = {
-              size = "20%";
+              size = "100%";
               content = {
                 type = "filesystem";
                 format = "ext4";
