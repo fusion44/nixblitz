@@ -8,6 +8,8 @@ use thiserror::Error;
 pub enum CliError {
     #[error("Unknown error")]
     Unknown,
+    #[error("{}", .0)]
+    IoError(String),
     #[error("Unable to start the TUI")]
     UnableToStartTui,
     #[error("Unable to initialize the Project struct")]
@@ -40,6 +42,14 @@ pub enum CliError {
     UnableCanonicalizeWorkDir(String),
     #[error("Error while running command: {}\nError: {}", .0,.1 )]
     CommandError(String, String),
+    #[error("Error while building the system: {}", .0)]
+    BuildExecutionFailed(String),
+    #[error("Error while installing the system: {}", .0)]
+    InstallExecutionFailed(String),
+    #[error("Lock operation error: {}", .0)]
+    LockError(String),
+    #[error("User aborted")]
+    UserAbort,
 }
 
 pub fn init_error_handlers() {

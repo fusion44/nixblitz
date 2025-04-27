@@ -1,11 +1,12 @@
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{Report, Result, ResultExt};
+use log::debug;
 use ratatui::style::Color;
 
 use serde_json::{error::Category, Value};
 
-use crate::errors::CliError;
+use crate::{components::default_theme::DEFAULT_THEME_NO_TRUE_COLOR, errors::CliError};
 
 use super::default_theme::DEFAULT_COLOR_THEME;
 
@@ -141,8 +142,8 @@ impl ThemeData {
     pub fn set_theme(&mut self, name: &str, scheme: &str) -> Result<(), CliError> {
         self.theme_name = name.to_string();
         self.theme_scheme = scheme.to_string();
-        println!("{}", DEFAULT_COLOR_THEME);
-        self.colors = self.load_theme(DEFAULT_COLOR_THEME)?;
+        debug!("{}", DEFAULT_COLOR_THEME);
+        self.colors = self.load_theme(DEFAULT_THEME_NO_TRUE_COLOR)?;
         Ok(())
     }
 

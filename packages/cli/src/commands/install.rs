@@ -1,8 +1,13 @@
+use error_stack::{Report, Result, ResultExt};
 use inquire::{Confirm, Select};
 use log::{debug, error, info, warn};
 use serde_json;
+use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
 use sysinfo::System;
 
 use crate::errors::CliError;
@@ -524,7 +529,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         system_info.disks[selected_index].clone()
     } else {
         error!("Selected index is out of bounds");
-        return Err(CliError::ArgumentError);
+        return Err(Report::new(CliError::ArgumentError));
     };
     info!(
         "User selected disk: {} [name: {}]",
@@ -577,12 +582,445 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         "Step 6: Proceeding with installation on disk: {}",
         selected_disk.path
     );
-    println!("\nReady to install NixBlitz on: {}", selected_disk.path);
-    info!("Installation would start here (currently showing placeholder)");
-    println!("This is where the actual installation would start.");
-    println!("For now, we'll just show this placeholder message.");
-    println!("\nThank you for using NixBlitz Installation Wizard!");
+
+    println!("Launching NixBlitz configuration tool...");
+
+    println!("Working directory: {}", work_dir.to_string_lossy());
+
+    let cmd = Command::new("nixblitz")
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .arg("tui")
+        .arg("-w")
+        .arg(work_dir)
+        .spawn();
+
+    match cmd {
+        Ok(mut child) => {
+            let status = child.wait().change_context(CliError::Unknown)?;
+            println!("\nTUI finished with status: {}.", status);
+            std::thread::sleep(std::time::Duration::from_secs(1));
+
+            match build_system_streaming(work_dir, "nixblitzx86vm") {
+                Ok(()) => {
+                    println!("\n✅ System build function reported success.");
+                }
+                Err(e) => {
+                    eprintln!("\n❌ System build function failed: {}", e);
+                    eprintln!("\n--- Full Collected Output (from error) ---");
+                    error!("{}", e);
+                    eprintln!("--- End of Output ---");
+
+                    std::process::exit(1);
+                }
+            }
+
+            match install_system_streaming(work_dir, "nixblitzx86vm", &selected_disk.path) {
+                Ok(()) => {
+                    println!("\n✅ System install function reported success.");
+                }
+                Err(e) => {
+                    eprintln!("\n❌ System build function failed: {}", e);
+                    eprintln!("\n--- Full Collected Output (from error) ---");
+                    error!("{}", e);
+                    eprintln!("--- End of Output ---");
+
+                    std::process::exit(1);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("\nError launching TUI: {}", e);
+            eprintln!("Please ensure 'nixblitz' is installed and in your PATH.",);
+            std::thread::sleep(std::time::Duration::from_secs(3));
+        }
+    }
 
     info!("Installation wizard completed successfully");
     Ok(())
+}
+
+const ERROR_PATTERNS: &[&str] = &[
+    "error:",
+    "Build failed",
+    "killing builder process",
+    "undefined variable",
+    "attribute not found",
+];
+
+/// Runs the Nix build command for the specified system configuration, streaming its output.
+///
+/// # Arguments
+///
+/// * `work_dir` - The path to the directory containing the flake.nix (e.g., /home/nixos/config/src).
+/// * `nixos_config_name` - The name of the nixosConfiguration (e.g., "nixblitzx86vm").
+///
+/// # Returns
+///
+/// * `Ok(())` - If the build completes successfully without known error patterns.
+/// * `Err(CliError)` - If the command fails to execute, exits with non-zero status,
+///                    or its streamed output contains defined error patterns.
+fn build_system_streaming(work_dir: &Path, nixos_config_name: &str) -> Result<(), CliError> {
+    let nix_target = format!(
+        "{}/src#nixosConfigurations.{}.config.system.build.toplevel",
+        work_dir.to_string_lossy(),
+        nixos_config_name
+    );
+
+    let sudo_args = &["nix", "build", "--no-update-lock-file", &nix_target];
+
+    println!("──────────────────────────────────────────────────────────────");
+    println!("🚀 Starting system build: {}", nixos_config_name);
+    println!("🔧 Running command via sudo:");
+    println!("   sudo {}", sudo_args.join(" "));
+    println!("──────────────────────────────────────────────────────────────");
+    io::stdout()
+        .flush()
+        .change_context(CliError::IoError("Unable to flush stdout".into()))?;
+
+    let proceed = Confirm::new("Are you sure you want to continue?")
+        .with_default(false)
+        .with_help_message("The actual installation will be done after the build.")
+        .prompt()
+        .map_err(|e| {
+            error!("Failed to get confirmation for disk erasure: {:?}", e);
+            CliError::ArgumentError
+        })?;
+
+    if !proceed {
+        info!("User aborted installation at disk erasure confirmation");
+        println!("Installation aborted.");
+        return Err(Report::new(CliError::UserAbort));
+    }
+
+    let mut child = Command::new("sudo")
+        .args(sudo_args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| {
+            if e.kind() == io::ErrorKind::NotFound {
+                CliError::BuildExecutionFailed(
+                    "'sudo' command not found. Is it installed and in PATH?".to_string(),
+                )
+            } else {
+                CliError::IoError(e.to_string())
+            }
+        })?;
+
+    // Signals if an error pattern was detected in one of the streams
+    let error_pattern_detected = Arc::new(AtomicBool::new(false));
+    let mut thread_handles = Vec::new();
+    let collected_stdout_arc = Arc::new(Mutex::new(String::new()));
+    let collected_stderr_arc = Arc::new(Mutex::new(String::new()));
+
+    if let Some(stdout_pipe) = child.stdout.take() {
+        let error_flag_clone = Arc::clone(&error_pattern_detected);
+        let stdout_collector_clone = Arc::clone(&collected_stdout_arc);
+        let stdout_handle = thread::spawn(move || {
+            let reader = BufReader::new(stdout_pipe);
+            for line_result in reader.lines() {
+                match line_result {
+                    Ok(line) => {
+                        println!("{}", line);
+                        if let Ok(mut guard) = stdout_collector_clone.lock() {
+                            guard.push_str(&line);
+                            guard.push('\n');
+                        }
+                        for pattern in ERROR_PATTERNS {
+                            if line.contains(pattern) {
+                                eprintln!(">> ERROR DETECTED (stdout): {}", line);
+                                error_flag_clone.store(true, Ordering::SeqCst);
+                                break;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error reading stdout pipe: {}", e);
+                        error_flag_clone.store(true, Ordering::SeqCst);
+                        break;
+                    }
+                }
+            }
+        });
+        thread_handles.push(stdout_handle);
+    } else {
+        eprintln!("Warning: Could not capture stdout pipe.");
+    }
+
+    if let Some(stderr_pipe) = child.stderr.take() {
+        let error_flag_clone = Arc::clone(&error_pattern_detected);
+        let stderr_collector_clone = Arc::clone(&collected_stderr_arc);
+        let stderr_handle = thread::spawn(move || {
+            let reader = BufReader::new(stderr_pipe);
+            for line_result in reader.lines() {
+                match line_result {
+                    Ok(line) => {
+                        eprintln!("{}", line);
+                        if let Ok(mut guard) = stderr_collector_clone.lock() {
+                            guard.push_str(&line);
+                            guard.push('\n');
+                        }
+                        for pattern in ERROR_PATTERNS {
+                            if line.contains(pattern) {
+                                eprintln!(">> ERROR DETECTED (stderr): {}", line);
+                                error_flag_clone.store(true, Ordering::SeqCst);
+                                break;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error reading stderr pipe: {}", e);
+                        error_flag_clone.store(true, Ordering::SeqCst);
+                        break;
+                    }
+                }
+            }
+        });
+        thread_handles.push(stderr_handle);
+    } else {
+        eprintln!("Warning: Could not capture stderr pipe.");
+    }
+
+    let final_status = child
+        .wait()
+        .change_context(CliError::CommandError("".into(), "Unknown".into()))?;
+
+    for handle in thread_handles {
+        if let Err(e) = handle.join() {
+            eprintln!("Error joining a reader thread: {:?}", e);
+            error_pattern_detected.store(true, Ordering::SeqCst);
+        }
+    }
+
+    let exit_code_failed = !final_status.success();
+    let pattern_detected = error_pattern_detected.load(Ordering::SeqCst);
+
+    println!("──────────────────────────────────────────────────────────────");
+
+    if exit_code_failed || pattern_detected {
+        let reason = if exit_code_failed {
+            format!("Build command exited with status: {}", final_status)
+        } else {
+            "Detected error pattern in streamed output".to_string()
+        };
+        eprintln!("❌ Build failed! {}", reason);
+
+        let final_stdout = collected_stdout_arc
+            .lock()
+            .map_err(|e| CliError::LockError(e.to_string()))?
+            .clone();
+        let final_stderr = collected_stderr_arc
+            .lock()
+            .map_err(|e| CliError::LockError(e.to_string()))?
+            .clone();
+        let final_combined_output = format!(
+            "--- STDOUT ---\n{}\n--- STDERR ---\n{}",
+            final_stdout, final_stderr
+        );
+
+        Err(Report::new(CliError::BuildExecutionFailed(
+            final_combined_output,
+        )))
+    } else {
+        println!("✅ Build command completed successfully.");
+        let final_stdout = collected_stdout_arc
+            .lock()
+            .map_err(|e| CliError::LockError(e.to_string()))?
+            .clone();
+        if let Some(result_path) = final_stdout.lines().filter(|l| !l.trim().is_empty()).last() {
+            println!("Build result path: {}", result_path.trim());
+        }
+        println!("──────────────────────────────────────────────────────────────");
+        Ok(())
+    }
+}
+
+/// Runs the disko-install command for the specified system configuration, streaming its output.
+///
+/// # Arguments
+///
+/// * `work_dir` - The path to the directory containing the flake.nix (e.g., /home/nixos/config/src).
+/// * `nixos_config_name` - The name of the nixosConfiguration (e.g., "nixblitzx86vm").
+/// * `disk` - The name of the disk device to install the system on.
+///
+/// # Returns
+///
+/// * `Ok(())` - If the build completes successfully without known error patterns.
+/// * `Err(CliError)` - If the command fails to execute, exits with non-zero status,
+///                    or its streamed output contains defined error patterns.
+fn install_system_streaming(
+    work_dir: &Path,
+    nixos_config_name: &str,
+    disk: &str,
+) -> Result<(), CliError> {
+    let nix_target = format!("{}/src#{}", work_dir.to_string_lossy(), nixos_config_name);
+
+    let sudo_args = &[
+        "disko-install",
+        "--flake",
+        &nix_target,
+        "--disk",
+        "main",
+        disk,
+    ];
+
+    println!("──────────────────────────────────────────────────────────────");
+    println!("🚀 Starting system install: {}", nixos_config_name);
+    println!("🔧 Running command via sudo:");
+    println!("   sudo {}", sudo_args.join(" "));
+    println!("──────────────────────────────────────────────────────────────");
+    io::stdout()
+        .flush()
+        .change_context(CliError::IoError("Unable to flush stdout".into()))?;
+
+    let proceed = Confirm::new("Are you sure you want to continue?")
+        .with_default(false)
+        .with_help_message("This action cannot be undone and will erase the disk!")
+        .prompt()
+        .map_err(|e| {
+            error!("Failed to get confirmation for disk erasure: {:?}", e);
+            CliError::UserAbort
+        })?;
+
+    if !proceed {
+        info!("User aborted installation at disk erasure confirmation");
+        println!("Installation aborted.");
+        return Err(Report::new(CliError::UserAbort));
+    }
+
+    let mut child = Command::new("sudo")
+        .args(sudo_args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| {
+            if e.kind() == io::ErrorKind::NotFound {
+                CliError::InstallExecutionFailed(
+                    "'sudo' command not found. Is it installed and in PATH?".to_string(),
+                )
+            } else {
+                CliError::IoError(e.to_string())
+            }
+        })?;
+
+    let error_pattern_detected = Arc::new(AtomicBool::new(false));
+    let mut thread_handles = Vec::new();
+    let collected_stdout_arc = Arc::new(Mutex::new(String::new()));
+    let collected_stderr_arc = Arc::new(Mutex::new(String::new()));
+
+    if let Some(stdout_pipe) = child.stdout.take() {
+        let error_flag_clone = Arc::clone(&error_pattern_detected);
+        let stdout_collector_clone = Arc::clone(&collected_stdout_arc);
+        let stdout_handle = thread::spawn(move || {
+            let reader = BufReader::new(stdout_pipe);
+            for line_result in reader.lines() {
+                match line_result {
+                    Ok(line) => {
+                        println!("{}", line);
+                        if let Ok(mut guard) = stdout_collector_clone.lock() {
+                            guard.push_str(&line);
+                            guard.push('\n');
+                        }
+                        for pattern in ERROR_PATTERNS {
+                            if line.contains(pattern) {
+                                eprintln!(">> ERROR DETECTED (stdout): {}", line);
+                                error_flag_clone.store(true, Ordering::SeqCst);
+                                break;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error reading stdout pipe: {}", e);
+                        error_flag_clone.store(true, Ordering::SeqCst);
+                        break;
+                    }
+                }
+            }
+        });
+        thread_handles.push(stdout_handle);
+    } else {
+        eprintln!("Warning: Could not capture stdout pipe.");
+    }
+
+    if let Some(stderr_pipe) = child.stderr.take() {
+        let error_flag_clone = Arc::clone(&error_pattern_detected);
+        let stderr_collector_clone = Arc::clone(&collected_stderr_arc);
+        let stderr_handle = thread::spawn(move || {
+            let reader = BufReader::new(stderr_pipe);
+            for line_result in reader.lines() {
+                match line_result {
+                    Ok(line) => {
+                        eprintln!("{}", line);
+                        if let Ok(mut guard) = stderr_collector_clone.lock() {
+                            guard.push_str(&line);
+                            guard.push('\n');
+                        }
+                        for pattern in ERROR_PATTERNS {
+                            if line.contains(pattern) {
+                                eprintln!(">> ERROR DETECTED (stderr): {}", line);
+                                error_flag_clone.store(true, Ordering::SeqCst);
+                                break;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error reading stderr pipe: {}", e);
+                        error_flag_clone.store(true, Ordering::SeqCst);
+                        break;
+                    }
+                }
+            }
+        });
+        thread_handles.push(stderr_handle);
+    } else {
+        eprintln!("Warning: Could not capture stderr pipe.");
+    }
+
+    let final_status = child
+        .wait()
+        .change_context(CliError::CommandError("".into(), "Unknown".into()))?;
+
+    for handle in thread_handles {
+        if let Err(e) = handle.join() {
+            eprintln!("Error joining a reader thread: {:?}", e);
+            error_pattern_detected.store(true, Ordering::SeqCst);
+        }
+    }
+
+    let exit_code_failed = !final_status.success();
+    let pattern_detected = error_pattern_detected.load(Ordering::SeqCst);
+
+    println!("──────────────────────────────────────────────────────────────");
+
+    if exit_code_failed || pattern_detected {
+        let reason = if exit_code_failed {
+            format!("Install command exited with status: {}", final_status)
+        } else {
+            "Detected error pattern in streamed output".to_string()
+        };
+        eprintln!("❌ Install failed! {}", reason);
+
+        let final_stdout = collected_stdout_arc
+            .lock()
+            .map_err(|e| CliError::LockError(e.to_string()))?
+            .clone();
+        let final_stderr = collected_stderr_arc
+            .lock()
+            .map_err(|e| CliError::LockError(e.to_string()))?
+            .clone();
+        let final_combined_output = format!(
+            "--- STDOUT ---\n{}\n--- STDERR ---\n{}",
+            final_stdout, final_stderr
+        );
+
+        Err(Report::new(CliError::InstallExecutionFailed(
+            final_combined_output,
+        )))
+    } else {
+        println!("✅ Install command completed successfully.");
+        println!("──────────────────────────────────────────────────────────────");
+        Ok(())
+    }
 }
