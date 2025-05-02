@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use super::option_data::{GetOptionId, OptionId, ToNixString};
+use super::option_data::{ApplicableOptionData, GetOptionId, OptionId, ToNixString};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
 pub struct TextOptionData {
-    /// Unique identifier for the text option
+    /// Unique identifier for the option
     id: OptionId,
 
     /// Current value of the text option
@@ -13,28 +13,33 @@ pub struct TextOptionData {
     /// Maximum number of lines allowed for the text option
     max_lines: u16,
 
-    /// Indicates if the current value has been modified from the original
-    /// since last rebuild from the system
-    dirty: bool,
+    /// Whether the option is currently applied to the system configuration
+    applied: bool,
 
     /// Original value of the text option as applied to the system
     original: String,
 }
 
 impl TextOptionData {
-    pub fn new(id: OptionId, value: String, max_lines: u16, dirty: bool, original: String) -> Self {
+    pub fn new(
+        id: OptionId,
+        value: String,
+        max_lines: u16,
+        applied: bool,
+        original: String,
+    ) -> Self {
         let max_lines = if max_lines == 0 { 1 } else { max_lines };
         Self {
             id,
             value,
             max_lines,
-            dirty,
+            applied,
             original,
         }
     }
 
-    pub fn dirty(&self) -> bool {
-        self.dirty
+    pub fn is_applied(&self) -> bool {
+        self.applied
     }
 
     pub fn value(&self) -> &str {
@@ -42,12 +47,18 @@ impl TextOptionData {
     }
 
     pub fn set_value(&mut self, value: String) {
-        self.dirty = value != self.original;
+        self.applied = value != self.original;
         self.value = value;
     }
 
     pub fn max_lines(&self) -> u16 {
         self.max_lines
+    }
+}
+
+impl ApplicableOptionData for TextOptionData {
+    fn set_applied(&mut self) {
+        self.applied = false
     }
 }
 
@@ -96,21 +107,21 @@ mod tests {
         let id = NixBaseConfigOption::Username.to_option_id();
         let value = String::from("test");
         let max_lines = 5;
-        let dirty = false;
+        let applied = false;
         let original = String::from("test");
 
         let text_option = TextOptionData::new(
             id.clone(),
             value.clone(),
             max_lines,
-            dirty,
+            applied,
             original.clone(),
         );
 
         assert_eq!(text_option.id(), &id);
         assert_eq!(text_option.value(), value);
         assert_eq!(text_option.max_lines(), max_lines);
-        assert_eq!(text_option.dirty(), dirty);
+        assert_eq!(text_option.is_applied(), applied);
         assert_eq!(text_option.original, original);
     }
 
@@ -121,11 +132,11 @@ mod tests {
         let mut text_option = TextOptionData::new(id, original.clone(), 5, false, original.clone());
 
         text_option.set_value(String::from("new value"));
-        assert!(text_option.dirty());
+        assert!(text_option.is_applied());
         assert_eq!(text_option.value(), "new value");
 
         text_option.set_value(original.clone());
-        assert!(!text_option.dirty());
+        assert!(!text_option.is_applied());
         assert_eq!(text_option.value(), original);
     }
 

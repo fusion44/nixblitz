@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{errors::ArgumentError, number_value::NumberValue};
 
-use super::option_data::{GetOptionId, OptionId, ToNixString};
+use super::option_data::{ApplicableOptionData, GetOptionId, OptionId, ToNixString};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct NumberOptionData {
-    /// Unique identifier for the number option
+    /// Unique identifier for the option
     id: OptionId,
 
     /// Current value of the number option
@@ -18,9 +18,8 @@ pub struct NumberOptionData {
     /// Max possible value
     range_max: usize,
 
-    /// Indicates if the current value has been modified from the original
-    /// since last rebuild from the system
-    dirty: bool,
+    /// Whether the option is currently applied to the system configuration
+    applied: bool,
 
     /// Original value of the number option as applied to the system
     original: NumberValue,
@@ -32,7 +31,7 @@ impl NumberOptionData {
         value: NumberValue,
         range_min: usize,
         range_max: usize,
-        dirty: bool,
+        applied: bool,
         original: NumberValue,
     ) -> Result<Self, ArgumentError> {
         Ok(Self {
@@ -40,13 +39,13 @@ impl NumberOptionData {
             value,
             range_min,
             range_max,
-            dirty,
+            applied,
             original,
         })
     }
 
-    pub fn dirty(&self) -> bool {
-        self.dirty
+    pub fn is_applied(&self) -> bool {
+        self.applied
     }
 
     pub fn value(&self) -> &NumberValue {
@@ -55,7 +54,7 @@ impl NumberOptionData {
 
     pub fn set_value(&mut self, value: NumberValue) {
         if value != self.value {
-            self.dirty = value != self.original;
+            self.applied = value != self.original;
             self.value = value;
         }
     }
@@ -66,6 +65,12 @@ impl NumberOptionData {
 
     pub fn range_max(&self) -> usize {
         self.range_max
+    }
+}
+
+impl ApplicableOptionData for NumberOptionData {
+    fn set_applied(&mut self) {
+        self.applied = false
     }
 }
 
@@ -117,7 +122,7 @@ mod tests {
             NumberOptionData::new(id.clone(), value.clone(), 0, 100, false, original.clone())
                 .unwrap();
 
-        assert!(!number_option.dirty());
+        assert!(!number_option.is_applied());
         assert_eq!(number_option.id(), &id);
         assert_eq!(number_option.value(), &value);
         assert_eq!(number_option.range_min(), 0);
@@ -134,12 +139,12 @@ mod tests {
         let new_value = NumberValue::UInt(Some(20));
         number_option.set_value(new_value.clone());
         assert_eq!(number_option.value(), &new_value);
-        assert!(number_option.dirty());
+        assert!(number_option.is_applied());
 
-        // Setting the value back to original should reset dirty flag
+        // Setting the value back to original should reset applied flag
         number_option.set_value(original.clone());
         assert_eq!(number_option.value(), &original);
-        assert!(!number_option.dirty());
+        assert!(!number_option.is_applied());
     }
 
     #[test]

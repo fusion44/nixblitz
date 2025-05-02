@@ -12,8 +12,8 @@ use crate::{
         bool_data::BoolOptionData,
         net_address_data::NetAddressOptionData,
         option_data::{
-            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToNixString,
-            ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
+            ToNixString, ToOptionId,
         },
         port_data::PortOptionData,
         text_edit_data::TextOptionData,
@@ -263,6 +263,25 @@ impl AppConfig for LightningNetworkDaemonService {
 
         Ok(())
     }
+
+    fn set_applied(&mut self) {
+        self.enable.set_applied();
+        self.address.set_applied();
+        self.port.set_applied();
+        self.user.set_applied();
+        self.rpc_address.set_applied();
+        self.rpc_port.set_applied();
+        self.rest_address.set_applied();
+        self.rest_port.set_applied();
+        self.data_dir.set_applied();
+        for v in self.cert_extra_ips.iter_mut() {
+            v.set_applied();
+        }
+        for v in self.cert_extra_domains.iter_mut() {
+            v.set_applied();
+        }
+        self.extra_config.set_applied();
+    }
 }
 
 impl Default for LightningNetworkDaemonService {
@@ -406,7 +425,7 @@ impl LightningNetworkDaemonService {
     }
 
     pub(crate) fn to_json_string(&self) -> Result<String, TemplatingError> {
-        serde_json::to_string(self).change_context(TemplatingError::JsonRenderError)
+        serde_json::to_string_pretty(self).change_context(TemplatingError::JsonRenderError)
     }
 
     pub(crate) fn from_json(

@@ -70,7 +70,7 @@ impl OptionListItem for BoolOptionComponent {
         self.selected = selected;
     }
 
-    fn is_dirty(&self) -> bool {
+    fn is_applied(&self) -> bool {
         todo!()
     }
 }
@@ -92,7 +92,7 @@ impl Component for BoolOptionComponent {
             self.selected,
             title,
             &self.subtitle,
-            self.data.dirty(),
+            self.data.is_applied(),
             frame,
             area,
         )

@@ -15,8 +15,8 @@ use crate::{
         net_address_data::NetAddressOptionData,
         number_data::NumberOptionData,
         option_data::{
-            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToNixString,
-            ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
+            ToNixString, ToOptionId,
         },
         password_data::PasswordOptionData,
         port_data::PortOptionData,
@@ -927,6 +927,28 @@ impl AppConfig for BitcoinDaemonService {
         )?;
 
         Ok(())
+    }
+
+    fn set_applied(&mut self) {
+        self.enable.set_applied();
+        self.address.set_applied();
+        self.port.set_applied();
+        self.onion_port.set_applied();
+        self.listen.set_applied();
+        self.extra_config.set_applied();
+        self.user.set_applied();
+        self.network.set_applied();
+        self.rpc_address.set_applied();
+        self.rpc_port.set_applied();
+        self.prune.set_applied();
+        self.prune_size.set_applied();
+        self.extra_cmd_line_options.set_applied();
+        self.db_cache.set_applied();
+        self.data_dir.set_applied();
+        self.tx_index.set_applied();
+        self.disable_wallet.set_applied();
+        self.zmqpubrawtx.set_applied();
+        self.zmqpubrawblock.set_applied();
     }
 }
 

@@ -11,8 +11,8 @@ use crate::{
     app_option_data::{
         bool_data::BoolOptionData,
         option_data::{
-            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToNixString,
-            ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
+            ToNixString, ToOptionId,
         },
         path_data::PathOptionData,
         string_list_data::{StringListOptionData, StringListOptionItem},
@@ -366,6 +366,19 @@ impl AppConfig for BlitzApiService {
         )?;
 
         Ok(())
+    }
+
+    fn set_applied(&mut self) {
+        self.enable.set_applied();
+        self.nginx_enable.set_applied();
+        self.log_level.set_applied();
+        self.generate_env_file.set_applied();
+        self.env_file.set_applied();
+        self.password_file.set_applied();
+        self.root_path.set_applied();
+        self.nginx_enable.set_applied();
+        self.nginx_open_firewall.set_applied();
+        self.nginx_location.set_applied();
     }
 }
 

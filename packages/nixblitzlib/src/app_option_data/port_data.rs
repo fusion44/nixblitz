@@ -2,13 +2,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::number_value::NumberValue;
 
-use super::option_data::{GetOptionId, OptionId, ToNixString};
+use super::option_data::{ApplicableOptionData, GetOptionId, OptionId, ToNixString};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PortOptionData {
+    /// Unique identifier for the option
     id: OptionId,
-    dirty: bool,
+
+    /// Whether the option is currently applied to the system configuration
+    applied: bool,
+
+    /// Current value of the number option
     value: NumberValue,
+
+    /// Original value of the text option as applied to the system
     original: NumberValue,
 }
 
@@ -17,13 +24,13 @@ impl PortOptionData {
         Self {
             id,
             value: value.clone(),
-            dirty: false,
+            applied: false,
             original: value,
         }
     }
 
-    pub fn dirty(&self) -> bool {
-        self.dirty
+    pub fn is_applied(&self) -> bool {
+        self.applied
     }
 
     pub fn value(&self) -> &NumberValue {
@@ -33,8 +40,14 @@ impl PortOptionData {
     pub fn set_value(&mut self, value: NumberValue) {
         if self.value != value {
             self.value = value;
-            self.dirty = true;
+            self.applied = true;
         }
+    }
+}
+
+impl ApplicableOptionData for PortOptionData {
+    fn set_applied(&mut self) {
+        self.applied = false
     }
 }
 
@@ -92,7 +105,7 @@ mod tests {
 
         assert_eq!(port_option_data.id(), &id);
         assert_eq!(port_option_data.value(), &value);
-        assert!(!port_option_data.dirty());
+        assert!(!port_option_data.is_applied());
     }
 
     #[test]
@@ -102,11 +115,11 @@ mod tests {
 
         port_option_data.set_value(NumberValue::UInt(Some(43)));
         assert_eq!(port_option_data.value(), &NumberValue::UInt(Some(43)));
-        assert!(port_option_data.dirty());
+        assert!(port_option_data.is_applied());
 
         port_option_data.set_value(NumberValue::UInt(Some(43)));
         assert_eq!(port_option_data.value(), &NumberValue::UInt(Some(43)));
-        assert!(port_option_data.dirty());
+        assert!(port_option_data.is_applied());
     }
 
     #[test]

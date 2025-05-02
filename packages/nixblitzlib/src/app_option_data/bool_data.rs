@@ -1,12 +1,19 @@
 use serde::{Deserialize, Serialize};
 
-use super::option_data::{GetOptionId, OptionId, ToNixString};
+use super::option_data::{ApplicableOptionData, GetOptionId, OptionId, ToNixString};
 
 #[derive(Clone, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BoolOptionData {
+    /// Unique identifier for the option
     id: OptionId,
-    dirty: bool,
+
+    /// Whether the option is currently applied to the system configuration
+    applied: bool,
+
+    /// Current value of the number option
     value: bool,
+
+    /// Original value of the number option as applied to the system
     original: bool,
 }
 
@@ -15,13 +22,13 @@ impl BoolOptionData {
         Self {
             id,
             value,
-            dirty: false,
+            applied: false,
             original: value,
         }
     }
 
-    pub fn dirty(&self) -> bool {
-        self.dirty
+    pub fn is_applied(&self) -> bool {
+        self.applied
     }
 
     pub fn value(&self) -> bool {
@@ -30,7 +37,13 @@ impl BoolOptionData {
 
     pub fn set_value(&mut self, value: bool) {
         self.value = value;
-        self.dirty = value != self.original;
+        self.applied = value != self.original;
+    }
+}
+
+impl ApplicableOptionData for BoolOptionData {
+    fn set_applied(&mut self) {
+        self.applied = false
     }
 }
 
@@ -81,7 +94,7 @@ mod tests {
         let bool_option = BoolOptionData::new(id.clone(), value);
         assert_eq!(bool_option.id(), &id);
         assert_eq!(bool_option.value(), value);
-        assert!(!bool_option.dirty());
+        assert!(!bool_option.is_applied());
     }
 
     #[test]
@@ -90,7 +103,7 @@ mod tests {
         let mut bool_option = BoolOptionData::new(id, false);
         bool_option.set_value(true);
         assert!(bool_option.value());
-        assert!(bool_option.dirty());
+        assert!(bool_option.is_applied());
     }
 
     #[test]

@@ -202,4 +202,43 @@ impl Project {
 
         Ok(res)
     }
+
+    /// Applies and saves changes to all components of the project.
+    ///
+    /// This function iterates over each service component within the `Project`
+    /// and marks them as applied. It then saves the current state of each component
+    /// to the working directory. This ensures that all changes made to the
+    /// configuration are persisted.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result`:
+    /// - `Ok(())` if all components are successfully marked as applied and saved.
+    /// - `Err(ProjectError)` if an error occurs while saving any component.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if any of the components fail to save
+    /// their state to the working directory.
+    pub fn set_changes_applied(&mut self) -> Result<(), ProjectError> {
+        self.nix_base.borrow_mut().set_applied();
+        self.nix_base.borrow_mut().save(&self.work_dir)?;
+
+        self.bitcoin.borrow_mut().set_applied();
+        self.bitcoin.borrow_mut().save(&self.work_dir)?;
+
+        self.cln.borrow_mut().set_applied();
+        self.cln.borrow_mut().save(&self.work_dir)?;
+
+        self.lnd.borrow_mut().set_applied();
+        self.lnd.borrow_mut().save(&self.work_dir)?;
+
+        self.blitz_api.borrow_mut().set_applied();
+        self.blitz_api.borrow_mut().save(&self.work_dir)?;
+
+        self.blitz_webui.borrow_mut().set_applied();
+        self.blitz_webui.borrow_mut().save(&self.work_dir)?;
+
+        Ok(())
+    }
 }

@@ -10,7 +10,8 @@ use crate::{
     app_option_data::{
         bool_data::BoolOptionData,
         option_data::{
-            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
+            ToOptionId,
         },
         password_data::PasswordOptionData,
         string_list_data::{StringListOptionData, StringListOptionItem},
@@ -540,6 +541,13 @@ impl AppConfig for NixBaseConfig {
         )?;
 
         Ok(())
+    }
+
+    fn set_applied(&mut self) {
+        self.allow_unfree.set_applied();
+        self.time_zone.set_applied();
+        self.default_locale.set_applied();
+        self.hashed_password.set_applied();
     }
 }
 

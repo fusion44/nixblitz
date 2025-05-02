@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use super::option_data::{GetOptionId, OptionId, ToNixString};
+use super::option_data::{ApplicableOptionData, GetOptionId, OptionId, ToNixString};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
 pub struct PasswordOptionData {
-    /// Unique identifier for the text option
+    /// Unique identifier for the option
     id: OptionId,
 
     /// Current hashed value of the password
@@ -16,9 +16,8 @@ pub struct PasswordOptionData {
     /// The min length the password must have
     min_length: usize,
 
-    /// Indicates if the current value has been modified from the original
-    /// since last rebuild from the system
-    dirty: bool,
+    /// Whether the option is currently applied to the system configuration
+    applied: bool,
 
     /// Am optional to display in the option menu
     subtitle: String,
@@ -30,7 +29,7 @@ impl PasswordOptionData {
         hashed_value: String,
         confirm: bool,
         min_length: usize,
-        dirty: bool,
+        applied: bool,
         subtitle: String,
     ) -> Self {
         Self {
@@ -38,13 +37,13 @@ impl PasswordOptionData {
             hashed_value,
             confirm,
             min_length,
-            dirty,
+            applied,
             subtitle,
         }
     }
 
-    pub fn dirty(&self) -> bool {
-        self.dirty
+    pub fn is_applied(&self) -> bool {
+        self.applied
     }
 
     pub fn confirm(&self) -> bool {
@@ -69,6 +68,12 @@ impl PasswordOptionData {
 
     pub fn set_hashed_value(&mut self, value: String) {
         self.hashed_value = value;
+    }
+}
+
+impl ApplicableOptionData for PasswordOptionData {
+    fn set_applied(&mut self) {
+        self.applied = false
     }
 }
 
@@ -123,7 +128,7 @@ mod tests {
         let hashed_value = "hashed_password".to_string();
         let confirm = true;
         let min_length = 8;
-        let dirty = false;
+        let applied = false;
         let subtitle = "Test Subtitle".to_string();
 
         let password_option = PasswordOptionData::new(
@@ -131,7 +136,7 @@ mod tests {
             hashed_value.clone(),
             confirm,
             min_length,
-            dirty,
+            applied,
             subtitle.clone(),
         );
 
@@ -139,7 +144,7 @@ mod tests {
         assert_eq!(password_option.hashed_value(), &hashed_value);
         assert_eq!(password_option.confirm(), confirm);
         assert_eq!(password_option.min_length(), min_length);
-        assert_eq!(password_option.dirty(), dirty);
+        assert_eq!(password_option.is_applied(), applied);
         assert_eq!(password_option.subtitle(), subtitle);
     }
 

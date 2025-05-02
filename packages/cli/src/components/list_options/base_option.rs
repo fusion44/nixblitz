@@ -14,7 +14,7 @@ pub trait OptionListItem: Component {
 
     fn set_selected(&mut self, selected: bool);
 
-    fn is_dirty(&self) -> bool;
+    fn is_applied(&self) -> bool;
 
     fn on_edit(&mut self) -> Result<(), CliError>;
 }
@@ -23,7 +23,7 @@ pub fn draw_item(
     selected: bool,
     title: &str,
     subtitle: &str,
-    dirty: bool,
+    applied: bool,
     frame: &mut Frame,
     area: Rect,
 ) -> Result<(), CliError> {
@@ -57,7 +57,7 @@ pub fn draw_item(
     }
 
     // Render the title
-    let appendix = if dirty { " *" } else { "" };
+    let appendix = if applied { " *" } else { "" };
     let t = format!("{}{}", title, appendix).to_string().to_uppercase();
     let mut modifiers = Modifier::BOLD | Modifier::ITALIC;
     if selected {
@@ -67,7 +67,11 @@ pub fn draw_item(
 
     // Render the subtitle
     if !selected {
-        let line = Line::from(subtitle).fg(if dirty { colors::RED_200 } else { Color::Reset });
+        let line = Line::from(subtitle).fg(if applied {
+            colors::RED_200
+        } else {
+            Color::Reset
+        });
         frame.render_widget(line, layout_options[1]);
     } else {
         let line = Line::from(subtitle).reversed();

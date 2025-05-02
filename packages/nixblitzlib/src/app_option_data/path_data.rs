@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use super::option_data::{GetOptionId, OptionId, ToNixString};
+use super::option_data::{ApplicableOptionData, GetOptionId, OptionId, ToNixString};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug)]
 pub struct PathOptionData {
-    /// Unique identifier for the path option
+    /// Unique identifier for the option
     id: OptionId,
 
     /// Current value of the path option
@@ -13,11 +13,10 @@ pub struct PathOptionData {
     /// The default value of the option
     default: Option<String>,
 
-    /// Indicates if the current value has been modified from the original
-    /// since last rebuild from the system
-    dirty: bool,
+    /// Whether the option is currently applied to the system configuration
+    applied: bool,
 
-    /// Original value of the path option as applied to the system
+    /// Original value of the option as applied to the system
     original: Option<String>,
 }
 
@@ -26,14 +25,14 @@ impl PathOptionData {
         id: OptionId,
         value: Option<String>,
         default: Option<String>,
-        dirty: bool,
+        applied: bool,
         original: Option<String>,
     ) -> Self {
         Self {
             id,
             value,
             default,
-            dirty,
+            applied,
             original,
         }
     }
@@ -46,8 +45,8 @@ impl PathOptionData {
         self.default.clone()
     }
 
-    pub fn dirty(&self) -> bool {
-        self.dirty
+    pub fn is_applied(&self) -> bool {
+        self.applied
     }
 
     pub fn value(&self) -> Option<String> {
@@ -55,8 +54,14 @@ impl PathOptionData {
     }
 
     pub fn set_value(&mut self, value: Option<String>) {
-        self.dirty = value != self.original;
+        self.applied = value != self.original;
         self.value = value;
+    }
+}
+
+impl ApplicableOptionData for PathOptionData {
+    fn set_applied(&mut self) {
+        self.applied = false
     }
 }
 
@@ -119,7 +124,7 @@ mod tests {
     fn test_path_option_data_new() {
         let id = NixBaseConfigOption::Username.to_option_id();
         let value = Some(String::from("/tmp/some/folder"));
-        let dirty = false;
+        let applied = false;
         let original = Some(String::from("/tmp/some/folder"));
         let default = Some(String::from("/tmp/default_folder"));
 
@@ -127,14 +132,14 @@ mod tests {
             id.clone(),
             value.clone(),
             default.clone(),
-            dirty,
+            applied,
             original.clone(),
         );
 
         assert_eq!(path_option.id(), &id);
         assert_eq!(path_option.value(), value);
         assert_eq!(path_option.default(), default);
-        assert_eq!(path_option.dirty(), dirty);
+        assert_eq!(path_option.is_applied(), applied);
         assert_eq!(path_option.original, original);
     }
 
@@ -146,11 +151,11 @@ mod tests {
             PathOptionData::new(id, original.clone(), None, false, original.clone());
 
         path_option.set_value(Some(String::from("new value")));
-        assert!(path_option.dirty());
+        assert!(path_option.is_applied());
         assert_eq!(path_option.value(), Some("new value".to_string()));
 
         path_option.set_value(original.clone());
-        assert!(!path_option.dirty());
+        assert!(!path_option.is_applied());
         assert_eq!(path_option.value(), original);
     }
 

@@ -2,13 +2,20 @@ use std::net::IpAddr;
 
 use serde::{Deserialize, Serialize};
 
-use super::option_data::{GetOptionId, OptionId, ToNixString};
+use super::option_data::{ApplicableOptionData, GetOptionId, OptionId, ToNixString};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NetAddressOptionData {
+    /// Unique identifier for the option
     id: OptionId,
-    dirty: bool,
+
+    /// Whether the option is currently applied to the system configuration
+    applied: bool,
+
+    /// Current value of the number option
     value: Option<IpAddr>,
+
+    /// Original value of the number option as applied to the system
     original: Option<IpAddr>,
 }
 
@@ -32,13 +39,13 @@ impl NetAddressOptionData {
         Self {
             id,
             value,
-            dirty: false,
+            applied: false,
             original: value,
         }
     }
 
-    pub fn dirty(&self) -> bool {
-        self.dirty
+    pub fn is_applied(&self) -> bool {
+        self.applied
     }
 
     pub fn value(&self) -> Option<IpAddr> {
@@ -48,8 +55,14 @@ impl NetAddressOptionData {
     pub fn set_value(&mut self, value: Option<IpAddr>) {
         if self.value != value {
             self.value = value;
-            self.dirty = true;
+            self.applied = true;
         }
+    }
+}
+
+impl ApplicableOptionData for NetAddressOptionData {
+    fn set_applied(&mut self) {
+        self.applied = false
     }
 }
 
@@ -94,7 +107,7 @@ mod tests {
 
         assert_eq!(data.id(), &id);
         assert_eq!(data.value(), Some(ip));
-        assert!(!data.dirty());
+        assert!(!data.is_applied());
     }
 
     #[test]
@@ -109,11 +122,11 @@ mod tests {
 
         data.set_value(Some(ip2));
         assert_eq!(data.value(), Some(ip2));
-        assert!(data.dirty());
+        assert!(data.is_applied());
 
         data.set_value(Some(ip2));
         assert_eq!(data.value(), Some(ip2));
-        assert!(data.dirty());
+        assert!(data.is_applied());
     }
 
     #[test]

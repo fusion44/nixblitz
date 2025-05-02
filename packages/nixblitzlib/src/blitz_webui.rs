@@ -11,7 +11,8 @@ use crate::{
     app_option_data::{
         bool_data::BoolOptionData,
         option_data::{
-            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
+            ToOptionId,
         },
     },
     apps::SupportedApps,
@@ -129,6 +130,11 @@ impl AppConfig for BlitzWebUiService {
         )?;
 
         Ok(())
+    }
+
+    fn set_applied(&mut self) {
+        self.enable.set_applied();
+        self.nginx_enable.set_applied();
     }
 }
 

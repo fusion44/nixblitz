@@ -64,6 +64,21 @@ pub enum OptionData {
     Port(Box<PortOptionData>),
 }
 
+/// A trait for marking option data as applied.
+///
+/// This trait is intended for types that represent option data which can be marked
+/// as "applied". Implementers of this trait should provide a mechanism to update
+/// the internal state to reflect that the option has been applied to the current system
+/// configuration. typically by setting a `applied` flag to `false`.
+pub trait ApplicableOptionData {
+    /// Marks the option data as applied.
+    ///
+    /// This method should update the internal state of the implementer to indicate
+    /// that the option has been applied. For example, it might set a `applied` flag
+    /// to `false` to show that there are no pending changes.
+    fn set_applied(&mut self);
+}
+
 impl GetOptionId for OptionData {
     fn id(&self) -> &OptionId {
         match self {

@@ -14,4 +14,6 @@ pub trait AppConfig: Debug {
     fn get_options(&self) -> Vec<OptionData>;
 
     fn save(&mut self, work_dir: &Path) -> Result<(), ProjectError>;
+
+    fn set_applied(&mut self);
 }

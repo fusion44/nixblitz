@@ -76,8 +76,8 @@ impl<'a> OptionListItem for PasswordOptionComponent<'a> {
         self.selected = selected;
     }
 
-    fn is_dirty(&self) -> bool {
-        self.data.dirty()
+    fn is_applied(&self) -> bool {
+        self.data.is_applied()
     }
 
     fn on_edit(&mut self) -> std::result::Result<(), Report<CliError>> {
@@ -152,7 +152,7 @@ impl<'a> Component for PasswordOptionComponent<'a> {
             self.selected,
             self.title,
             &self.data.subtitle(),
-            self.data.dirty(),
+            self.data.is_applied(),
             frame,
             area,
         )

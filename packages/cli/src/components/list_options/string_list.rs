@@ -133,7 +133,7 @@ impl OptionListItem for StringListOptionComponent {
         self.selected = selected;
     }
 
-    fn is_dirty(&self) -> bool {
+    fn is_applied(&self) -> bool {
         todo!();
     }
 
@@ -184,7 +184,7 @@ impl Component for StringListOptionComponent {
             self.selected,
             title,
             self.data.value(),
-            self.data.dirty(),
+            self.data.is_applied(),
             frame,
             area,
         )

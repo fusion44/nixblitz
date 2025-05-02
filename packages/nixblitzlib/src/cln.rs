@@ -12,8 +12,8 @@ use crate::{
         bool_data::BoolOptionData,
         net_address_data::NetAddressOptionData,
         option_data::{
-            GetOptionId, OptionData, OptionDataChangeNotification, OptionId, ToNixString,
-            ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
+            ToNixString, ToOptionId,
         },
         port_data::PortOptionData,
         text_edit_data::TextOptionData,
@@ -269,6 +269,20 @@ impl AppConfig for CoreLightningService {
         )?;
 
         Ok(())
+    }
+
+    fn set_applied(&mut self) {
+        self.enable.set_applied();
+        self.address.set_applied();
+        self.port.set_applied();
+        self.proxy.set_applied();
+        self.always_use_proxy.set_applied();
+        self.data_dir.set_applied();
+        self.wallet.set_applied();
+        self.extra_config.set_applied();
+        self.user.set_applied();
+        self.group.set_applied();
+        self.get_public_address_cmd.set_applied();
     }
 }
 

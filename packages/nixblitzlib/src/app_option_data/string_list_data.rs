@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::option_data::{GetOptionId, OptionId, ToNixString};
+use super::option_data::{ApplicableOptionData, GetOptionId, OptionId, ToNixString};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StringListOptionItem {
@@ -23,7 +23,7 @@ impl StringListOptionItem {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StringListOptionData {
-    /// The id of the option
+    /// Unique identifier for the option
     id: OptionId,
 
     /// The current value of the option
@@ -35,8 +35,8 @@ pub struct StringListOptionData {
     /// The allowed values the option can take
     options: Vec<StringListOptionItem>,
 
-    /// Whether the option is currently dirty (not yet saved)
-    dirty: bool,
+    /// Whether the option is currently applied to the system configuration
+    applied: bool,
 }
 
 impl StringListOptionData {
@@ -47,13 +47,13 @@ impl StringListOptionData {
             id,
             value: value.clone(),
             options,
-            dirty: false,
+            applied: false,
             original: value,
         }
     }
 
-    pub fn dirty(&self) -> bool {
-        self.dirty
+    pub fn is_applied(&self) -> bool {
+        self.applied
     }
 
     pub fn value(&self) -> &str {
@@ -61,12 +61,18 @@ impl StringListOptionData {
     }
 
     pub fn set_value(&mut self, value: String) {
-        self.dirty = value != self.original;
+        self.applied = value != self.original;
         self.value = value;
     }
 
     pub fn options(&self) -> &Vec<StringListOptionItem> {
         &self.options
+    }
+}
+
+impl ApplicableOptionData for StringListOptionData {
+    fn set_applied(&mut self) {
+        self.applied = false
     }
 }
 
@@ -127,7 +133,7 @@ mod tests {
         assert_eq!(data.value, "value1");
         assert_eq!(data.original, "value1");
         assert_eq!(data.options, options);
-        assert!(!data.dirty);
+        assert!(!data.applied);
     }
 
     #[test]
@@ -140,7 +146,7 @@ mod tests {
         let mut data = StringListOptionData::new(id, "value1".to_string(), options);
         data.set_value("value2".to_string());
         assert_eq!(data.value(), "value2");
-        assert!(data.dirty());
+        assert!(data.is_applied());
     }
 
     #[test]

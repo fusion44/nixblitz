@@ -82,8 +82,8 @@ impl<'a> OptionListItem for PortOptionComponent<'a> {
         self.selected = selected;
     }
 
-    fn is_dirty(&self) -> bool {
-        self.data.dirty()
+    fn is_applied(&self) -> bool {
+        self.data.is_applied()
     }
 
     fn on_edit(&mut self) -> std::result::Result<(), Report<CliError>> {
@@ -159,7 +159,7 @@ impl<'a> Component for PortOptionComponent<'a> {
             self.selected,
             self.title,
             &self.subtitle,
-            self.data.dirty(),
+            self.data.is_applied(),
             frame,
             area,
         )
