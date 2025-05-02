@@ -126,7 +126,7 @@ pub struct BlitzApiService {
     /// Whether the service is enabled or not
     pub enable: Box<BoolOptionData>,
 
-    /// The connetion type to use
+    /// The connection type to use
     pub connection_type: Box<StringListOptionData>,
 
     /// Log level
@@ -495,7 +495,7 @@ impl BlitzApiService {
     }
 
     pub(crate) fn to_json_string(&self) -> Result<String, TemplatingError> {
-        serde_json::to_string(self).change_context(TemplatingError::JsonRenderError)
+        serde_json::to_string_pretty(self).change_context(TemplatingError::JsonRenderError)
     }
 
     pub(crate) fn from_json(json_data: &str) -> Result<BlitzApiService, TemplatingError> {

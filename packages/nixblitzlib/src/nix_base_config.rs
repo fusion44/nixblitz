@@ -410,7 +410,7 @@ impl NixBaseConfig {
     }
 
     pub fn to_json_string(&self) -> Result<String, TemplatingError> {
-        serde_json::to_string(self).change_context(TemplatingError::JsonRenderError)
+        serde_json::to_string_pretty(self).change_context(TemplatingError::JsonRenderError)
     }
 
     pub fn from_json(json_data: &str) -> Result<NixBaseConfig, TemplatingError> {
@@ -470,7 +470,7 @@ impl AppConfig for NixBaseConfig {
                         // TODO: handle invalid passwords more gracefully.
                         //       The user should be notified. For now we
                         //       expect that library users handle invalid cases
-                        //       Currently there is no way to notifiy library
+                        //       Currently there is no way to notify library
                         //       users properly.
                         return Ok(false);
                     }

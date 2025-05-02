@@ -424,7 +424,7 @@ impl CoreLightningService {
     }
 
     pub(crate) fn to_json_string(&self) -> Result<String, TemplatingError> {
-        serde_json::to_string(self).change_context(TemplatingError::JsonRenderError)
+        serde_json::to_string_pretty(self).change_context(TemplatingError::JsonRenderError)
     }
 
     pub(crate) fn from_json(json_data: &str) -> Result<CoreLightningService, TemplatingError> {
