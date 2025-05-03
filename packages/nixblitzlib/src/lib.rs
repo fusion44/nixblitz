@@ -1,5 +1,6 @@
 pub mod app_config;
 pub mod app_option_data;
+pub mod apply_changes;
 pub mod apps;
 pub mod bitcoind;
 pub mod blitz_api;

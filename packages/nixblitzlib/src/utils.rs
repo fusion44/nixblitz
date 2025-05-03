@@ -10,6 +10,7 @@ use include_dir::{include_dir, Dir};
 use log::info;
 
 use crate::{
+    apply_changes::{run_nixos_rebuild_switch_async, ProcessOutput},
     bitcoind::BitcoinDaemonService,
     blitz_api::BlitzApiService,
     blitz_webui::BlitzWebUiService,
@@ -17,6 +18,7 @@ use crate::{
     errors::{PasswordError, ProjectError},
     lnd::LightningNetworkDaemonService,
     nix_base_config::{NixBaseConfig, NixBaseConfigsTemplates},
+    project::Project,
 };
 use sha_crypt::{sha512_simple, Sha512Params};
 
@@ -191,6 +193,48 @@ pub fn init_default_project(work_dir: &Path, force: Option<bool>) -> Result<(), 
     }
 
     render_template_files(work_dir, templ_files, force)
+}
+
+pub async fn apply_changes(work_dir: &Path) -> Result<(), ProjectError> {
+    info!("Initiating NixOS rebuild...");
+    match run_nixos_rebuild_switch_async(work_dir.to_str().unwrap().to_string()).await {
+        Ok(mut receiver) => {
+            while let Some(output) = receiver.recv().await {
+                match output {
+                    ProcessOutput::Stdout(line) => {
+                        info!("OUT: {}", line);
+                        println!("{}", line);
+                    }
+                    ProcessOutput::Stderr(line) => {
+                        info!("ERR: {}", line);
+                        println!("{}", line);
+                    }
+                    ProcessOutput::Completed(status) => {
+                        info!("--- Process finished with status: {} ---", status);
+                        println!("--- Process finished with status: {} ---", status);
+                        if !status.success() {
+                            info!("Warning: Command exited with non-zero status.");
+                        }
+                        let mut project = Project::load(work_dir.to_path_buf())?;
+                        project.set_changes_applied()?;
+                    }
+                    ProcessOutput::Error(err_msg) => {
+                        info!("RUNTIME ERROR: {}", err_msg);
+                        println!("RUNTIME ERROR: {}", err_msg);
+                        break;
+                    }
+                }
+            }
+            info!("Rebuild process monitoring finished (channel closed).");
+            println!("Rebuild process monitoring finished (channel closed).");
+        }
+        Err(report) => {
+            info!("Failed to start command: {}", report);
+            panic!("Failed to start command: {}", report);
+        }
+    }
+
+    Ok(())
 }
 
 fn render_template_files(

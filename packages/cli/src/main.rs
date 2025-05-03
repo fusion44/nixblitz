@@ -1,6 +1,9 @@
 use clap::Parser;
 use cli::Cli;
-use commands::{init::init_default_project_cmd, install::install_wizard, tui::start_tui};
+use commands::{
+    apply::apply_changes_cmd, init::init_default_project_cmd, install::install_wizard,
+    tui::start_tui,
+};
 use error_stack::Result;
 use errors::CliError;
 
@@ -39,6 +42,7 @@ async fn main() -> Result<(), CliError> {
         Some(commands::Commands::Doctor {}) => {
             println!("We haven't quite figured out how to implement this yet. Maybe try asking a magic 8-ball instead?")
         }
+        Some(commands::Commands::Apply { work_dir }) => apply_changes_cmd(work_dir).await?,
         None => println!("Please use --help to find the available commands."),
     }
 

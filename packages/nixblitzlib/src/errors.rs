@@ -6,6 +6,17 @@ pub enum ArgumentError {
     InvalidArgument(String, String),
 }
 
+/// Represents errors that can occur when starting the process.
+#[derive(Debug, Error)]
+pub enum CommandError {
+    /// Failed to spawn the command (e.g., command not found, permissions).
+    #[error("Failed to spawn command: {}", .0)]
+    SpawnFailed(String),
+    /// Failed to acquire stdout/stderr pipes.
+    #[error("Failed to get command pipe: {}", .0)]
+    PipeError(String),
+}
+
 #[derive(Debug, Error)]
 pub enum PasswordError {
     #[error("Password too short")]
@@ -62,6 +73,8 @@ pub enum ProjectError {
     FileReadError(String),
     #[error("Invalid data type. Got {:?} Expected {:?}", .0, .1)]
     InvalidDataType(String, String),
+    #[error("Unable to apply changes")]
+    ApplyChangesError(),
 }
 
 #[derive(Debug, Error)]

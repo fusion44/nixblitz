@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::Subcommand;
 
+pub mod apply;
 pub mod init;
 pub mod install;
 pub mod tui;
@@ -32,7 +33,14 @@ pub enum Commands {
         #[arg(short, long)]
         force: bool,
     },
+    /// Installs the system defined in the given work dir
     Install {
+        /// The working directory to operate on
+        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        work_dir: PathBuf,
+    },
+    /// Applies changes to the system defined in the given work dir
+    Apply {
         /// The working directory to operate on
         #[arg(short, long, value_name = "PATH", default_value = ".")]
         work_dir: PathBuf,

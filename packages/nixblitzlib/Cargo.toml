@@ -25,6 +25,7 @@ serde_json = "1.0.128"
 once_cell = "1.20.2"
 strum = "0.26.3"
 strum_macros = "0.26.4"
+tokio = { version = "1.40.0", features = ["rt-multi-thread", "sync", "process", "io-util", "macros"] }
 
 [dev-dependencies]
 tempdir = "0.3.7"
