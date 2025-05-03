@@ -123,6 +123,7 @@ mod tests {
         utils::unix_hash_password,
     };
 
+    #[test]
     fn test_password_option_data_creation() {
         let id = NixBaseConfigOption::InitialPassword.to_option_id();
         let hashed_value = "hashed_password".to_string();

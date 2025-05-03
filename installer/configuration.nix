@@ -11,7 +11,7 @@ in {
   boot.loader.grub.enable = false;
 
   nixpkgs.config.allowUnfree = false;
-  time.timeZone = "America/New_York";
+  time.timeZone = "Europe/Berlin";
   i18n.defaultLocale = "en_US.utf8";
 
   system.nixos.label = isoLabel;
@@ -107,7 +107,7 @@ in {
         alias build_nixblitz="sudo nix build -vvv --no-update-lock-file --max-jobs 0 '$BLITZ_CONFIG_PATH/src#nixosConfigurations.nixblitzx86vm.config.system.build.toplevel'"
         alias inst_nixblitz_vda="sudo disko-install --flake '/home/${user}/config/src#nixblitzx86vm' --disk main /dev/vda"
         alias test_remote_build="sudo ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i /root/.ssh/remotebuild remotebuild@192.168.8.202"
-        alias sync_config="sudo mkdir -p /mnt/data && sudo mount /dev/vda3 /mnt/data && sudo rsync -av --delete /home/${user}/config/ /mnt/data/config"
+        alias sync_config="sudo mkdir -p /mnt/data && sudo mount /dev/vda3 /mnt/data && sudo rsync -av --delete /home/${user}/config/ /mnt/data/config && sudo chown -R 1000:100 /mnt/data/config"
 
         if [ ! -d "config" ]; then
           nixblitz init -w $BLITZ_CONFIG_PATH

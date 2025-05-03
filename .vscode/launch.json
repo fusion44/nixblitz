@@ -9,11 +9,11 @@
       "args": ["init", "-w", "/tmp/something/"]
     },
     {
-      "name": "Launch gui in /tmp/something/",
+      "name": "Launch tui in /tmp/something/",
       "type": "codelldb",
       "request": "launch",
       "program": "${workspaceFolder}/packages/target/debug/nixblitz",
-      "args": ["gui", "-w", "/tmp/something/"]
+      "args": ["tui", "-w", "/tmp/something/"]
     },
     {
       "name": "Attach to Rust Process - pick PID",
