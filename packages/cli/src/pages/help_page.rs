@@ -27,8 +27,6 @@ impl HelpPage {
     fn nav(&mut self, action: &Action) {
         match action {
             Action::NavUp | Action::NavDown => {}
-            Action::NavLeft => todo!(),
-            Action::NavRight => todo!(),
             Action::Enter => self.on_enter(),
             Action::Esc => self.on_esc(),
             _ => (),

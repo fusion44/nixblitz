@@ -32,7 +32,7 @@ pub struct PortOptionComponent<'a> {
     popup: Option<Box<NumberInputPopup<'a>>>,
 }
 
-impl<'a> PortOptionComponent<'a> {
+impl PortOptionComponent<'_> {
     pub fn new(data: &PortOptionData, selected: bool) -> Result<Self, CliError> {
         let subtitle = data.value().to_string();
         let title = OPTION_TITLES
@@ -73,7 +73,7 @@ impl<'a> PortOptionComponent<'a> {
     }
 }
 
-impl<'a> OptionListItem for PortOptionComponent<'a> {
+impl OptionListItem for PortOptionComponent<'_> {
     fn selected(&self) -> bool {
         self.selected
     }
@@ -99,7 +99,7 @@ impl<'a> OptionListItem for PortOptionComponent<'a> {
     }
 }
 
-impl<'a> Component for PortOptionComponent<'a> {
+impl Component for PortOptionComponent<'_> {
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
         if ctx.action == Action::Esc && self.editing {
             if let Some(ref mut p) = self.popup {

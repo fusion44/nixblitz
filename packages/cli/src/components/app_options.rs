@@ -43,7 +43,7 @@ enum _Comp<'a> {
     Port(PortOptionComponent<'a>),
 }
 
-impl<'a> fmt::Display for _Comp<'a> {
+impl fmt::Display for _Comp<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             _Comp::Bool(_) => write!(f, "_Comp::Bool"),
@@ -587,7 +587,7 @@ impl<'a> AppOptions<'a> {
     }
 }
 
-impl<'a> Component for AppOptions<'a> {
+impl Component for AppOptions<'_> {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
         self.command_tx = Some(tx.clone());
         for c in self.options.get_components_mut()? {

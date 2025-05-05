@@ -34,7 +34,7 @@ pub struct NetAddressOptionComponent<'a> {
     popup: Option<Box<TextInputPopup<'a>>>,
 }
 
-impl<'a> NetAddressOptionComponent<'a> {
+impl NetAddressOptionComponent<'_> {
     pub fn new(data: &NetAddressOptionData, selected: bool) -> Result<Self, CliError> {
         let title = OPTION_TITLES
             .get(data.id())
@@ -88,7 +88,7 @@ impl<'a> NetAddressOptionComponent<'a> {
     }
 }
 
-impl<'a> OptionListItem for NetAddressOptionComponent<'a> {
+impl OptionListItem for NetAddressOptionComponent<'_> {
     fn selected(&self) -> bool {
         self.selected
     }
@@ -114,7 +114,7 @@ impl<'a> OptionListItem for NetAddressOptionComponent<'a> {
     }
 }
 
-impl<'a> Component for NetAddressOptionComponent<'a> {
+impl Component for NetAddressOptionComponent<'_> {
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
         if ctx.action == Action::Esc && self.editing {
             if let Some(ref mut p) = self.popup {

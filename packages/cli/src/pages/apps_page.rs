@@ -25,7 +25,7 @@ pub struct AppsPage<'a> {
     current_focus: FocusableComponent,
 }
 
-impl<'a> AppsPage<'a> {
+impl AppsPage<'_> {
     pub fn new(project: Rc<RefCell<Project>>) -> Result<Self, CliError> {
         let mut instance = Self {
             command_tx: None,
@@ -57,7 +57,7 @@ impl<'a> AppsPage<'a> {
     }
 }
 
-impl<'a> Component for AppsPage<'a> {
+impl Component for AppsPage<'_> {
     fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> Result<(), CliError> {
         self.app_list.register_action_handler(tx.clone())?;
         self.app_options.register_action_handler(tx.clone())?;
@@ -87,6 +87,10 @@ impl<'a> Component for AppsPage<'a> {
     }
 
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
+        if ctx.action == Action::Tick {
+            return Ok(None);
+        }
+
         match ctx.action {
             Action::NavUp
             | Action::NavDown
@@ -103,8 +107,7 @@ impl<'a> Component for AppsPage<'a> {
                     return self.app_options.update(ctx);
                 }
             }
-            Action::NavLeft | Action::NavRight => todo!(),
-            Action::Enter => {
+            Action::Enter | Action::NavRight => {
                 // When the user hits enter and the App List is selected
                 // then we'll focus on the options part of the page
                 if self.current_focus == FocusableComponent::AppTabList {
@@ -121,6 +124,9 @@ impl<'a> Component for AppsPage<'a> {
                 if self.current_focus == FocusableComponent::AppTabOptions {
                     self.on_focus_req(FocusableComponent::AppTabList);
                 }
+            }
+            Action::NavLeft if self.current_focus == FocusableComponent::AppTabOptions => {
+                self.on_focus_req(FocusableComponent::AppTabList);
             }
             Action::AppTabOptionChangeAccepted | Action::AppTabAppSelected(_) => {
                 return self.app_options.update(ctx);

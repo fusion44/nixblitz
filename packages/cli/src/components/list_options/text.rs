@@ -32,7 +32,7 @@ pub struct TextOptionComponent<'a> {
     popup: Option<Box<TextInputPopup<'a>>>,
 }
 
-impl<'a> TextOptionComponent<'a> {
+impl TextOptionComponent<'_> {
     pub fn new(data: &TextOptionData, selected: bool) -> Result<Self, CliError> {
         let subtitle = data.value().to_string();
         let title = OPTION_TITLES
@@ -77,7 +77,7 @@ impl<'a> TextOptionComponent<'a> {
     }
 }
 
-impl<'a> OptionListItem for TextOptionComponent<'a> {
+impl OptionListItem for TextOptionComponent<'_> {
     fn selected(&self) -> bool {
         self.selected
     }
@@ -103,7 +103,7 @@ impl<'a> OptionListItem for TextOptionComponent<'a> {
     }
 }
 
-impl<'a> Component for TextOptionComponent<'a> {
+impl Component for TextOptionComponent<'_> {
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
         if ctx.action == Action::Esc && self.editing {
             if let Some(ref mut p) = self.popup {

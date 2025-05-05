@@ -660,7 +660,7 @@ const ERROR_PATTERNS: &[&str] = &[
 ///
 /// * `Ok(())` - If the build completes successfully without known error patterns.
 /// * `Err(CliError)` - If the command fails to execute, exits with non-zero status,
-///                    or its streamed output contains defined error patterns.
+///   or its streamed output contains defined error patterns.
 fn build_system_streaming(work_dir: &Path, nixos_config_name: &str) -> Result<(), CliError> {
     let nix_target = format!(
         "{}/src#nixosConfigurations.{}.config.system.build.toplevel",
@@ -829,7 +829,11 @@ fn build_system_streaming(work_dir: &Path, nixos_config_name: &str) -> Result<()
             .lock()
             .map_err(|e| CliError::LockError(e.to_string()))?
             .clone();
-        if let Some(result_path) = final_stdout.lines().filter(|l| !l.trim().is_empty()).last() {
+        if let Some(result_path) = final_stdout
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .next_back()
+        {
             println!("Build result path: {}", result_path.trim());
         }
         println!("──────────────────────────────────────────────────────────────");
@@ -849,7 +853,7 @@ fn build_system_streaming(work_dir: &Path, nixos_config_name: &str) -> Result<()
 ///
 /// * `Ok(())` - If the build completes successfully without known error patterns.
 /// * `Err(CliError)` - If the command fails to execute, exits with non-zero status,
-///                    or its streamed output contains defined error patterns.
+///   or its streamed output contains defined error patterns.
 fn install_system_streaming(
     work_dir: &Path,
     nixos_config_name: &str,

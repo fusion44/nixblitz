@@ -71,7 +71,7 @@ impl OptionListItem for BoolOptionComponent {
     }
 
     fn is_applied(&self) -> bool {
-        todo!()
+        self.data.is_applied()
     }
 }
 

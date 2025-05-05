@@ -134,7 +134,7 @@ impl OptionListItem for StringListOptionComponent {
     }
 
     fn is_applied(&self) -> bool {
-        todo!();
+        self.data.is_applied()
     }
 
     fn on_edit(&mut self) -> Result<(), CliError> {

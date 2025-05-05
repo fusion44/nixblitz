@@ -25,7 +25,7 @@ pub struct NumberInputPopup<'a> {
     action_tx: Option<UnboundedSender<Action>>,
 }
 
-impl<'a> NumberInputPopup<'a> {
+impl NumberInputPopup<'_> {
     pub fn new(title: &str, value: NumberValue) -> Result<Self, CliError> {
         let lines = [value.to_string()].to_vec();
         Ok(Self {

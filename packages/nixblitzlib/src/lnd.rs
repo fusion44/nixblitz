@@ -4,6 +4,7 @@ use std::{collections::HashMap, net::IpAddr, path::Path, str::FromStr};
 use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
 use handlebars::{no_escape, Handlebars};
+use log::warn;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -214,14 +215,14 @@ impl AppConfig for LightningNetworkDaemonService {
                     }
                 }
                 LndConfigOption::CertExtraIps => {
-                    todo!("implement me");
+                    warn!("implement me");
                     //if let OptionDataChangeNotification::IpList(val) = option {
                     //    res = Ok(self.cert_extra_ips != val.value);
                     //    self.cert_extra_ips = val.value.clone();
                     //}
                 }
                 LndConfigOption::CertExtraDomains => {
-                    todo!("implement me");
+                    warn!("implement me");
                     //if let OptionDataChangeNotification::TextList(val) = option {
                     //    res = Ok(self.cert_extra_domains != val.value);
                     //    self.cert_extra_domains = val.value.clone();

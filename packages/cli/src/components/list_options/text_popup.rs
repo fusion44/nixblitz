@@ -39,7 +39,7 @@ pub struct TextInputPopup<'a> {
     focus: PopupFocus,
 }
 
-impl<'a> TextInputPopup<'a> {
+impl TextInputPopup<'_> {
     pub fn new(title: &str, lines: Vec<String>, max_lines: u16) -> Result<Self, CliError> {
         Ok(Self {
             title: format!(" {} ", title),

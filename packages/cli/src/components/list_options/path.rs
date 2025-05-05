@@ -32,7 +32,7 @@ pub struct PathOptionComponent<'a> {
     popup: Option<Box<TextInputPopup<'a>>>,
 }
 
-impl<'a> PathOptionComponent<'a> {
+impl PathOptionComponent<'_> {
     pub fn new(data: &PathOptionData, selected: bool) -> Result<Self, CliError> {
         let subtitle = data.value().unwrap_or_default().to_string();
         let title = OPTION_TITLES
@@ -73,7 +73,7 @@ impl<'a> PathOptionComponent<'a> {
     }
 }
 
-impl<'a> OptionListItem for PathOptionComponent<'a> {
+impl OptionListItem for PathOptionComponent<'_> {
     fn selected(&self) -> bool {
         self.selected
     }
@@ -99,7 +99,7 @@ impl<'a> OptionListItem for PathOptionComponent<'a> {
     }
 }
 
-impl<'a> Component for PathOptionComponent<'a> {
+impl Component for PathOptionComponent<'_> {
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
         if ctx.action == Action::Esc && self.editing {
             if let Some(ref mut p) = self.popup {

@@ -11,6 +11,7 @@ use ratatui::{
 };
 use ratatui_macros::constraints;
 use serde::{Deserialize, Serialize};
+use strum::Display;
 use tokio::sync::mpsc;
 
 use crate::{
@@ -63,7 +64,7 @@ pub enum Mode {
     Home,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Display)]
 enum ComponentIndex {
     Menu,
     Title,
@@ -417,7 +418,7 @@ impl App {
                 .unwrap()
                 .draw(frame, area, ctx)?;
         } else {
-            todo!();
+            error!("Unknown home page {}", self.home_page);
         }
 
         Ok(())

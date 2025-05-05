@@ -38,7 +38,7 @@ pub enum Action {
     /// The `bool` value specifies whether the modal requests exclusive input. For example
     /// if it contains a TextArea and must directly consume all input.
     /// - `true`: The modal has a text area, no action except [Actions::Esc] will be forwarded to
-    ///           any components
+    ///   any components
     /// - `false`: The modal does not have a text area. User input behavior is handleded normally.
     PushModal(bool),
 

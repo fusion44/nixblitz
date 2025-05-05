@@ -31,7 +31,7 @@ pub struct PasswordOptionComponent<'a> {
     popup: Option<Box<PasswordConfirmPopup<'a>>>,
 }
 
-impl<'a> PasswordOptionComponent<'a> {
+impl PasswordOptionComponent<'_> {
     pub fn new(data: &PasswordOptionData, selected: bool) -> Result<Self, CliError> {
         let title = OPTION_TITLES
             .get(data.id())
@@ -67,7 +67,7 @@ impl<'a> PasswordOptionComponent<'a> {
     }
 }
 
-impl<'a> OptionListItem for PasswordOptionComponent<'a> {
+impl OptionListItem for PasswordOptionComponent<'_> {
     fn selected(&self) -> bool {
         self.selected
     }
@@ -93,7 +93,7 @@ impl<'a> OptionListItem for PasswordOptionComponent<'a> {
     }
 }
 
-impl<'a> Component for PasswordOptionComponent<'a> {
+impl Component for PasswordOptionComponent<'_> {
     fn update(&mut self, ctx: &UpdateContext) -> Result<Option<Action>, CliError> {
         if ctx.action == Action::Esc && self.editing {
             if let Some(ref mut p) = self.popup {
