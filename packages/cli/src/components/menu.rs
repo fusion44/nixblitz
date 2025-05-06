@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use error_stack::{Result, ResultExt};
 use ratatui::{layout::Rect, Frame};
@@ -23,6 +25,17 @@ pub enum MenuItem {
     Help,
 }
 
+impl MenuItem {
+    pub fn get_splits(&self) -> &[usize] {
+        match self {
+            MenuItem::Apps => &[1, 4],
+            MenuItem::Settings => &[1, 4],
+            MenuItem::Actions => &[1, 5],
+            MenuItem::Help => &[1, 4],
+        }
+    }
+}
+
 impl From<MenuItem> for usize {
     fn from(value: MenuItem) -> Self {
         match value {
@@ -37,10 +50,10 @@ impl From<MenuItem> for usize {
 impl From<&str> for MenuItem {
     fn from(value: &str) -> Self {
         match value {
-            "Apps" => MenuItem::Apps,
-            "Settings" => MenuItem::Settings,
-            "Actions" => MenuItem::Actions,
-            "Help" => MenuItem::Help,
+            "[1] Apps" => MenuItem::Apps,
+            "[2] Settings" => MenuItem::Settings,
+            "[3] Actions" => MenuItem::Actions,
+            "[4] Help" => MenuItem::Help,
             _ => MenuItem::Apps,
         }
     }
@@ -77,7 +90,7 @@ pub struct Menu {
 impl Menu {
     pub fn new(offset: u16) -> Self {
         let mut instance = Self::default();
-        let entries = ["Apps", "Settings", "Actions", "Help"];
+        let entries = ["[1] Apps", "[2] Settings", "[3] Actions", "[4] Help"];
 
         let mut curr = offset;
         for entry in entries {
@@ -136,14 +149,7 @@ impl Component for Menu {
         let items: Vec<_> = self
             .entries
             .iter()
-            .enumerate()
-            .map(|(index, t)| {
-                if index == 2 {
-                    menu::item(t.title.as_str(), 2, ctx)
-                } else {
-                    menu::item(t.title.as_str(), 1, ctx)
-                }
-            })
+            .map(|t| menu::item(t.title.as_str(), t.item.get_splits(), ctx))
             .collect();
 
         let tabs = menu::tab_bar(items, self.active_item.into(), ctx);

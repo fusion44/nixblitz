@@ -288,50 +288,54 @@ pub mod button {
 }
 
 pub mod menu {
+    use log::info;
     use ratatui::{
         style::{Style, Stylize},
         text::{Line, Span},
         widgets::Tabs,
     };
 
-    use crate::app_contexts::RenderContext;
+    use crate::{app_contexts::RenderContext, utils::extract_string_parts};
 
-    pub fn item<'a>(title: &'a str, action_char_index: usize, ctx: &RenderContext) -> Line<'a> {
-        let (a, b) = title.split_at(action_char_index);
-        if action_char_index == 1 {
-            Line::from(vec![
-                Span::styled(
-                    a,
-                    Style::default()
-                        .fg(ctx.theme_data.clone().borrow().colors.primary)
-                        .underlined(),
-                ),
-                Span::styled(
-                    b,
-                    Style::default().fg(ctx.theme_data.clone().borrow().colors.on_surface),
-                ),
-            ])
-            .bg(ctx.theme_data.clone().borrow().colors.surface)
-        } else {
-            let (c, d) = a.split_at(a.len() - 1);
-            Line::from(vec![
-                Span::styled(
-                    c,
-                    Style::default().fg(ctx.theme_data.clone().borrow().colors.on_surface),
-                ),
-                Span::styled(
-                    d,
-                    Style::default()
-                        .fg(ctx.theme_data.clone().borrow().colors.primary)
-                        .underlined(),
-                ),
-                Span::styled(
-                    b,
-                    Style::default().fg(ctx.theme_data.clone().borrow().colors.on_surface),
-                ),
-            ])
-            .bg(ctx.theme_data.clone().borrow().colors.surface)
+    pub fn item<'a>(title: &'a str, indexes: &[usize], ctx: &RenderContext) -> Line<'a> {
+        if indexes.is_empty() {
+            return Line::from(Span::styled(
+                title,
+                Style::default()
+                    .fg(ctx.theme_data.clone().borrow().colors.primary)
+                    .underlined(),
+            ))
+            .bg(ctx.theme_data.clone().borrow().colors.surface);
         }
+
+        let parts = extract_string_parts(title, indexes);
+        let spans = parts
+            .iter()
+            .enumerate()
+            .map(|(i, s)| -> Vec<Span> {
+                if i == 0 {
+                    return vec![Span::styled(
+                        s.as_str().to_owned(),
+                        Style::default().fg(ctx.theme_data.clone().borrow().colors.secondary),
+                    )];
+                }
+
+                let (a, b) = s.split_at(1);
+                return vec![
+                    Span::styled(
+                        a.to_owned(),
+                        Style::default().fg(ctx.theme_data.clone().borrow().colors.primary),
+                    ),
+                    Span::styled(
+                        b.to_owned(),
+                        Style::default().fg(ctx.theme_data.clone().borrow().colors.secondary),
+                    ),
+                ];
+            })
+            .collect::<Vec<_>>()
+            .concat();
+
+        return Line::from(spans).bg(ctx.theme_data.clone().borrow().colors.surface);
     }
 
     pub fn tab_bar<'a>(items: Vec<Line<'a>>, active_item: usize, ctx: &RenderContext) -> Tabs<'a> {
