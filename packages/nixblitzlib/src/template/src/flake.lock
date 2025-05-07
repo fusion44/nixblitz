@@ -268,11 +268,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1740581290,
-        "narHash": "sha256-EPPszuUdgQts7pq7A6IzXbykSixUU0q9jFgmcutuYsI=",
+        "lastModified": 1746513536,
+        "narHash": "sha256-3+yJB3F5pMcSyJ9m+uX5KR+Yn5K/AISEM6iY/ZT9l4s=",
         "owner": "fusion44",
         "repo": "nixblitz",
-        "rev": "5cffe2c5f85041cf2e7a772c6d85609d9c819eef",
+        "rev": "8e583a2497e84faf8af17255d30d79b67931ab49",
         "type": "github"
       },
       "original": {
