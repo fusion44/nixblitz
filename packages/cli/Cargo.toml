@@ -5,7 +5,7 @@ edition = "2021"
 description = "A CLI interface to the RaspiBlitz project."
 resolver = "2"
 
-authors = ["fusion44 <some.fusion@gmail.com>"]
+authors = ["fusion44 <git.bleep096@passmail.net>"]
 build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

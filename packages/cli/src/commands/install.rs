@@ -5,12 +5,54 @@ use serde_json;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{fmt, thread};
 use sysinfo::System;
 
 use crate::errors::CliError;
+
+#[derive(Debug)]
+enum PostInstallOption {
+    Reboot,
+    PowerOff,
+    ViewLogs,
+}
+
+const REBOOT: &str = "Reboot";
+const POWER_OFF: &str = "PowerOff";
+const VIEW_LOGS: &str = "ViewLogs";
+
+impl fmt::Display for PostInstallOption {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            PostInstallOption::Reboot => REBOOT,
+            PostInstallOption::PowerOff => POWER_OFF,
+            PostInstallOption::ViewLogs => VIEW_LOGS,
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl FromStr for PostInstallOption {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, ()> {
+        match s {
+            REBOOT => Ok(PostInstallOption::Reboot),
+            POWER_OFF => Ok(PostInstallOption::PowerOff),
+            VIEW_LOGS => Ok(PostInstallOption::ViewLogs),
+            _ => Err(()),
+        }
+    }
+}
+
+impl PostInstallOption {
+    fn as_str_array() -> [&'static str; 3] {
+        [REBOOT, POWER_OFF, VIEW_LOGS]
+    }
+}
 
 #[derive(Debug)]
 enum InstallTarget {
@@ -603,9 +645,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
             std::thread::sleep(std::time::Duration::from_secs(1));
 
             match build_system_streaming(work_dir, "nixblitzx86vm") {
-                Ok(()) => {
-                    println!("\n✅ System build function reported success.");
-                }
+                Ok(()) => {}
                 Err(e) => {
                     eprintln!("\n❌ System build function failed: {}", e);
                     eprintln!("\n--- Full Collected Output (from error) ---");
@@ -617,9 +657,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
             }
 
             match install_system_streaming(work_dir, "nixblitzx86vm", &selected_disk.path) {
-                Ok(()) => {
-                    println!("\n✅ System install function reported success.");
-                }
+                Ok(()) => {}
                 Err(e) => {
                     eprintln!("\n❌ System build function failed: {}", e);
                     eprintln!("\n--- Full Collected Output (from error) ---");
@@ -637,7 +675,26 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         }
     }
 
-    info!("Installation wizard completed successfully");
+    // Step 7: Sync config files
+    let res = sync_config(work_dir, &selected_disk.path);
+    match res {
+        Ok(()) => {
+            println!("\n✅ System config copied successfully");
+        }
+        Err(e) => {
+            eprintln!("\n❌ System copy failed: {}", e);
+            eprintln!("\n--- Full Collected Output (from error) ---");
+            error!("{}", e);
+            eprintln!("--- End of Output ---");
+
+            std::process::exit(1);
+        }
+    }
+    println!("If there was no error, you may now reboot your system.\n\n");
+
+    show_post_install_choice()?;
+
+    info!("Installation wizard completed.");
     Ok(())
 }
 
@@ -648,6 +705,41 @@ const ERROR_PATTERNS: &[&str] = &[
     "undefined variable",
     "attribute not found",
 ];
+
+fn show_post_install_choice() -> Result<(), CliError> {
+    let post_install_choice = Select::new(
+        "What do you want to do now?",
+        PostInstallOption::as_str_array().to_vec(),
+    )
+    .prompt()
+    .map_err(|e| {
+        error!("Failed to get post install option selection: {:?}", e);
+        CliError::ArgumentError
+    })?;
+
+    match PostInstallOption::from_str(post_install_choice) {
+        Ok(PostInstallOption::Reboot) => {
+            info!("User selected to reboot the system");
+            reboot_system()?;
+        }
+        Ok(PostInstallOption::PowerOff) => {
+            info!("User selected to poweroff the system");
+            poweroff_system()?;
+        }
+        Ok(PostInstallOption::ViewLogs) => {
+            info!("User selected to view logs");
+            show_log()?;
+            show_post_install_choice()?;
+        }
+
+        Err(_) => {
+            error!("Invalid post install option {}", post_install_choice);
+            return Err(Report::new(CliError::ArgumentError));
+        }
+    }
+
+    Ok(())
+}
 
 /// Runs the Nix build command for the specified system configuration, streaming its output.
 ///
@@ -841,6 +933,204 @@ fn build_system_streaming(work_dir: &Path, nixos_config_name: &str) -> Result<()
     }
 }
 
+fn show_log() -> Result<(), CliError> {
+    let args = &["/home/nixos/.local/state/nixblitz-cli/nixblitz.log"];
+    let status = Command::new("bat").args(args).status().map_err(|e| {
+        error!("Failed to show logs: {}", e);
+        CliError::CommandError(
+            format!("Failed to run command: bat {:?}", args),
+            e.to_string(),
+        )
+    })?;
+
+    if !status.success() {
+        error!("Failed to reboot system. Status: {}", status);
+        return Err(Report::new(CliError::CommandError(
+            "Reboot failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    Ok(())
+}
+
+/// Attempts to reboot the system
+fn reboot_system() -> Result<(), CliError> {
+    println!(
+        "\n\n--------------------------------------------------------------------------------"
+    );
+    println!("Rebooting system...");
+    println!("--------------------------------------------------------------------------------");
+
+    let args = &["systemctl", "reboot"];
+    let status = Command::new("sudo").args(args).status().map_err(|e| {
+        error!("Failed to reboot system: {}", e);
+        CliError::CommandError(
+            format!("Failed to run command: sudo {:?}", args),
+            e.to_string(),
+        )
+    })?;
+
+    if !status.success() {
+        error!("Failed to reboot system. Status: {}", status);
+        return Err(Report::new(CliError::CommandError(
+            "Reboot failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    Ok(())
+}
+
+/// Attempts to poweroff the system
+fn poweroff_system() -> Result<(), CliError> {
+    println!(
+        "\n\n--------------------------------------------------------------------------------"
+    );
+    println!("Powering off system...");
+    println!("--------------------------------------------------------------------------------");
+    let args = &["systemctl", "poweroff"];
+    let status = Command::new("sudo").args(args).status().map_err(|e| {
+        error!("Failed to poweroff system: {}", e);
+        CliError::CommandError(
+            format!("Failed to run command: sudo {:?}", args),
+            e.to_string(),
+        )
+    })?;
+
+    if !status.success() {
+        error!("Failed to poweroff system. Status: {}", status);
+        return Err(Report::new(CliError::CommandError(
+            "Poweroff failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    Ok(())
+}
+
+/// Attempts to sync the configuration from the work directory to the selected disk
+fn sync_config(work_dir: &Path, selected_disk: &str) -> Result<(), CliError> {
+    let post = if selected_disk.starts_with("/dev/nvme") {
+        // nvme0n1
+        // ├─nvme0n1p1
+        // ├─nvme0n1p2
+        "p3"
+    } else {
+        // sda
+        // └─sda1
+        "3"
+    };
+    let disk = format!("{}{}", selected_disk, post).to_owned();
+    let mkdir_args = &["mkdir", "-p", "/mnt/data"];
+    let mount_args = &["mount", &disk, "/mnt/data"];
+    let rsync_args = &[
+        "rsync",
+        "-av",
+        "--delete",
+        &work_dir.to_string_lossy(),
+        "/mnt/data/",
+    ];
+    let chown_args = &["chown", "-R", "1000:100", "/mnt/data/config"];
+    println!("──────────────────────────────────────────────────────────────");
+    println!("🚀 Copying system config to system");
+    println!("🔧 Running the following commands:");
+    println!("     sudo {}", mkdir_args.join(" "));
+    println!("     sudo {}", mount_args.join(" "));
+    println!("     sudo {}", rsync_args.join(" "));
+    println!("     sudo {}", chown_args.join(" "));
+    println!("──────────────────────────────────────────────────────────────");
+
+    let status = Command::new("sudo")
+        .args(mkdir_args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| {
+            error!("Failed to make data directory: {}", e);
+            CliError::CommandError(
+                format!("Failed to run command: sudo {:?}", mkdir_args),
+                e.to_string(),
+            )
+        })?;
+
+    if !status.success() {
+        error!("Failed to make data directory. Status: {}", status);
+        return Err(Report::new(CliError::CommandError(
+            "Make data directory failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    let status = Command::new("sudo")
+        .args(mount_args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| {
+            error!("Failed to mount device: {}", e);
+            CliError::CommandError(
+                format!("Failed to run command: sudo {:?}", mount_args),
+                e.to_string(),
+            )
+        })?;
+
+    if !status.success() {
+        error!("Failed to mount device. Status: {}", status);
+        return Err(Report::new(CliError::CommandError(
+            "Mount failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    let status = Command::new("sudo")
+        .args(rsync_args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| {
+            error!("Failed to sync config: {}", e);
+            CliError::CommandError(
+                format!("Failed to run command: sudo {:?}", rsync_args),
+                e.to_string(),
+            )
+        })?;
+
+    if !status.success() {
+        error!("Failed to sync config. Status: {}", status);
+        return Err(Report::new(CliError::CommandError(
+            "Sync failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    let status = Command::new("sudo")
+        .args(chown_args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| {
+            error!("Failed to change config folder ownership: {}", e);
+            CliError::CommandError(
+                format!("Failed to run command: sudo {:?}", chown_args),
+                e.to_string(),
+            )
+        })?;
+
+    if !status.success() {
+        error!(
+            "Failed to change config folder ownership. Status: {}",
+            status
+        );
+        return Err(Report::new(CliError::CommandError(
+            "Chown failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    Ok(())
+}
+
 /// Runs the disko-install command for the specified system configuration, streaming its output.
 ///
 /// # Arguments
@@ -881,7 +1171,7 @@ fn install_system_streaming(
 
     let proceed = Confirm::new("Are you sure you want to continue?")
         .with_default(false)
-        .with_help_message("This action cannot be undone and will erase the disk!")
+        .with_help_message("🚨 This action cannot be undone and will erase the disk! 🚨")
         .prompt()
         .map_err(|e| {
             error!("Failed to get confirmation for disk erasure: {:?}", e);
