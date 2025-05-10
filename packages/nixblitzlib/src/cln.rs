@@ -53,14 +53,14 @@ pub struct CoreLightningService {
 
     /// The data directory for clightning.
     ///
-    /// default: "/var/lib/clightning"
+    /// default: "/mnt/data/clightning"
     pub data_dir: Box<TextOptionData>,
 
     /// Wallet data scheme (sqlite3 or postgres) and location/connection
     /// parameters, as fully qualified data source name.
     ///
     /// default: null
-    /// example: "sqlite3:///var/lib/clightning/bitcoin/lightningd.sqlite3";
+    /// example: "sqlite3:///mnt/data/clightning/bitcoin/lightningd.sqlite3";
     pub wallet: Box<TextOptionData>,
 
     /// Extra lines appended to the configuration file.
@@ -314,17 +314,17 @@ impl Default for CoreLightningService {
             )),
             data_dir: Box::new(TextOptionData::new(
                 ClnConfigOption::DataDir.to_option_id(),
-                "/var/lib/clightning".to_string(),
+                "/mnt/data/clightning".to_string(),
                 1,
                 false,
-                "/var/lib/clightning".to_string(),
+                "/mnt/data/clightning".to_string(),
             )),
             wallet: Box::new(TextOptionData::new(
                 ClnConfigOption::Wallet.to_option_id(),
-                "sqlite3:///var/lib/clightning/bitcoin/lightningd.sqlite3".to_string(),
+                "sqlite3:///mnt/data/clightning/bitcoin/lightningd.sqlite3".to_string(),
                 1,
                 false,
-                "sqlite3:///var/lib/clightning/bitcoin/lightningd.sqlite3".to_string(),
+                "sqlite3:///mnt/data/clightning/bitcoin/lightningd.sqlite3".to_string(),
             )),
             extra_config: Box::new(TextOptionData::new(
                 ClnConfigOption::ExtraConfig.to_option_id(),
@@ -489,10 +489,10 @@ mod tests {
             )),
             wallet: Box::new(TextOptionData::new(
                 ClnConfigOption::Wallet.to_option_id(),
-                "sqlite3:///var/lib/clightning/bitcoin/lightningd.sqlite3".to_string(),
+                "sqlite3:///mnt/data/clightning/bitcoin/lightningd.sqlite3".to_string(),
                 1,
                 false,
-                "sqlite3:///var/lib/clightning/bitcoin/lightningd.sqlite3".to_string(),
+                "sqlite3:///mnt/data/clightning/bitcoin/lightningd.sqlite3".to_string(),
             )),
             extra_config: Box::new(TextOptionData::new(
                 ClnConfigOption::ExtraConfig.to_option_id(),

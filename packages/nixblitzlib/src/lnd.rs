@@ -325,10 +325,10 @@ impl Default for LightningNetworkDaemonService {
             )),
             data_dir: Box::new(TextOptionData::new(
                 LndConfigOption::DataDir.to_option_id(),
-                "/var/lib/lnd".to_string(),
+                "/mnt/data/lnd".to_string(),
                 1,
                 false,
-                "/var/lib/lnd".to_string(),
+                "/mnt/data/lnd".to_string(),
             )),
             cert_extra_ips: Box::new(Vec::new()),
             cert_extra_domains: Box::new(Vec::new()),

@@ -392,7 +392,7 @@ pub struct BitcoinDaemonService {
 
     /// The data directory for bitcoind.
     ///
-    /// Default: "/var/lib/bitcoind"
+    /// Default: "/mnt/hdd/bitcoind"
     pub data_dir: Box<TextOptionData>,
 
     /// Whether to enable the tx index
@@ -508,7 +508,7 @@ impl Default for BitcoinDaemonService {
             ),
             data_dir: Box::new(TextOptionData::new(
                 BitcoindConfigOption::DataDir.to_option_id(),
-                "/var/lib/bitcoind".into(),
+                "/mnt/hdd/bitcoind".into(),
                 1,
                 false,
                 "".into(),
@@ -579,6 +579,7 @@ impl BitcoinDaemonService {
             ("disable_wallet", self.disable_wallet.value().to_string()),
             ("address", self.address.to_nix_string(true)),
             ("listen", self.listen.value().to_string()),
+            ("data_dir", self.data_dir.value().to_string()),
             ("port", self.port.value().to_string_or("8333")),
             ("rpc_address", self.rpc_address.to_nix_string(true)),
             ("rpc_port", self.rpc_port.value().to_string_or("8332")),
@@ -873,6 +874,7 @@ impl AppConfig for BitcoinDaemonService {
             OptionData::Port(self.port.clone()),
             OptionData::Port(self.onion_port.clone()),
             OptionData::Bool(self.listen.clone()),
+            OptionData::TextEdit(self.data_dir.clone()),
             OptionData::TextEdit(self.extra_config.clone()),
             OptionData::TextEdit(self.user.clone()),
             OptionData::StringList(Box::new(StringListOptionData::new(
@@ -1189,7 +1191,7 @@ pub mod tests {
             NumberValue::U16(Some(8332))
         );
         assert_eq!(default_service.user.value(), "admin");
-        assert_eq!(default_service.data_dir.value(), "/var/lib/bitcoind");
+        assert_eq!(default_service.data_dir.value(), "/mnt/hdd/bitcoind");
         assert_eq!(
             default_service.network.value(),
             BitcoinNetwork::Mainnet.to_string()
@@ -1212,13 +1214,13 @@ pub mod tests {
         let res = d.render().unwrap();
         assert!(res.contains_key(TEMPLATE_FILE_NAME));
         let nix_str = res.get(TEMPLATE_FILE_NAME).unwrap();
-        println!("{}", nix_str);
 
         assert!(nix_str.contains(&format!("enable = {};", d.enable.value())));
         assert!(nix_str.contains(&"regtest = false;".to_string()));
         assert!(nix_str.contains(&format!("txindex = {};", d.tx_index.value())));
         assert!(nix_str.contains(&format!("disablewallet = {};", d.disable_wallet.value())));
         assert!(nix_str.contains(&format!("listen = {};", d.listen.value())));
+        assert!(nix_str.contains(&format!("dataDir = {};", d.data_dir.value())));
         assert!(nix_str.contains(&format!(
             "address = \"{}\";",
             d.address.to_nix_string(false)

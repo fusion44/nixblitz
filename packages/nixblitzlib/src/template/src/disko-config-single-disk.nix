@@ -48,7 +48,7 @@
               content = {
                 type = "filesystem";
                 format = "ext4";
-                mountpoint = "/mnt/blockchain";
+                mountpoint = "/mnt/hdd";
               };
             };
           };

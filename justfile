@@ -17,6 +17,18 @@ format:
   alejandra	.
   cd {{rust_src}}; cargo fmt
 
+update-flakes:
+  #!/usr/bin/env nu
+  cd installer/nix_store_cfg/
+  nix flake update
+  cd ..
+  nix flake update
+  cd ..
+  cd packages/nixblitzlib/src/template/src
+  nix flake update
+  cd ..
+  nix flake update
+
 # inside the test vm: sync from shared folder to dev
 sync-src-temp:
   rsync -av --exclude='target/' --exclude='.git' --exclude='result' /mnt/shared/ /home/nixos/dev

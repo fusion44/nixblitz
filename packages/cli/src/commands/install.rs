@@ -644,7 +644,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
             println!("\nTUI finished with status: {}.", status);
             std::thread::sleep(std::time::Duration::from_secs(1));
 
-            match build_system_streaming(work_dir, "nixblitzx86vm") {
+            match build_system_streaming(work_dir, "nixblitzx86") {
                 Ok(()) => {}
                 Err(e) => {
                     eprintln!("\n❌ System build function failed: {}", e);
@@ -656,7 +656,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
                 }
             }
 
-            match install_system_streaming(work_dir, "nixblitzx86vm", &selected_disk.path) {
+            match install_system_streaming(work_dir, "nixblitzx86", &selected_disk.path) {
                 Ok(()) => {}
                 Err(e) => {
                     eprintln!("\n❌ System build function failed: {}", e);
@@ -746,7 +746,7 @@ fn show_post_install_choice() -> Result<(), CliError> {
 /// # Arguments
 ///
 /// * `work_dir` - The path to the directory containing the flake.nix (e.g., /home/nixos/config/src).
-/// * `nixos_config_name` - The name of the nixosConfiguration (e.g., "nixblitzx86vm").
+/// * `nixos_config_name` - The name of the nixosConfiguration (e.g., "nixblitzx86").
 ///
 /// # Returns
 ///
@@ -1136,7 +1136,7 @@ fn sync_config(work_dir: &Path, selected_disk: &str) -> Result<(), CliError> {
 /// # Arguments
 ///
 /// * `work_dir` - The path to the directory containing the flake.nix (e.g., /home/nixos/config/src).
-/// * `nixos_config_name` - The name of the nixosConfiguration (e.g., "nixblitzx86vm").
+/// * `nixos_config_name` - The name of the nixosConfiguration (e.g., "nixblitzx86").
 /// * `disk` - The name of the disk device to install the system on.
 ///
 /// # Returns
