@@ -43,7 +43,6 @@ in {
   users = {
     defaultUserShell = pkgs.nushell;
     users."admin" = {
-      isNormalUser = true;
       extraGroups = ["wheel"];
       hashedPassword = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.";
       openssh.authorizedKeys.keys = [
@@ -61,11 +60,6 @@ in {
 
     home = {
       packages = [];
-      #file.".config/orig_nixblitz_config" = {
-      #  source = ../src;
-      #  recursive = true;
-      #};
-
       stateVersion = "25.05";
     };
   };

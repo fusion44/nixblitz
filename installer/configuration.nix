@@ -18,7 +18,16 @@ in {
   boot.kernelParams = ["iso_label=${isoLabel}"];
   isoImage = {
     volumeID = isoLabel;
-    storeContents = [targetSystemConfig.config.system.build.toplevel];
+    storeContents = with pkgs; [
+      targetSystemConfig.config.system.build.toplevel
+      bitcoind
+      clightning
+      lnd
+      lndinit
+      lightning-loop
+      lightning-pool
+      lightning-terminal
+    ];
   };
 
   nix = {
@@ -104,8 +113,8 @@ in {
         echo '  |_| \_|_/_/\_\____/|_|_|\__/___|'
         echo ""
 
-        alias build_nixblitz="sudo nix build -vvv --no-update-lock-file --max-jobs 0 '$BLITZ_CONFIG_PATH/src#nixosConfigurations.nixblitzx86vm.config.system.build.toplevel'"
-        alias inst_nixblitz_vda="sudo disko-install --flake '/home/${user}/config/src#nixblitzx86vm' --disk main /dev/vda"
+        alias build_nixblitz="sudo nix build -vvv --no-update-lock-file --max-jobs 0 '$BLITZ_CONFIG_PATH/src#nixosConfigurations.nixblitzx86.config.system.build.toplevel'"
+        alias inst_nixblitz_vda="sudo disko-install --flake '/home/${user}/config/src#nixblitzx86' --disk main /dev/vda"
         alias test_remote_build="sudo ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i /root/.ssh/remotebuild remotebuild@192.168.8.202"
         alias sync_config="sudo mkdir -p /mnt/data && sudo mount /dev/vda3 /mnt/data && sudo rsync -av --delete /home/${user}/config/ /mnt/data/config && sudo chown -R 1000:100 /mnt/data/config"
 

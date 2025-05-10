@@ -1,9 +1,10 @@
 {
   enable = false;
-  regtest = false;
+  regtest = true;
   txindex = false;
   disablewallet = true;
   listen = false;
+  dataDir = "/mnt/data/bitcoin";
   address = "127.0.0.1";
   port = 8333;
   rpc = {
