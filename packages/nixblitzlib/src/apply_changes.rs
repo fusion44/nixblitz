@@ -43,7 +43,7 @@ pub async fn run_nixos_rebuild_switch_async(
     // "--show-trace",
     // "--print-build-logs",
     // "--verbose",
-    let args = ["switch", "--flake", system.as_str()];
+    let args = ["switch", "--flake", system.as_str(), "--impure"];
 
     let mut cmd = Command::new(command_str);
     cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());

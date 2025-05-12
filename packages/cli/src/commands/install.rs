@@ -1,12 +1,14 @@
 use error_stack::{Report, Result, ResultExt};
 use inquire::{Confirm, Select};
 use log::{debug, error, info, warn};
+use nixblitzlib::utils::get_system_platform;
+use nixblitzlib::SystemPlatform;
 use serde_json;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::{fmt, thread};
 use sysinfo::System;
@@ -353,6 +355,11 @@ fn check_system_compatibility(
     (compatible, issues)
 }
 
+static CURRENT_STEP: AtomicI8 = AtomicI8::new(0);
+fn step() -> i8 {
+    CURRENT_STEP.fetch_add(1, Ordering::SeqCst)
+}
+
 /// Implementation of the install wizard
 pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
     info!("Starting NixBlitz installation wizard");
@@ -361,8 +368,12 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
     println!("Welcome to the NixBlitz Installation Wizard");
     println!("===========================================\n");
 
-    // Step 1: Ask whether to install locally or remotely
-    info!("Step 1: Requesting installation target selection (local/remote)");
+    // Ask whether to install locally or remotely
+    info!(
+        "Step {}: Requesting installation target selection (local/remote)",
+        step()
+    );
+
     let install_options = vec![
         "On this machine (local installation)",
         "On a remote machine",
@@ -398,8 +409,8 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         }
     }
 
-    // Step 2: Analyze the local system
-    info!("Step 2: Analyzing system information");
+    // Analyze the local system
+    info!("Step {}: Analyzing system information", step());
     println!("\n🔍 Analyzing your system...");
     let system_info = gather_system_info().map_err(|e| {
         error!("Failed to gather system information: {:?}", e);
@@ -424,8 +435,8 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
 
     // Display system information
     println!("\n🖥️ System Information:");
-    println!("------------------------");
-    println!("🖥️ System: {}", system_info.system_type);
+    println!("──────────────────────────────────────────────────────────────");
+    println!("🖥️System: {}", system_info.system_type);
     println!("🧠 CPU: {}", system_info.cpu_info);
     println!("🧩 CPU Cores: {}", system_info.cpu_cores);
     println!("💾 RAM: {} MB", system_info.ram_mb);
@@ -461,8 +472,11 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         );
     }
 
-    // Step 3: Check system compatibility
-    info!("Step 3: Checking system compatibility against requirements");
+    // Check system compatibility
+    info!(
+        "Step {}: Checking system compatibility against requirements",
+        step()
+    );
     let requirements = SystemRequirements::default();
     info!("System requirements: {:?}", requirements);
 
@@ -498,12 +512,42 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         println!("\nContinuing installation despite system limitations...");
     } else {
         info!("System meets all minimum requirements");
-        println!("\n✅ Your system meets all minimum requirements!");
+        println!("\n✅ Your system meets all minimum requirements!\n");
     }
 
-    // Step 4: Let user select installation disk
-    info!("Step 4: Requesting disk selection for installation");
+    let platform = match ensure_system_platform() {
+        Ok(p) => p,
+        Err(e) => {
+            println!("❌ Error checking for platform: {}", e);
+            error!("Error checking for platform: {}", e.to_string());
+            std::process::exit(1);
+        }
+    };
 
+    match platform {
+        SystemPlatform::X86_64BareMetal => {}
+        SystemPlatform::X86_64Vm => {}
+        SystemPlatform::Arm64 | SystemPlatform::Pi4 | SystemPlatform::Pi5 => {
+            println!("❌ Platform {} not yet implemented", platform);
+            error!("❌ Platform {} not yet implemented", platform);
+            std::process::exit(1);
+        }
+        SystemPlatform::Unsupported => {
+            println!("❌ Unsupported platform. Installation is not supported.");
+            error!("Unsupported platform. Installation is not supported.");
+            std::process::exit(1);
+        }
+    }
+
+    println!("──────────────────────────────────────────────────────────────");
+    println!("🔧 Installing for architecture: {}", platform);
+    println!("──────────────────────────────────────────────────────────────");
+
+    // Let user select installation disk
+    info!(
+        "Step {}: Requesting disk selection for installation",
+        step()
+    );
     if system_info.disks.is_empty() {
         error!("No suitable disks detected, cannot proceed with installation");
         println!("\n❌ No suitable disks detected. Installation cannot proceed.");
@@ -579,8 +623,8 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
     );
     debug!("Selected disk details: {:?}", selected_disk);
 
-    // Step 5: Disk erasure warning and confirmation
-    info!("Step 5: Asking for disk erasure confirmation");
+    // Disk erasure warning and confirmation
+    info!("Step {}: Asking for disk erasure confirmation", step());
     println!("\n⚠️ WARNING ⚠️");
     println!("The following disk will be COMPLETELY ERASED during installation:");
 
@@ -619,10 +663,11 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         return Ok(());
     }
 
-    // Step 6: Installation
+    // Installation
     info!(
-        "Step 6: Proceeding with installation on disk: {}",
-        selected_disk.path
+        "Step {}: Proceeding with installation on disk: {}",
+        step(),
+        selected_disk.path,
     );
 
     println!("Launching NixBlitz configuration tool...");
@@ -644,19 +689,11 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
             println!("\nTUI finished with status: {}.", status);
             std::thread::sleep(std::time::Duration::from_secs(1));
 
-            match build_system_streaming(work_dir, "nixblitzx86") {
-                Ok(()) => {}
-                Err(e) => {
-                    eprintln!("\n❌ System build function failed: {}", e);
-                    eprintln!("\n--- Full Collected Output (from error) ---");
-                    error!("{}", e);
-                    eprintln!("--- End of Output ---");
-
-                    std::process::exit(1);
-                }
-            }
-
-            match install_system_streaming(work_dir, "nixblitzx86", &selected_disk.path) {
+            match install_system_streaming(
+                work_dir,
+                platform.to_nixos_system_name(),
+                &selected_disk.path,
+            ) {
                 Ok(()) => {}
                 Err(e) => {
                     eprintln!("\n❌ System build function failed: {}", e);
@@ -675,7 +712,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         }
     }
 
-    // Step 7: Sync config files
+    // Sync config files
     let res = sync_config(work_dir, &selected_disk.path);
     match res {
         Ok(()) => {
@@ -696,6 +733,46 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
 
     info!("Installation wizard completed.");
     Ok(())
+}
+
+fn ensure_system_platform() -> Result<SystemPlatform, CliError> {
+    info!("Step {}: Requesting system platform selection", step());
+    println!("🔍 Detecting platform ...");
+
+    let platform = get_system_platform();
+    if platform == SystemPlatform::Unsupported {
+        return Ok(platform);
+    }
+
+    println!("──────────────────────────────────────────────────────────────");
+    println!("🚀 Detected platform: {}", platform);
+    println!("──────────────────────────────────────────────────────────────");
+
+    let correct = Confirm::new("Is this correct?")
+        .with_default(false)
+        .with_help_message("If not, you can select the correct platform during the next step.")
+        .prompt()
+        .map_err(|e| {
+            error!("User indicated we didn't get the correct platform: {:?}", e);
+            CliError::ArgumentError
+        })?;
+
+    if correct {
+        return Ok(platform);
+    }
+
+    let platform = Select::new(
+        "Please select the correct platform.",
+        SystemPlatform::to_string_array().to_vec(),
+    )
+    .prompt()
+    .map(|s| SystemPlatform::from_string(s).unwrap())
+    .map_err(|e| {
+        error!("User selected an unknown platform: {:?}", e);
+        CliError::Unknown
+    })?;
+
+    Ok(platform)
 }
 
 const ERROR_PATTERNS: &[&str] = &[
@@ -739,198 +816,6 @@ fn show_post_install_choice() -> Result<(), CliError> {
     }
 
     Ok(())
-}
-
-/// Runs the Nix build command for the specified system configuration, streaming its output.
-///
-/// # Arguments
-///
-/// * `work_dir` - The path to the directory containing the flake.nix (e.g., /home/nixos/config/src).
-/// * `nixos_config_name` - The name of the nixosConfiguration (e.g., "nixblitzx86").
-///
-/// # Returns
-///
-/// * `Ok(())` - If the build completes successfully without known error patterns.
-/// * `Err(CliError)` - If the command fails to execute, exits with non-zero status,
-///   or its streamed output contains defined error patterns.
-fn build_system_streaming(work_dir: &Path, nixos_config_name: &str) -> Result<(), CliError> {
-    let nix_target = format!(
-        "{}/src#nixosConfigurations.{}.config.system.build.toplevel",
-        work_dir.to_string_lossy(),
-        nixos_config_name
-    );
-
-    let sudo_args = &["nix", "build", "--no-update-lock-file", &nix_target];
-
-    println!("──────────────────────────────────────────────────────────────");
-    println!("🚀 Starting system build: {}", nixos_config_name);
-    println!("🔧 Running command via sudo:");
-    println!("   sudo {}", sudo_args.join(" "));
-    println!("──────────────────────────────────────────────────────────────");
-    io::stdout()
-        .flush()
-        .change_context(CliError::IoError("Unable to flush stdout".into()))?;
-
-    let proceed = Confirm::new("Are you sure you want to continue?")
-        .with_default(false)
-        .with_help_message("The actual installation will be done after the build.")
-        .prompt()
-        .map_err(|e| {
-            error!("Failed to get confirmation for disk erasure: {:?}", e);
-            CliError::ArgumentError
-        })?;
-
-    if !proceed {
-        info!("User aborted installation at disk erasure confirmation");
-        println!("Installation aborted.");
-        return Err(Report::new(CliError::UserAbort));
-    }
-
-    let mut child = Command::new("sudo")
-        .args(sudo_args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| {
-            if e.kind() == io::ErrorKind::NotFound {
-                CliError::BuildExecutionFailed(
-                    "'sudo' command not found. Is it installed and in PATH?".to_string(),
-                )
-            } else {
-                CliError::IoError(e.to_string())
-            }
-        })?;
-
-    // Signals if an error pattern was detected in one of the streams
-    let error_pattern_detected = Arc::new(AtomicBool::new(false));
-    let mut thread_handles = Vec::new();
-    let collected_stdout_arc = Arc::new(Mutex::new(String::new()));
-    let collected_stderr_arc = Arc::new(Mutex::new(String::new()));
-
-    if let Some(stdout_pipe) = child.stdout.take() {
-        let error_flag_clone = Arc::clone(&error_pattern_detected);
-        let stdout_collector_clone = Arc::clone(&collected_stdout_arc);
-        let stdout_handle = thread::spawn(move || {
-            let reader = BufReader::new(stdout_pipe);
-            for line_result in reader.lines() {
-                match line_result {
-                    Ok(line) => {
-                        println!("{}", line);
-                        if let Ok(mut guard) = stdout_collector_clone.lock() {
-                            guard.push_str(&line);
-                            guard.push('\n');
-                        }
-                        for pattern in ERROR_PATTERNS {
-                            if line.contains(pattern) {
-                                eprintln!(">> ERROR DETECTED (stdout): {}", line);
-                                error_flag_clone.store(true, Ordering::SeqCst);
-                                break;
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("Error reading stdout pipe: {}", e);
-                        error_flag_clone.store(true, Ordering::SeqCst);
-                        break;
-                    }
-                }
-            }
-        });
-        thread_handles.push(stdout_handle);
-    } else {
-        eprintln!("Warning: Could not capture stdout pipe.");
-    }
-
-    if let Some(stderr_pipe) = child.stderr.take() {
-        let error_flag_clone = Arc::clone(&error_pattern_detected);
-        let stderr_collector_clone = Arc::clone(&collected_stderr_arc);
-        let stderr_handle = thread::spawn(move || {
-            let reader = BufReader::new(stderr_pipe);
-            for line_result in reader.lines() {
-                match line_result {
-                    Ok(line) => {
-                        eprintln!("{}", line);
-                        if let Ok(mut guard) = stderr_collector_clone.lock() {
-                            guard.push_str(&line);
-                            guard.push('\n');
-                        }
-                        for pattern in ERROR_PATTERNS {
-                            if line.contains(pattern) {
-                                eprintln!(">> ERROR DETECTED (stderr): {}", line);
-                                error_flag_clone.store(true, Ordering::SeqCst);
-                                break;
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("Error reading stderr pipe: {}", e);
-                        error_flag_clone.store(true, Ordering::SeqCst);
-                        break;
-                    }
-                }
-            }
-        });
-        thread_handles.push(stderr_handle);
-    } else {
-        eprintln!("Warning: Could not capture stderr pipe.");
-    }
-
-    let final_status = child
-        .wait()
-        .change_context(CliError::CommandError("".into(), "Unknown".into()))?;
-
-    for handle in thread_handles {
-        if let Err(e) = handle.join() {
-            eprintln!("Error joining a reader thread: {:?}", e);
-            error_pattern_detected.store(true, Ordering::SeqCst);
-        }
-    }
-
-    let exit_code_failed = !final_status.success();
-    let pattern_detected = error_pattern_detected.load(Ordering::SeqCst);
-
-    println!("──────────────────────────────────────────────────────────────");
-
-    if exit_code_failed || pattern_detected {
-        let reason = if exit_code_failed {
-            format!("Build command exited with status: {}", final_status)
-        } else {
-            "Detected error pattern in streamed output".to_string()
-        };
-        eprintln!("❌ Build failed! {}", reason);
-
-        let final_stdout = collected_stdout_arc
-            .lock()
-            .map_err(|e| CliError::LockError(e.to_string()))?
-            .clone();
-        let final_stderr = collected_stderr_arc
-            .lock()
-            .map_err(|e| CliError::LockError(e.to_string()))?
-            .clone();
-        let final_combined_output = format!(
-            "--- STDOUT ---\n{}\n--- STDERR ---\n{}",
-            final_stdout, final_stderr
-        );
-
-        Err(Report::new(CliError::BuildExecutionFailed(
-            final_combined_output,
-        )))
-    } else {
-        println!("✅ Build command completed successfully.");
-        let final_stdout = collected_stdout_arc
-            .lock()
-            .map_err(|e| CliError::LockError(e.to_string()))?
-            .clone();
-        if let Some(result_path) = final_stdout
-            .lines()
-            .filter(|l| !l.trim().is_empty())
-            .next_back()
-        {
-            println!("Build result path: {}", result_path.trim());
-        }
-        println!("──────────────────────────────────────────────────────────────");
-        Ok(())
-    }
 }
 
 fn show_log() -> Result<(), CliError> {

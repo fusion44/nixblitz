@@ -1996,6 +1996,7 @@ dependencies = [
  "include_dir",
  "log",
  "once_cell",
+ "raw-cpuid",
  "serde",
  "serde_json",
  "sha-crypt",
@@ -2397,6 +2398,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "142d72442aff1ba834b80f50a22a48302e665e90b3a43eaab52bf99b037df0c0"
 dependencies = [
  "ratatui 0.28.1",
+]
+
+[[package]]
+name = "raw-cpuid"
+version = "11.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6df7ab838ed27997ba19a4664507e6f82b41fe6e20be42929332156e5e85146"
+dependencies = [
+ "bitflags 2.6.0",
 ]
 
 [[package]]

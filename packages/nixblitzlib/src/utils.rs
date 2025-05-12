@@ -8,6 +8,7 @@ use std::{
 use error_stack::{Report, Result, ResultExt};
 use include_dir::{include_dir, Dir};
 use log::info;
+use raw_cpuid::CpuId;
 
 use crate::{
     apply_changes::{run_nixos_rebuild_switch_async, ProcessOutput},
@@ -19,6 +20,7 @@ use crate::{
     lnd::LightningNetworkDaemonService,
     nix_base_config::{NixBaseConfig, NixBaseConfigsTemplates},
     project::Project,
+    SystemPlatform,
 };
 use sha_crypt::{sha512_simple, Sha512Params};
 
@@ -616,6 +618,30 @@ pub fn trim_lines_left(input: &str) -> String {
     }
 
     result
+}
+
+/// Detects the system architecture and virtualization status (for x86_64) AT RUNTIME.
+///
+/// Uses compile-time checks (`cfg!`) *only* to include the appropriate architecture-specific
+/// runtime detection logic. The actual check for virtualization on x86_64 happens
+/// by executing the CPUID instruction when the function is called.
+///
+/// # Returns
+///
+/// A `SystemPlatform` enum variant indicating the platform detected at runtime.
+pub fn get_system_platform() -> SystemPlatform {
+    // TODO: add support for other architectures
+    if cfg!(target_arch = "x86_64") {
+        let cpuid = CpuId::new();
+        match cpuid.get_feature_info() {
+            Some(finfo) if finfo.has_hypervisor() => SystemPlatform::X86_64Vm,
+            _ => SystemPlatform::X86_64BareMetal,
+        }
+    } else if cfg!(target_arch = "aarch64") {
+        SystemPlatform::Arm64
+    } else {
+        SystemPlatform::Unsupported
+    }
 }
 
 #[cfg(test)]
