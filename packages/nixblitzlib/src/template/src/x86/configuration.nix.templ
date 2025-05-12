@@ -4,6 +4,8 @@
     ../configuration.common.nix
   ];
 
+  # Do not remove, we need to explicitly disable GRUB
+  boot.loader.grub.enable = false;
   boot.loader.systemd-boot.enable = true; # Enable systemd-boot
   boot.loader.efi.canTouchEfiVariables = true;
 

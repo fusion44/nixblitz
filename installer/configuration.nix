@@ -119,6 +119,9 @@ in {
         alias sync_config="sudo mkdir -p /mnt/data && sudo mount /dev/vda3 /mnt/data && sudo rsync -av --delete /home/${user}/config/ /mnt/data/config && sudo chown -R 1000:100 /mnt/data/config"
 
         if [ ! -d "config" ]; then
+          sudo mkdir -p /mnt/data/lnd
+          sudo mkdir -p /mnt/data/clightning
+          sudo mkdir -p /mnt/hdd/bitcoind
           nixblitz init -w $BLITZ_CONFIG_PATH
         fi
         nixblitz install -w $BLITZ_CONFIG_PATH

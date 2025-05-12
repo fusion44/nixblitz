@@ -13,8 +13,10 @@
   ];
 
   boot = {
-    initrd.availableKernelModules = ["ata_piix" "uhci_hcd" "virtio_pci" "floppy" "sr_mod" "virtio_blk"];
-    initrd.kernelModules = [];
+    initrd = {
+      availableKernelModules = ["ata_piix" "uhci_hcd" "virtio_pci" "floppy" "sr_mod" "virtio_blk"];
+      kernelModules = [];
+    };
     kernelModules = ["kvm-amd"];
     kernelParams = ["console=ttyS0,115200n8"];
     extraModulePackages = [];

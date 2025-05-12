@@ -15,9 +15,6 @@ in {
     ./disko-config-single-disk.nix
   ];
 
-  # Do not remove, we need to explicitly disable GRUB
-  boot.loader.grub.enable = false;
-
   nixpkgs.config.allowUnfree = {{ allow_unfree }};
   time.timeZone = "{{ time_zone }}";
   i18n.defaultLocale = "{{ default_locale }}";

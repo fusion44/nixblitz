@@ -212,11 +212,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1746798521,
-        "narHash": "sha256-axfz/jBEH9XHpS7YSumstV7b2PrPf7L8bhWUtLBv3nA=",
+        "lastModified": 1746925690,
+        "narHash": "sha256-qbCIdIK3CEMfD+X9bMvp/ZLNxU722RV7zD7kUQS9OBg=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "e95a7c5b6fa93304cd2fd78cf676c4f6d23c422c",
+        "rev": "de496c9ccb705ed76c1f23c2cad13e8970c37f0b",
         "type": "github"
       },
       "original": {
@@ -332,14 +332,18 @@
         ]
       },
       "locked": {
-        "lastModified": 1746881093,
-        "narHash": "sha256-427nDDkHTAiYQJIOj9ACwJA22CEr364R1HfErcyte1U=",
-        "path": "/home/f44/dev/blitz/nixblitz/main",
-        "type": "path"
+        "lastModified": 1746902266,
+        "narHash": "sha256-LtZt2Cg3HVuAlkLy4G2BUOPW/YMETdETiXY32dOFvYg=",
+        "owner": "fusion44",
+        "repo": "nixblitz",
+        "rev": "780b87f48318f76303176a2d095156e434e3767f",
+        "type": "github"
       },
       "original": {
-        "path": "/home/f44/dev/blitz/nixblitz/main",
-        "type": "path"
+        "owner": "fusion44",
+        "ref": "main",
+        "repo": "nixblitz",
+        "type": "github"
       }
     },
     "nixos-hardware": {
