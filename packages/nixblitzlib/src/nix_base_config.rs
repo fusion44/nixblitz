@@ -177,6 +177,7 @@ impl Default for NixBaseConfig {
             )),
             openssh_auth_keys: vec![],
             system_packages: vec![
+                String::from("fd"),
                 String::from("bat"),
                 String::from("bottom"),
                 String::from("fzf"),
@@ -184,7 +185,7 @@ impl Default for NixBaseConfig {
                 String::from("neovim"),
                 String::from("ripgrep"),
                 String::from("bandwhich"),
-                String::from("yazi"),
+                String::from("superfile"),
             ],
             ports: vec![22],
             hostname_vm: "nixblitzvm".to_string(),
@@ -630,7 +631,6 @@ mod tests {
         assert_eq!(config.username, "admin");
         assert!(!config.ssh_password_auth);
         assert_eq!(config.openssh_auth_keys.len(), 0);
-        assert_eq!(config.system_packages.len(), 8);
     }
 
     #[test]

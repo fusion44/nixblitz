@@ -72,7 +72,8 @@ in {
     neovim
     ripgrep
     bandwhich
-    yazi
+    just
+    superfile
   ];
 
   blitz.enable = true;
