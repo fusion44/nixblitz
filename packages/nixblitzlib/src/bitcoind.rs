@@ -579,7 +579,10 @@ impl BitcoinDaemonService {
             ("disable_wallet", self.disable_wallet.value().to_string()),
             ("address", self.address.to_nix_string(true)),
             ("listen", self.listen.value().to_string()),
-            ("data_dir", self.data_dir.value().to_string()),
+            // keep dataDir quoted. Otherwise, the nix installer will
+            // see this as a directory to include it in the store
+            // and the dataDir of the installed system will point to the nix store
+            ("data_dir", self.data_dir.to_nix_string(true)),
             ("port", self.port.value().to_string_or("8333")),
             ("rpc_address", self.rpc_address.to_nix_string(true)),
             ("rpc_port", self.rpc_port.value().to_string_or("8332")),
@@ -1220,7 +1223,7 @@ pub mod tests {
         assert!(nix_str.contains(&format!("txindex = {};", d.tx_index.value())));
         assert!(nix_str.contains(&format!("disablewallet = {};", d.disable_wallet.value())));
         assert!(nix_str.contains(&format!("listen = {};", d.listen.value())));
-        assert!(nix_str.contains(&format!("dataDir = {};", d.data_dir.value())));
+        assert!(nix_str.contains(&format!("dataDir = {};", d.data_dir.to_nix_string(true))));
         assert!(nix_str.contains(&format!(
             "address = \"{}\";",
             d.address.to_nix_string(false)

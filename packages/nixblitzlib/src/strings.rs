@@ -147,8 +147,6 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
         ClnConfigOption::ExtraConfig.to_option_id(),
         "Extra Configuration",
     );
-    map.insert(ClnConfigOption::User.to_option_id(), "Service User");
-    map.insert(ClnConfigOption::Group.to_option_id(), "Service Group");
     map.insert(
         ClnConfigOption::GetPublicAddressCmd.to_option_id(),
         "Get Public Address Command",
@@ -161,7 +159,6 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
     );
     map.insert(LndConfigOption::Address.to_option_id(), "Network Address");
     map.insert(LndConfigOption::Port.to_option_id(), "Listen Port");
-    map.insert(LndConfigOption::User.to_option_id(), "Service User");
     map.insert(LndConfigOption::RpcAddress.to_option_id(), "RPC Address");
     map.insert(LndConfigOption::RpcPort.to_option_id(), "RPC Port");
     map.insert(LndConfigOption::RestAddress.to_option_id(), "REST Address");

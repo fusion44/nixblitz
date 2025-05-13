@@ -39,9 +39,6 @@ pub struct LightningNetworkDaemonService {
     /// Port to listen for peer connections
     pub port: Box<PortOptionData>,
 
-    /// The user as which to run LND.
-    pub user: Box<TextOptionData>,
-
     /// Address to listen for gRPC connections.
     pub rpc_address: Box<NetAddressOptionData>,
 
@@ -76,7 +73,6 @@ pub enum LndConfigOption {
     Enable,
     Address,
     Port,
-    User,
     RpcAddress,
     RpcPort,
     RestAddress,
@@ -100,7 +96,6 @@ impl FromStr for LndConfigOption {
             "enable" => Ok(LndConfigOption::Enable),
             "address" => Ok(LndConfigOption::Address),
             "port" => Ok(LndConfigOption::Port),
-            "user" => Ok(LndConfigOption::User),
             "rpc_address" => Ok(LndConfigOption::RpcAddress),
             "rpc_port" => Ok(LndConfigOption::RpcPort),
             "rest_address" => Ok(LndConfigOption::RestAddress),
@@ -120,7 +115,6 @@ impl fmt::Display for LndConfigOption {
             LndConfigOption::Enable => "enable",
             LndConfigOption::Address => "address",
             LndConfigOption::Port => "port",
-            LndConfigOption::User => "user",
             LndConfigOption::RpcAddress => "rpc_address",
             LndConfigOption::RpcPort => "rpc_port",
             LndConfigOption::RestAddress => "rest_address",
@@ -140,7 +134,6 @@ impl AppConfig for LightningNetworkDaemonService {
             OptionData::Bool(self.enable.clone()),
             OptionData::NetAddress(self.address.clone()),
             OptionData::Port(self.port.clone()),
-            OptionData::TextEdit(self.user.clone()),
             OptionData::NetAddress(self.rpc_address.clone()),
             OptionData::Port(self.rpc_port.clone()),
             OptionData::NetAddress(self.rest_address.clone()),
@@ -176,12 +169,6 @@ impl AppConfig for LightningNetworkDaemonService {
                     if let OptionDataChangeNotification::Port(val) = option {
                         res = Ok(*self.port.value() != val.value);
                         self.port.set_value(val.value.clone());
-                    }
-                }
-                LndConfigOption::User => {
-                    if let OptionDataChangeNotification::TextEdit(val) = option {
-                        res = Ok(self.user.value() != val.value);
-                        self.user.set_value(val.value.clone());
                     }
                 }
                 LndConfigOption::RpcAddress => {
@@ -269,7 +256,6 @@ impl AppConfig for LightningNetworkDaemonService {
         self.enable.set_applied();
         self.address.set_applied();
         self.port.set_applied();
-        self.user.set_applied();
         self.rpc_address.set_applied();
         self.rpc_port.set_applied();
         self.rest_address.set_applied();
@@ -299,13 +285,6 @@ impl Default for LightningNetworkDaemonService {
             port: Box::new(PortOptionData::new(
                 LndConfigOption::Port.to_option_id(),
                 NumberValue::U16(Some(9735)),
-            )),
-            user: Box::new(TextOptionData::new(
-                LndConfigOption::User.to_option_id(),
-                "admin".to_string(),
-                1,
-                false,
-                "admin".to_string(),
             )),
             rpc_address: Box::new(NetAddressOptionData::new(
                 LndConfigOption::RpcAddress.to_option_id(),
@@ -387,7 +366,8 @@ impl LightningNetworkDaemonService {
             ("rpc_port", format!("{}", self.rpc_port.value())),
             ("rest_address", self.rest_address.to_nix_string(false)),
             ("rest_port", format!("{}", self.rest_port.value())),
-            ("data_dir", self.data_dir.value().to_string()),
+            // keep dataDir quoted. Otherwise, the nix installing will fail
+            ("data_dir", self.data_dir.to_nix_string(true)),
             (
                 // TODO: implement me
                 "cert_extra_ips",
@@ -458,13 +438,6 @@ mod tests {
             port: Box::new(PortOptionData::new(
                 LndConfigOption::Port.to_option_id(),
                 NumberValue::U16(Some(3412)),
-            )),
-            user: Box::new(TextOptionData::new(
-                LndConfigOption::User.to_option_id(),
-                "tester".to_string(),
-                1,
-                false,
-                "tester".to_string(),
             )),
             rpc_address: Box::new(NetAddressOptionData::new(
                 LndConfigOption::RpcAddress.to_option_id(),

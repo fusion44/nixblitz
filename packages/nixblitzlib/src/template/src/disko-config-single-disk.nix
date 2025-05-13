@@ -43,7 +43,7 @@
                 mountpoint = "/mnt/data";
               };
             };
-            blockchain = {
+            hdd = {
               size = "100%";
               content = {
                 type = "filesystem";

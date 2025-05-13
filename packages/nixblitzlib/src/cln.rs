@@ -73,16 +73,6 @@ pub struct CoreLightningService {
     /// "
     pub extra_config: Box<TextOptionData>,
 
-    /// The user as which to run clightning.
-    ///
-    /// default: "clightniung"
-    pub user: Box<TextOptionData>,
-
-    /// The group as which to run clightning.
-    ///
-    /// default: "cfg.user"
-    pub group: Box<TextOptionData>,
-
     /// Bash expression which outputs the public service address to announce
     /// to peers. If left empty, no address is announced.
     ///
@@ -100,8 +90,6 @@ pub enum ClnConfigOption {
     DataDir,
     Wallet,
     ExtraConfig,
-    User,
-    Group,
     GetPublicAddressCmd,
 }
 
@@ -123,8 +111,6 @@ impl FromStr for ClnConfigOption {
             "data_dir" => Ok(ClnConfigOption::DataDir),
             "wallet" => Ok(ClnConfigOption::Wallet),
             "extra_config" => Ok(ClnConfigOption::ExtraConfig),
-            "user" => Ok(ClnConfigOption::User),
-            "group" => Ok(ClnConfigOption::Group),
             "get_public_address_cmd" => Ok(ClnConfigOption::GetPublicAddressCmd),
             _ => Err(()),
         }
@@ -142,8 +128,6 @@ impl fmt::Display for ClnConfigOption {
             ClnConfigOption::DataDir => "data_dir",
             ClnConfigOption::Wallet => "wallet",
             ClnConfigOption::ExtraConfig => "extra_config",
-            ClnConfigOption::User => "user",
-            ClnConfigOption::Group => "group",
             ClnConfigOption::GetPublicAddressCmd => "get_public_address_cmd",
         };
         write!(f, "{}", option_str)
@@ -161,8 +145,6 @@ impl AppConfig for CoreLightningService {
             OptionData::TextEdit(self.data_dir.clone()),
             OptionData::TextEdit(self.wallet.clone()),
             OptionData::TextEdit(self.extra_config.clone()),
-            OptionData::TextEdit(self.user.clone()),
-            OptionData::TextEdit(self.group.clone()),
             OptionData::TextEdit(self.get_public_address_cmd.clone()),
         ]
     }
@@ -223,18 +205,6 @@ impl AppConfig for CoreLightningService {
                         self.extra_config.set_value(val.value.clone());
                     }
                 }
-                ClnConfigOption::User => {
-                    if let OptionDataChangeNotification::TextEdit(val) = option {
-                        res = Ok(self.user.value() != val.value);
-                        self.user.set_value(val.value.clone());
-                    }
-                }
-                ClnConfigOption::Group => {
-                    if let OptionDataChangeNotification::TextEdit(val) = option {
-                        res = Ok(self.group.value() != val.value);
-                        self.group.set_value(val.value.clone());
-                    }
-                }
                 ClnConfigOption::GetPublicAddressCmd => {
                     if let OptionDataChangeNotification::TextEdit(val) = option {
                         res = Ok(self.get_public_address_cmd.value() != val.value);
@@ -280,8 +250,6 @@ impl AppConfig for CoreLightningService {
         self.data_dir.set_applied();
         self.wallet.set_applied();
         self.extra_config.set_applied();
-        self.user.set_applied();
-        self.group.set_applied();
         self.get_public_address_cmd.set_applied();
     }
 }
@@ -332,20 +300,6 @@ impl Default for CoreLightningService {
                 9999,
                 false,
                 "".to_string(),
-            )),
-            user: Box::new(TextOptionData::new(
-                ClnConfigOption::User.to_option_id(),
-                "admin".to_string(),
-                1,
-                false,
-                "admin".to_string(),
-            )),
-            group: Box::new(TextOptionData::new(
-                ClnConfigOption::Group.to_option_id(),
-                "cfg.user".to_string(),
-                1,
-                false,
-                "cfg.user".to_string(),
             )),
             get_public_address_cmd: Box::new(TextOptionData::new(
                 ClnConfigOption::GetPublicAddressCmd.to_option_id(),
@@ -408,11 +362,10 @@ impl CoreLightningService {
                 "always_use_proxy",
                 format!("{}", self.always_use_proxy.value()),
             ),
-            ("data_dir", self.data_dir.to_nix_string(false)),
+            // keep dataDir quoted. Otherwise, the nix installing will fail
+            ("data_dir", self.data_dir.to_nix_string(true)),
             ("wallet", self.wallet.to_nix_string(false)),
             ("extra_config", self.extra_config.value().to_string()),
-            ("user", self.user.to_nix_string(false)),
-            ("group", self.group.to_nix_string(false)),
             (
                 "get_public_address_cmd",
                 self.get_public_address_cmd.to_nix_string(false),
@@ -500,20 +453,6 @@ mod tests {
                 1,
                 false,
                 "var1=this is extra config".to_string(),
-            )),
-            user: Box::new(TextOptionData::new(
-                ClnConfigOption::User.to_option_id(),
-                "tester".to_string(),
-                1,
-                false,
-                "tester".to_string(),
-            )),
-            group: Box::new(TextOptionData::new(
-                ClnConfigOption::Group.to_option_id(),
-                "cfg.user".to_string(),
-                1,
-                false,
-                "cfg.user".to_string(),
             )),
             get_public_address_cmd: Box::new(TextOptionData::new(
                 ClnConfigOption::GetPublicAddressCmd.to_option_id(),
@@ -613,13 +552,11 @@ mod tests {
                 s.address.to_nix_string(false)
             )));
             assert!(data.contains(&format!("port = {};", s.port.value())));
-            assert!(data.contains(&format!("dataDir = {};", s.data_dir.value())));
+            assert!(data.contains(&format!("dataDir = {};", s.data_dir.to_nix_string(true))));
             s.extra_config
                 .value()
                 .lines()
                 .for_each(|line| assert!(data.contains(line)));
-            assert!(data.contains(&format!("user = \"{}\";", s.user.to_nix_string(false))));
-            assert!(data.contains(&format!("group = \"{}\";", s.group.to_nix_string(false))));
             assert!(data.contains(&format!(
                 "getPublicAddressCmd = \"{}\";",
                 s.get_public_address_cmd.to_nix_string(false)
