@@ -9,6 +9,8 @@ pub enum CliError {
     #[error("Unknown error")]
     Unknown,
     #[error("{}", .0)]
+    GenericError(String),
+    #[error("{}", .0)]
     IoError(String),
     #[error("Unable to start the TUI")]
     UnableToStartTui,

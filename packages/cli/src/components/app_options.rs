@@ -26,13 +26,21 @@ use indexmap::IndexMap;
 use log::{error, warn};
 use nixblitzlib::{
     app_option_data::option_data::{GetOptionId, OptionData},
-    apps::SupportedApps,
     project::Project,
 };
 use ratatui::prelude::*;
 use tokio::sync::mpsc::UnboundedSender;
 
-enum _Comp<'a> {
+/// Represents a specific UI control for an application option.
+///
+/// This enum acts as a sum type (or tagged union) to wrap various concrete
+/// UI component types, each tailored for a different kind of option data
+/// (e.g., boolean, text, number, path). It allows for managing a
+/// heterogeneous collection of option controls under a unified type.
+///
+/// Each variant of `OptionControl` holds a specific component responsible for
+/// rendering and handling user input for that particular option type.
+enum OptionControl<'a> {
     Bool(BoolOptionComponent),
     StringList(StringListOptionComponent),
     EditText(TextOptionComponent<'a>),
@@ -43,123 +51,85 @@ enum _Comp<'a> {
     Port(PortOptionComponent<'a>),
 }
 
-impl fmt::Display for _Comp<'_> {
+impl fmt::Display for OptionControl<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            _Comp::Bool(_) => write!(f, "_Comp::Bool"),
-            _Comp::StringList(_) => write!(f, "_Comp::StringList"),
-            _Comp::EditText(_) => write!(f, "_Comp::EditText"),
-            _Comp::Path(_) => write!(f, "_Comp::Path"),
-            _Comp::Password(_) => write!(f, "_Comp::Password"),
-            _Comp::Number(_) => write!(f, "_Comp::Number"),
-            _Comp::NetAddress(_) => write!(f, "_Comp::NetAddress"),
-            _Comp::Port(_) => write!(f, "_Comp::Port"),
+            OptionControl::Bool(_) => write!(f, "OptionControl::Bool"),
+            OptionControl::StringList(_) => write!(f, "OptionControl::StringList"),
+            OptionControl::EditText(_) => write!(f, "OptionControl::EditText"),
+            OptionControl::Path(_) => write!(f, "OptionControl::Path"),
+            OptionControl::Password(_) => write!(f, "OptionControl::Password"),
+            OptionControl::Number(_) => write!(f, "OptionControl::Number"),
+            OptionControl::NetAddress(_) => write!(f, "OptionControl::NetAddress"),
+            OptionControl::Port(_) => write!(f, "OptionControl::Port"),
         }
     }
 }
 
-impl<'a> _Comp<'a> {
-    fn get_bool_mut(&mut self) -> Result<&mut BoolOptionComponent, CliError> {
+impl OptionControl<'_> {
+    /// Get a mutable reference to the underlying option list item.
+    pub fn as_option_list_item_mut(&mut self) -> &mut dyn OptionListItem {
         match self {
-            _Comp::Bool(ref mut val) => Ok(val),
-            _ => Err(Report::new(CliError::OptionTypeMismatch(
-                "_Comp::Bool".to_string(),
-                format!("{}", self),
-            ))),
+            OptionControl::Bool(comp) => comp,
+            OptionControl::StringList(comp) => comp,
+            OptionControl::EditText(comp) => comp,
+            OptionControl::Path(comp) => comp,
+            OptionControl::Password(comp) => comp,
+            OptionControl::Number(comp) => comp,
+            OptionControl::NetAddress(comp) => comp,
+            OptionControl::Port(comp) => comp,
         }
     }
 
-    fn get_string_list_mut(&mut self) -> Result<&mut StringListOptionComponent, CliError> {
+    /// Get a mutable reference to the underlying component.
+    pub fn as_component_mut(&mut self) -> &mut dyn Component {
         match self {
-            _Comp::StringList(ref mut val) => Ok(val),
-            _ => Err(Report::new(CliError::OptionTypeMismatch(
-                "_Comp::StringList".to_string(),
-                format!("{}", self),
-            ))),
+            OptionControl::Bool(comp) => comp,
+            OptionControl::StringList(comp) => comp,
+            OptionControl::EditText(comp) => comp,
+            OptionControl::Path(comp) => comp,
+            OptionControl::Password(comp) => comp,
+            OptionControl::Number(comp) => comp,
+            OptionControl::NetAddress(comp) => comp,
+            OptionControl::Port(comp) => comp,
         }
     }
 
-    fn get_edit_text_mut(&mut self) -> Result<&mut TextOptionComponent<'a>, CliError> {
-        match self {
-            _Comp::EditText(ref mut val) => Ok(val),
-            _ => Err(Report::new(CliError::OptionTypeMismatch(
-                "_Comp::EditText".to_string(),
-                format!("{}", self),
-            ))),
+    /// Update the option component from the provided OptionData instance.
+    pub fn update_from_option_data(&mut self, option_data: &OptionData) -> Result<(), CliError> {
+        match (self, option_data) {
+            (OptionControl::Bool(comp), OptionData::Bool(data)) => comp.set_data(data),
+            (OptionControl::StringList(comp), OptionData::StringList(data)) => comp.set_data(data),
+            (OptionControl::EditText(comp), OptionData::TextEdit(data)) => comp.set_data(data),
+            (OptionControl::Path(comp), OptionData::Path(data)) => comp.set_data(data),
+            (OptionControl::Password(comp), OptionData::PasswordEdit(data)) => comp.set_data(data),
+            (OptionControl::Number(comp), OptionData::NumberEdit(data)) => comp.set_data(data),
+            (OptionControl::NetAddress(comp), OptionData::NetAddress(data)) => comp.set_data(data),
+            (OptionControl::Port(comp), OptionData::Port(data)) => comp.set_data(data),
+            _ => {
+                let data_id = option_data.id().to_string();
+                error!(
+                    "Mismatched OptionControl variant and OptionData variant for ID: {}",
+                    data_id
+                );
+                return Err(Report::new(CliError::OptionTypeMismatch(
+                    "arm unmatched".into(),
+                    "unknown".into(),
+                )));
+            }
         }
-    }
 
-    fn get_path_mut(&mut self) -> Result<&mut PathOptionComponent<'a>, CliError> {
-        match self {
-            _Comp::Path(ref mut val) => Ok(val),
-            _ => Err(Report::new(CliError::OptionTypeMismatch(
-                "_Comp::Path".to_string(),
-                format!("{}", self),
-            ))),
-        }
-    }
-
-    fn get_password_mut(&mut self) -> Result<&mut PasswordOptionComponent<'a>, CliError> {
-        match self {
-            _Comp::Password(ref mut val) => Ok(val),
-            _ => Err(Report::new(CliError::OptionTypeMismatch(
-                "_Comp::Password".to_string(),
-                format!("{}", self),
-            ))),
-        }
-    }
-
-    fn get_number_mut(&mut self) -> Result<&mut NumberOptionComponent<'a>, CliError> {
-        match self {
-            _Comp::Number(ref mut val) => Ok(val),
-            _ => Err(Report::new(CliError::OptionTypeMismatch(
-                "_Comp::Number".to_string(),
-                format!("{}", self),
-            ))),
-        }
-    }
-
-    fn get_net_address_mut(&mut self) -> Result<&mut NetAddressOptionComponent<'a>, CliError> {
-        match self {
-            _Comp::NetAddress(ref mut val) => Ok(val),
-            _ => Err(Report::new(CliError::OptionTypeMismatch(
-                "_Comp::NetAddress".to_string(),
-                format!("{}", self),
-            ))),
-        }
-    }
-
-    fn get_port_mut(&mut self) -> Result<&mut PortOptionComponent<'a>, CliError> {
-        match self {
-            _Comp::Port(ref mut val) => Ok(val),
-            _ => Err(Report::new(CliError::OptionTypeMismatch(
-                "_Comp::Port".to_string(),
-                format!("{}", self),
-            ))),
-        }
-    }
-
-    fn set_selected(&mut self, selected: bool) {
-        match self {
-            _Comp::Bool(comp) => comp.set_selected(selected),
-            _Comp::StringList(comp) => comp.set_selected(selected),
-            _Comp::EditText(comp) => comp.set_selected(selected),
-            _Comp::Path(comp) => comp.set_selected(selected),
-            _Comp::Password(comp) => comp.set_selected(selected),
-            _Comp::Number(comp) => comp.set_selected(selected),
-            _Comp::NetAddress(comp) => comp.set_selected(selected),
-            _Comp::Port(comp) => comp.set_selected(selected),
-        }
+        Ok(())
     }
 }
 
 #[derive(Default)]
 struct OptionMap<'a> {
-    map: IndexMap<String, Box<_Comp<'a>>>,
+    map: IndexMap<String, Box<OptionControl<'a>>>,
 }
 
 impl<'a> OptionMap<'a> {
-    fn new(map: IndexMap<String, Box<_Comp<'a>>>) -> Self {
+    fn new(map: IndexMap<String, Box<OptionControl<'a>>>) -> Self {
         OptionMap { map }
     }
 
@@ -167,7 +137,7 @@ impl<'a> OptionMap<'a> {
         self.map.len()
     }
 
-    fn get_nth_enum_mut(&mut self, index: usize) -> Result<&mut _Comp<'a>, CliError> {
+    fn get_nth_enum_mut(&mut self, index: usize) -> Result<&mut OptionControl<'a>, CliError> {
         let option = self
             .map
             .iter_mut()
@@ -184,32 +154,14 @@ impl<'a> OptionMap<'a> {
             .nth(index)
             .ok_or(Report::new(CliError::Unknown))?;
 
-        match option.1.as_mut() {
-            _Comp::Bool(bool_option_component) => Ok(bool_option_component),
-            _Comp::StringList(string_list_option_component) => Ok(string_list_option_component),
-            _Comp::EditText(text_option_component) => Ok(text_option_component),
-            _Comp::Path(path_option_component) => Ok(path_option_component),
-            _Comp::Password(password_option_component) => Ok(password_option_component),
-            _Comp::Number(unum_option_component) => Ok(unum_option_component),
-            _Comp::NetAddress(net_address_option_component) => Ok(net_address_option_component),
-            _Comp::Port(port_option_component) => Ok(port_option_component),
-        }
+        Ok(option.1.as_component_mut())
     }
 
     fn get_components_mut(&mut self) -> Result<Vec<&mut dyn Component>, CliError> {
         Ok(self
             .map
             .iter_mut()
-            .map(|value| match value.1.as_mut() {
-                _Comp::Bool(bool_option_component) => bool_option_component as &mut dyn Component,
-                _Comp::StringList(string_list_option_component) => string_list_option_component,
-                _Comp::EditText(text_option_component) => text_option_component,
-                _Comp::Path(path_option_component) => path_option_component,
-                _Comp::Password(password_option_component) => password_option_component,
-                _Comp::Number(unum_option_component) => unum_option_component,
-                _Comp::NetAddress(net_address_option_component) => net_address_option_component,
-                _Comp::Port(port_option_component) => port_option_component,
-            })
+            .map(|value| value.1.as_mut().as_component_mut())
             .collect())
     }
 
@@ -217,22 +169,8 @@ impl<'a> OptionMap<'a> {
         &mut self,
         index: usize,
     ) -> Result<&mut dyn OptionListItem, CliError> {
-        let option = self
-            .map
-            .iter_mut()
-            .nth(index)
-            .ok_or(Report::new(CliError::Unknown))?;
-
-        match option.1.as_mut() {
-            _Comp::Bool(bool_option_component) => Ok(bool_option_component),
-            _Comp::StringList(string_list_option_component) => Ok(string_list_option_component),
-            _Comp::EditText(text_option_component) => Ok(text_option_component),
-            _Comp::Path(path_option_component) => Ok(path_option_component),
-            _Comp::Password(password_option_component) => Ok(password_option_component),
-            _Comp::Number(unum_option_component) => Ok(unum_option_component),
-            _Comp::NetAddress(net_address_option_component) => Ok(net_address_option_component),
-            _Comp::Port(port_option_component) => Ok(port_option_component),
-        }
+        let control = self.get_nth_enum_mut(index)?;
+        Ok(control.as_option_list_item_mut())
     }
 }
 
@@ -243,13 +181,17 @@ pub struct AppOptions<'a> {
     focus: bool,
     options: OptionMap<'a>,
     constraints: Vec<Constraint>,
-    app: SupportedApps,
     selected: usize,
     offset: usize,
     max_num_items: usize,
     title: String,
     modal_open: bool,
     is_even_warning_printed: bool,
+}
+
+enum NavDirection {
+    Previous,
+    Next,
 }
 
 impl<'a> AppOptions<'a> {
@@ -272,72 +214,71 @@ impl<'a> AppOptions<'a> {
             .get_app_options()
             .change_context(CliError::Unknown)?;
 
-        let list_of_options: Result<IndexMap<String, Box<_Comp>>, CliError> = opts
-            .iter()
-            .enumerate()
-            .map(|(index, option)| {
-                let component: (String, Box<_Comp<'a>>) = match option {
-                    OptionData::Bool(opt) => (
-                        opt.id().to_string(),
-                        Box::new(_Comp::Bool(BoolOptionComponent::new(
-                            opt,
-                            index == selected,
-                        ))),
-                    ),
-                    OptionData::StringList(opt) => (
-                        opt.id().to_string(),
-                        Box::new(_Comp::StringList(StringListOptionComponent::new(
-                            opt,
-                            index == selected,
-                        ))),
-                    ),
-                    OptionData::TextEdit(opt) => (
-                        opt.id().to_string(),
-                        Box::new(_Comp::EditText(TextOptionComponent::new(
-                            opt,
-                            index == selected,
-                        )?)),
-                    ),
-                    OptionData::Path(opt) => (
-                        opt.id().to_string(),
-                        Box::new(_Comp::Path(PathOptionComponent::new(
-                            opt,
-                            index == selected,
-                        )?)),
-                    ),
-                    OptionData::PasswordEdit(opt) => (
-                        opt.id().to_string(),
-                        Box::new(_Comp::Password(PasswordOptionComponent::new(
-                            opt,
-                            index == selected,
-                        )?)),
-                    ),
-                    OptionData::NumberEdit(opt) => (
-                        opt.id().to_string(),
-                        Box::new(_Comp::Number(NumberOptionComponent::new(
-                            opt,
-                            index == selected,
-                        )?)),
-                    ),
-                    OptionData::NetAddress(opt) => (
-                        opt.id().to_string(),
-                        Box::new(_Comp::NetAddress(NetAddressOptionComponent::new(
-                            opt,
-                            index == selected,
-                        )?)),
-                    ),
-                    OptionData::Port(opt) => (
-                        opt.id().to_string(),
-                        Box::new(_Comp::Port(PortOptionComponent::new(
-                            opt,
-                            index == selected,
-                        )?)),
-                    ),
-                };
+        let list_of_options: Result<IndexMap<String, Box<OptionControl>>, CliError> =
+            opts.iter()
+                .enumerate()
+                .map(|(index, option)| {
+                    let component: (String, Box<OptionControl<'a>>) =
+                        match option {
+                            OptionData::Bool(opt) => (
+                                opt.id().to_string(),
+                                Box::new(OptionControl::Bool(BoolOptionComponent::new(
+                                    opt,
+                                    index == selected,
+                                ))),
+                            ),
+                            OptionData::StringList(opt) => (
+                                opt.id().to_string(),
+                                Box::new(OptionControl::StringList(
+                                    StringListOptionComponent::new(opt, index == selected),
+                                )),
+                            ),
+                            OptionData::TextEdit(opt) => (
+                                opt.id().to_string(),
+                                Box::new(OptionControl::EditText(TextOptionComponent::new(
+                                    opt,
+                                    index == selected,
+                                )?)),
+                            ),
+                            OptionData::Path(opt) => (
+                                opt.id().to_string(),
+                                Box::new(OptionControl::Path(PathOptionComponent::new(
+                                    opt,
+                                    index == selected,
+                                )?)),
+                            ),
+                            OptionData::PasswordEdit(opt) => (
+                                opt.id().to_string(),
+                                Box::new(OptionControl::Password(PasswordOptionComponent::new(
+                                    opt,
+                                    index == selected,
+                                )?)),
+                            ),
+                            OptionData::NumberEdit(opt) => (
+                                opt.id().to_string(),
+                                Box::new(OptionControl::Number(NumberOptionComponent::new(
+                                    opt,
+                                    index == selected,
+                                )?)),
+                            ),
+                            OptionData::NetAddress(opt) => (
+                                opt.id().to_string(),
+                                Box::new(OptionControl::NetAddress(
+                                    NetAddressOptionComponent::new(opt, index == selected)?,
+                                )),
+                            ),
+                            OptionData::Port(opt) => (
+                                opt.id().to_string(),
+                                Box::new(OptionControl::Port(PortOptionComponent::new(
+                                    opt,
+                                    index == selected,
+                                )?)),
+                            ),
+                        };
 
-                Ok(component)
-            })
-            .collect();
+                    Ok(component)
+                })
+                .collect();
 
         let list_of_options = list_of_options?;
 
@@ -363,28 +304,7 @@ impl<'a> AppOptions<'a> {
                 )))?
                 .as_mut();
 
-            match option_data {
-                OptionData::Bool(data) => {
-                    option_comp.get_bool_mut()?.set_data(data);
-                }
-                OptionData::StringList(data) => {
-                    option_comp.get_string_list_mut()?.set_data(data);
-                }
-                OptionData::TextEdit(data) => {
-                    option_comp.get_edit_text_mut()?.set_data(data);
-                }
-                OptionData::Path(data) => option_comp.get_path_mut()?.set_data(data),
-                OptionData::PasswordEdit(data) => {
-                    option_comp.get_password_mut()?.set_data(data);
-                }
-                OptionData::NumberEdit(data) => {
-                    option_comp.get_number_mut()?.set_data(data);
-                }
-                OptionData::NetAddress(data) => option_comp.get_net_address_mut()?.set_data(data),
-                OptionData::Port(data) => {
-                    option_comp.get_port_mut()?.set_data(data);
-                }
-            }
+            option_comp.update_from_option_data(option_data)?;
         }
 
         Ok(())
@@ -416,7 +336,9 @@ impl<'a> AppOptions<'a> {
 
     fn send_focus_req_action(&mut self) {
         if let Some(tx) = &self.command_tx {
-            let _ = tx.send(Action::FocusRequest(FocusableComponent::AppTabOptions));
+            if let Err(e) = tx.send(Action::FocusRequest(FocusableComponent::AppTabOptions)) {
+                warn!("Failed to send FocusRequest action: {}", e);
+            }
         }
     }
 
@@ -469,7 +391,7 @@ impl<'a> AppOptions<'a> {
         frame.render_widget(block, area);
 
         let mut delayed_selected_index = 0;
-        let mut delayed_selected_opt: Option<&mut Box<_Comp<'_>>> = None;
+        let mut delayed_selected_opt: Option<&mut Box<OptionControl<'_>>> = None;
         for (index, value) in self
             .options
             .map
@@ -507,54 +429,11 @@ impl<'a> AppOptions<'a> {
     }
 
     fn select_previous(&mut self) -> Result<(), CliError> {
-        if self.selected == 0 {
-            self.offset = 0;
-            return Ok(());
-        }
-
-        // Check if we have to scroll
-        if self.offset > 0 && self.offset == self.selected {
-            self.offset -= 1;
-        }
-
-        let new_selected = self.selected - 1;
-        // Get the current selected item and unselect it
-        let current_option: &mut _Comp<'a> = self.options.get_nth_enum_mut(self.selected)?;
-        current_option.set_selected(false);
-
-        // Get the new selected item and select it
-        let new_option = self.options.get_nth_enum_mut(new_selected)?;
-        new_option.set_selected(true);
-
-        self.selected = new_selected;
-        self.update_title();
-
-        Ok(())
+        self.navigate_selection(NavDirection::Previous)
     }
 
     fn select_next(&mut self) -> Result<(), CliError> {
-        if self.selected >= self.options.len() - 1 {
-            return Ok(());
-        }
-
-        // Check if we have to scroll
-        if self.offset + self.max_num_items - 1 == self.selected {
-            self.offset += 1;
-        }
-
-        let new_selected = self.selected + 1;
-        // Get the current selected item and unselect it
-        let current_option: &mut _Comp<'a> = self.options.get_nth_enum_mut(self.selected)?;
-        current_option.set_selected(false);
-
-        // Get the new selected item and select it
-        let new_option = self.options.get_nth_enum_mut(new_selected)?;
-        new_option.set_selected(true);
-
-        self.selected = new_selected;
-        self.update_title();
-
-        Ok(())
+        self.navigate_selection(NavDirection::Next)
     }
 
     fn update_title(&mut self) {
@@ -569,21 +448,72 @@ impl<'a> AppOptions<'a> {
     }
 
     fn draw_opt(
-        value: &mut _Comp<'a>,
+        value: &mut OptionControl<'a>,
         frame: &mut Frame<'_>,
         index: Rect,
         ctx: &RenderContext,
     ) -> Result<(), CliError> {
-        match value {
-            _Comp::Bool(c) => Ok(c.draw(frame, index, ctx)?),
-            _Comp::StringList(c) => Ok(c.draw(frame, index, ctx)?),
-            _Comp::EditText(c) => Ok(c.draw(frame, index, ctx)?),
-            _Comp::Path(c) => Ok(c.draw(frame, index, ctx)?),
-            _Comp::Password(c) => Ok(c.draw(frame, index, ctx)?),
-            _Comp::Number(c) => Ok(c.draw(frame, index, ctx)?),
-            _Comp::NetAddress(c) => Ok(c.draw(frame, index, ctx)?),
-            _Comp::Port(c) => Ok(c.draw(frame, index, ctx)?),
+        value.as_component_mut().draw(frame, index, ctx)
+    }
+
+    fn navigate_selection(&mut self, direction: NavDirection) -> Result<(), CliError> {
+        let options_len = self.options.len();
+        if options_len == 0 {
+            return Ok(());
         }
+
+        let current_selected_index = self.selected;
+        let new_selected_index = match direction {
+            NavDirection::Previous => {
+                if self.selected == 0 {
+                    return Ok(());
+                }
+                if self.offset > 0 && self.offset == self.selected {
+                    self.offset -= 1;
+                }
+                self.selected - 1
+            }
+            NavDirection::Next => {
+                if self.selected >= options_len - 1 {
+                    return Ok(());
+                }
+                if self.offset + self.max_num_items - 1 == self.selected {
+                    self.offset += 1;
+                }
+                self.selected + 1
+            }
+        };
+
+        let current_option_control = self
+            .options
+            .get_nth_enum_mut(current_selected_index)
+            .change_context_lazy(|| {
+                CliError::GenericError(format!(
+                    "Failed to retrieve current option control at presumably valid index {}",
+                    current_selected_index
+                ))
+            })?;
+        current_option_control
+            .as_option_list_item_mut()
+            .set_selected(false);
+
+        let new_option_control = self
+            .options
+            .get_nth_enum_mut(new_selected_index)
+            .change_context_lazy(|| {
+                CliError::GenericError(format!(
+                    "Failed to retrieve new option control at index {}",
+                    new_selected_index
+                ))
+            })?;
+        new_option_control
+            .as_option_list_item_mut()
+            .set_selected(true);
+
+        self.selected = new_selected_index;
+        self.update_title();
+
+        Ok(())
     }
 }
 
