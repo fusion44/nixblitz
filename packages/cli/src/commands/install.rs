@@ -646,34 +646,8 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         println!("Installing to this disk may cause your current system to become unstable.");
     }
 
-    println!("\nALL DATA on this disk will be PERMANENTLY LOST!");
-
-    let proceed = Confirm::new("Are you sure you want to continue?")
-        .with_default(false)
-        .with_help_message("This action cannot be undone!")
-        .prompt()
-        .map_err(|e| {
-            error!("Failed to get confirmation for disk erasure: {:?}", e);
-            CliError::ArgumentError
-        })?;
-
-    if !proceed {
-        info!("User aborted installation at disk erasure confirmation");
-        println!("Installation aborted.");
-        return Ok(());
-    }
-
-    // Installation
-    info!(
-        "Step {}: Proceeding with installation on disk: {}",
-        step(),
-        selected_disk.path,
-    );
-
     println!("Launching NixBlitz configuration tool...");
-
     println!("Working directory: {}", work_dir.to_string_lossy());
-
     let cmd = Command::new("nixblitz")
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
