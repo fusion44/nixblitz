@@ -2,7 +2,7 @@ use clap::Parser;
 use cli::Cli;
 use commands::{
     apply::apply_changes_cmd, init::init_default_project_cmd, install::install_wizard,
-    tui::start_tui,
+    set::set_option_value, tui::start_tui,
 };
 use error_stack::Result;
 use errors::CliError;
@@ -18,6 +18,7 @@ mod config;
 mod constants;
 mod errors;
 mod logging;
+pub mod macros;
 mod pages;
 mod tui;
 mod utils;
@@ -43,6 +44,12 @@ async fn main() -> Result<(), CliError> {
             println!("We haven't quite figured out how to implement this yet. Maybe try asking a magic 8-ball instead?")
         }
         Some(commands::Commands::Apply { work_dir }) => apply_changes_cmd(work_dir).await?,
+        Some(commands::Commands::Set {
+            work_dir,
+            app,
+            option,
+            value,
+        }) => set_option_value(work_dir, app, option, value)?,
         None => println!("Please use --help to find the available commands."),
     }
 

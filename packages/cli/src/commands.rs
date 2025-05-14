@@ -1,14 +1,40 @@
+use std::fmt;
 use std::path::PathBuf;
 
-use clap::Subcommand;
+use clap::{builder::PossibleValue, Subcommand, ValueEnum};
+use nixblitzlib::apps::SupportedApps;
+
+use crate::define_clap_apps_value_enum;
 
 pub mod apply;
 pub mod init;
 pub mod install;
+pub mod set;
 pub mod tui;
+
+define_clap_apps_value_enum!(
+    SupportedApps,
+    SupportedAppsValueEnum,
+    [NixOS, BitcoinCore, CoreLightning, LND, BlitzAPI, WebUI]
+);
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Sets an app option in the given configuration
+    Set {
+        /// The working directory to operate on
+        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        work_dir: PathBuf,
+
+        /// The application to set the option for
+        app: SupportedAppsValueEnum,
+
+        /// The option to set. Note, not all possible options are implemented, yet.
+        option: String,
+
+        /// The value to set the option to
+        value: String,
+    },
     /// Opens the TUI in the given work dir
     Tui {
         /// Tick rate, i.e. number of ticks per second

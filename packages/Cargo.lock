@@ -2139,6 +2139,7 @@ dependencies = [
  "signal-hook",
  "strum",
  "sysinfo",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",

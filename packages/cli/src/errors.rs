@@ -4,7 +4,7 @@ use error_stack::Report;
 use log::error;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum CliError {
     #[error("Unknown error")]
     Unknown,
@@ -52,6 +52,10 @@ pub enum CliError {
     LockError(String),
     #[error("User aborted")]
     UserAbort,
+    #[error("Unable to set option '{}' of app {} to '{}'", .0, .1, .2 )]
+    OptionSetError(String, String, String),
+    #[error("Unsupported app/option combination '{}' / '{}'", .0, .1)]
+    OptionUnsupportedError(String, String),
 }
 
 pub fn init_error_handlers() {
