@@ -54,6 +54,13 @@ pub struct NixBaseConfig {
     /// Example: "nl_NL.utf8"
     pub default_locale: Box<StringListOptionData>,
 
+    /// The disk to use for the system
+    ///
+    /// Note: this will not be exposed to the user
+    ///       this must be set manually via cli:
+    ///       "nixblitz -w /path/to/config set base_config disko_device '/dev/vda'"
+    pub disko_device: String,
+
     /// The login username to use. This is the user
     /// with which most of the administrative tasks are executed.
     ///
@@ -157,6 +164,7 @@ impl Default for NixBaseConfig {
                     .map(|tz| StringListOptionItem::new(tz.to_string(), tz.to_string()))
                     .collect(),
             )),
+            disko_device: String::from(""),
             default_locale: Box::new(StringListOptionData::new(
                 NixBaseConfigOption::DefaultLocale.to_option_id(),
                 default_locale,
@@ -205,6 +213,7 @@ pub enum NixBaseConfigOption {
     AllowUnfree,
     TimeZone,
     DefaultLocale,
+    DiskoDevice,
     Username,
     InitialPassword,
 }
@@ -223,6 +232,7 @@ impl FromStr for NixBaseConfigOption {
             "allow_unfree" => Ok(NixBaseConfigOption::AllowUnfree),
             "time_zone" => Ok(NixBaseConfigOption::TimeZone),
             "default_locale" => Ok(NixBaseConfigOption::DefaultLocale),
+            "disko_device" => Ok(NixBaseConfigOption::DiskoDevice),
             "username" => Ok(NixBaseConfigOption::Username),
             "initial_password" => Ok(NixBaseConfigOption::InitialPassword),
             _ => Err(()),
@@ -236,6 +246,7 @@ impl Display for NixBaseConfigOption {
             NixBaseConfigOption::AllowUnfree => "allow_unfree",
             NixBaseConfigOption::TimeZone => "time_zone",
             NixBaseConfigOption::DefaultLocale => "default_locale",
+            NixBaseConfigOption::DiskoDevice => "disko_device",
             NixBaseConfigOption::Username => "username",
             NixBaseConfigOption::InitialPassword => "initial_password",
         };
@@ -276,6 +287,7 @@ impl NixBaseConfig {
         allow_unfree: Box<BoolOptionData>,
         time_zone: Box<StringListOptionData>,
         default_locale: Box<StringListOptionData>,
+        disko_device: String,
         username: String,
         ssh_password_auth: bool,
         hashed_password: Box<PasswordOptionData>,
@@ -291,6 +303,7 @@ impl NixBaseConfig {
             allow_unfree,
             time_zone,
             default_locale,
+            disko_device,
             username: username.clone(),
             ssh_password_auth,
             hashed_password,
@@ -351,6 +364,7 @@ impl NixBaseConfig {
                     ("allow_unfree", format!("{}", self.allow_unfree.value())),
                     ("time_zone", self.time_zone.value().into()),
                     ("default_locale", self.default_locale.value().into()),
+                    ("disko_device", self.disko_device.clone()),
                     ("username", self.username.clone()),
                     ("ssh_password_auth", format!("{}", self.ssh_password_auth)),
                     (
@@ -457,9 +471,19 @@ impl AppConfig for NixBaseConfig {
                         NixBaseConfigOption::DefaultLocale.to_string(),
                     )))?;
                 }
+            } else if opt == NixBaseConfigOption::DiskoDevice {
+                if let OptionDataChangeNotification::TextEdit(val) = option {
+                    self.disko_device = val.value.clone();
+                    res = Ok(true);
+                } else {
+                    Err(Report::new(ProjectError::ChangeOptionValueError(
+                        NixBaseConfigOption::DiskoDevice.to_string(),
+                    )))?;
+                }
             } else if opt == NixBaseConfigOption::Username {
                 if let OptionDataChangeNotification::TextEdit(val) = option {
                     self.username = val.value.clone();
+                    res = Ok(true);
                 }
             } else if opt == NixBaseConfigOption::InitialPassword {
                 if let OptionDataChangeNotification::PasswordEdit(password_opt) = option {
@@ -507,6 +531,13 @@ impl AppConfig for NixBaseConfig {
             OptionData::Bool(self.allow_unfree.clone()),
             OptionData::StringList(self.time_zone.clone()),
             OptionData::StringList(self.default_locale.clone()),
+            OptionData::TextEdit(Box::new(TextOptionData::new(
+                NixBaseConfigOption::DiskoDevice.to_option_id(),
+                self.disko_device.clone(),
+                1,
+                false,
+                self.disko_device.clone(),
+            ))),
             OptionData::TextEdit(Box::new(TextOptionData::new(
                 NixBaseConfigOption::Username.to_option_id(),
                 self.username.clone(),
@@ -658,6 +689,7 @@ mod tests {
                     .map(|tz| StringListOptionItem::new(tz.to_string(), tz.to_string()))
                     .collect(),
             )),
+            "".to_string(),
             "myUserName".to_string(),
             true,
             Box::new(PasswordOptionData::new(

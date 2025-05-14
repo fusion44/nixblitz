@@ -19,6 +19,8 @@ in {
   time.timeZone = "{{ time_zone }}";
   i18n.defaultLocale = "{{ default_locale }}";
 
+  disko.devices.disk.main.device = "{{ disko_device }}";
+
   nix = {
     settings = {
       experimental-features = "nix-command flakes";

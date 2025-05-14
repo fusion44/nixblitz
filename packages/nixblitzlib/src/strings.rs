@@ -49,6 +49,10 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
         NixBaseConfigOption::DefaultLocale.to_option_id(),
         "Default Locale",
     );
+    map.insert(
+        NixBaseConfigOption::DiskoDevice.to_option_id(),
+        "Disko Device",
+    );
     map.insert(NixBaseConfigOption::Username.to_option_id(), "Username");
     map.insert(
         NixBaseConfigOption::InitialPassword.to_option_id(),

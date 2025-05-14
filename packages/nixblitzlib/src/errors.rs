@@ -59,7 +59,7 @@ pub enum ProjectError {
     ParseError,
     #[error("No project files where found in the given directory")]
     NoProjectFound,
-    #[error("No project files where found in the given directory")]
+    #[error("Unable to load the project")]
     ProjectLoadError,
     #[error("Unable to create the path: {:?}", .0)]
     CreatePathError(String),

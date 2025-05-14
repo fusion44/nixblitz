@@ -13,6 +13,8 @@ use std::sync::{Arc, Mutex};
 use std::{fmt, thread};
 use sysinfo::System;
 
+use crate::commands::set::set_option_value;
+use crate::commands::SupportedAppsValueEnum;
 use crate::errors::CliError;
 
 #[derive(Debug)]
@@ -685,6 +687,31 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
             std::thread::sleep(std::time::Duration::from_secs(3));
         }
     }
+
+    match set_option_value(
+        work_dir,
+        &SupportedAppsValueEnum::from_base(nixblitzlib::apps::SupportedApps::NixOS),
+        "disko_device",
+        &selected_disk.path,
+    ) {
+        Ok(()) => {
+            info!(
+                "\n✅ Disko device set successfully to {}",
+                selected_disk.path
+            );
+        }
+        Err(e) => {
+            eprintln!(
+                "\n❌ Set disko device ({}) failed: {}",
+                selected_disk.path, e
+            );
+            eprintln!("\n--- Full Collected Output (from error) ---");
+            error!("{}", e);
+            eprintln!("--- End of Output ---");
+
+            std::process::exit(1);
+        }
+    };
 
     // Sync config files
     let res = sync_config(work_dir, &selected_disk.path);
