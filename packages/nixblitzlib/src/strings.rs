@@ -191,6 +191,10 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
         "The node to connect to",
     );
     map.insert(
+        BlitzApiConfigOption::GenerateEnvFile.to_option_id(),
+        "Whether to generate a .env file",
+    );
+    map.insert(
         BlitzApiConfigOption::LogLevel.to_option_id(),
         "The log level",
     );

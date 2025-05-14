@@ -23,7 +23,7 @@ use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::{Report, Result, ResultExt};
 
 use indexmap::IndexMap;
-use log::{error, warn};
+use log::{error, info, warn};
 use nixblitzlib::{
     app_option_data::option_data::{GetOptionId, OptionData},
     project::Project,
@@ -570,6 +570,7 @@ impl Component for AppOptions<'_> {
                     return Ok(None);
                 }
                 Action::AppTabAppSelected(_) => {
+                    self.selected = 0;
                     self.options = Self::build_option_items(ctx.project.clone(), 0)?;
                     self.constraints = (0..self.options.map.len())
                         .map(|_| Constraint::Length(2))
