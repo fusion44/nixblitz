@@ -181,7 +181,6 @@ impl Default for NixBaseConfig {
                 String::from("bat"),
                 String::from("bottom"),
                 String::from("fzf"),
-                String::from("git"),
                 String::from("neovim"),
                 String::from("ripgrep"),
                 String::from("bandwhich"),
