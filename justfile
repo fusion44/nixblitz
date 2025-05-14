@@ -17,17 +17,19 @@ format:
   alejandra	.
   cd {{rust_src}}; cargo fmt
 
-update-flakes:
+update-flakes mode="nixblitz":
   #!/usr/bin/env nu
-  cd installer/nix_store_cfg/
-  nix flake update
-  cd ..
-  nix flake update
-  cd ..
-  cd packages/nixblitzlib/src/template/src
-  nix flake update
-  cd ..
-  nix flake update
+  fd flake.lock | lines | path dirname | each { |d|
+    cd $d
+    print $"Updating flakes in ($d)"
+    let cmd = if ("{{mode}}" == "full") {
+      nix flake update
+    } else if ("{{mode}}" == "nixblitz") {
+      nix flake update nixblitz
+    } else {
+      print "Unknown mode '{{mode}}'. Valid modes are 'full' and 'nixblitz'."
+    }
+  }
 
 # inside the test vm: sync from shared folder to dev
 sync-src-temp:

@@ -58,6 +58,7 @@
             nushell # alternative to Bash
             typos # code spell checker
             statix
+            fd
           ];
           nativeBuildInputs = with pkgs; [
             pkg-config
