@@ -7,7 +7,7 @@ use std::{
 
 use error_stack::{Report, Result, ResultExt};
 use include_dir::{include_dir, Dir};
-use log::info;
+use log::{debug, info};
 use raw_cpuid::CpuId;
 
 use crate::{
@@ -199,7 +199,17 @@ pub fn init_default_project(work_dir: &Path, force: Option<bool>) -> Result<(), 
 
 pub async fn apply_changes(work_dir: &Path) -> Result<(), ProjectError> {
     info!("Initiating NixOS rebuild...");
-    match run_nixos_rebuild_switch_async(work_dir.to_str().unwrap().to_string()).await {
+    let project = Project::load(work_dir.to_path_buf())?;
+
+    let platform = if let Some(p) = project.get_platform() {
+        p
+    } else {
+        return Err(Report::new(ProjectError::ApplyChangesError())
+            .attach_printable("Error Unable to get platform from project."));
+    };
+    debug!("Got platform: {:?}", platform);
+
+    match run_nixos_rebuild_switch_async(work_dir.to_str().unwrap().to_string(), &platform).await {
         Ok(mut receiver) => {
             while let Some(output) = receiver.recv().await {
                 match output {
@@ -216,9 +226,12 @@ pub async fn apply_changes(work_dir: &Path) -> Result<(), ProjectError> {
                         println!("--- Process finished with status: {} ---", status);
                         if !status.success() {
                             info!("Warning: Command exited with non-zero status.");
+                            Err(Report::new(ProjectError::ApplyChangesError())
+                                .attach_printable("Command exited with non-zero status."))?
+                        } else {
+                            let mut project = Project::load(work_dir.to_path_buf())?;
+                            project.set_changes_applied()?;
                         }
-                        let mut project = Project::load(work_dir.to_path_buf())?;
-                        project.set_changes_applied()?;
                     }
                     ProcessOutput::Error(err_msg) => {
                         info!("RUNTIME ERROR: {}", err_msg);
@@ -413,7 +426,11 @@ fn _create_lnd_files(work_dir: &Path, force: Option<bool>) -> Result<(), Project
 }
 
 fn _create_nix_base_config(work_dir: &Path, force: Option<bool>) -> Result<(), ProjectError> {
-    let nix_base_config = NixBaseConfig::default();
+    let mut nix_base_config = NixBaseConfig::default();
+    nix_base_config
+        .platform
+        .set_value(get_system_platform().as_short_str().into());
+
     let rendered_json = nix_base_config
         .to_json_string()
         .change_context(ProjectError::GenFilesError)?;

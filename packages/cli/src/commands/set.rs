@@ -5,6 +5,7 @@ use log::info;
 use nixblitzlib::{
     app_option_data::{
         option_data::{OptionDataChangeNotification, ToOptionId},
+        string_list_data::StringListOptionChangeData,
         text_edit_data::TextOptionChangeData,
     },
     apps::SupportedApps,
@@ -38,31 +39,8 @@ pub fn set_option_value(
         option_name, app_value_enum, value_str
     );
 
-    match (app_value_enum.inner(), option_name) {
-        (SupportedApps::NixOS, "disko_device") => {
-            let mut project = Project::load(work_dir.to_path_buf())
-                .change_context(CliError::UnableToInitProjectStruct)?;
-            project.set_selected_app(SupportedApps::NixOS);
-            let change_notification =
-                OptionDataChangeNotification::TextEdit(TextOptionChangeData::new(
-                    NixBaseConfigOption::DiskoDevice.to_option_id(),
-                    value_str.to_string(),
-                ));
-
-            project
-                .on_option_changed(change_notification)
-                .change_context(CliError::OptionSetError(
-                    option_name.to_string(),
-                    app_value_enum.to_string(),
-                    value_str.to_string(),
-                ))?;
-
-            info!(
-                "Successfully set option '{}' of app {} to '{}'",
-                option_name, app_value_enum, value_str
-            );
-            Ok(())
-        }
+    match app_value_enum.inner() {
+        SupportedApps::NixOS => set_nixos(work_dir, option_name, value_str),
         _ => Err(CliError::OptionUnsupportedError(
             app_value_enum.to_string(),
             option_name.to_string(),
@@ -71,10 +49,55 @@ pub fn set_option_value(
     }
 }
 
+fn set_nixos(work_dir: &Path, option_name: &str, value_str: &str) -> Result<(), CliError> {
+    let mut project = Project::load(work_dir.to_path_buf())
+        .change_context(CliError::UnableToInitProjectStruct)?;
+    project.set_selected_app(SupportedApps::NixOS);
+
+    if option_name == "disko_device" {
+        let change_notification =
+            OptionDataChangeNotification::TextEdit(TextOptionChangeData::new(
+                NixBaseConfigOption::DiskoDevice.to_option_id(),
+                value_str.to_string(),
+            ));
+
+        project
+            .on_option_changed(change_notification)
+            .change_context(CliError::OptionSetError(
+                option_name.to_string(),
+                SupportedApps::NixOS.to_string().into(),
+                value_str.to_string(),
+            ))?;
+    } else if option_name == "platform" {
+        let change_notification =
+            OptionDataChangeNotification::StringList(StringListOptionChangeData::new(
+                NixBaseConfigOption::SystemPlatform.to_option_id(),
+                value_str.to_string(),
+            ));
+
+        project
+            .on_option_changed(change_notification)
+            .change_context(CliError::OptionSetError(
+                option_name.to_string(),
+                SupportedApps::NixOS.to_string().into(),
+                value_str.to_string(),
+            ))?;
+    }
+
+    info!(
+        "Successfully set option '{}' of app {} to '{}'",
+        option_name,
+        SupportedApps::NixOS.to_string(),
+        value_str
+    );
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{commands::set::set_option_value, errors::CliError};
-    use nixblitzlib::{apps::SupportedApps, utils::init_default_project};
+    use nixblitzlib::{apps::SupportedApps, utils::init_default_project, SystemPlatform};
     use std::fs;
 
     // TODO: these are more like integration tests than unit tests
@@ -98,6 +121,14 @@ mod tests {
         let file_contents =
             fs::read_to_string(temp_dir.path().join("src/configuration.common.nix")).unwrap();
         assert!(file_contents.contains("disko.devices.disk.main.device = \"test\";"));
+
+        let result = set_option_value(
+            temp_dir.path(),
+            &crate::commands::SupportedAppsValueEnum::from_base(SupportedApps::NixOS),
+            "platform",
+            &SystemPlatform::Arm64.to_string(),
+        );
+        assert!(result.is_ok());
     }
 
     #[test]

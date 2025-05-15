@@ -1,9 +1,10 @@
 use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
+use garde::external::compact_str::ToCompactString;
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, path::Path, str::FromStr};
-use strum::EnumCount;
+use strum::{EnumCount, VariantArray};
 
 use crate::{
     app_config::AppConfig,
@@ -23,6 +24,7 @@ use crate::{
     strings::INITIAL_PASSWORD,
     timezones::TIMEZONES,
     utils::{check_password_validity_confirm, unix_hash_password, update_file, BASE_TEMPLATE},
+    SystemPlatform,
 };
 
 pub const TEMPLATE_FILE_NAME: &str = "src/configuration.common.nix.templ";
@@ -143,6 +145,9 @@ pub struct NixBaseConfig {
     ///
     /// [nisos.org:networking.hostName](https://search.nixos.org/options?show=networking.hostName)
     pub hostname_x86: String,
+
+    /// The system platform we're running on
+    pub platform: Box<StringListOptionData>,
 }
 
 impl Default for NixBaseConfig {
@@ -189,6 +194,7 @@ impl Default for NixBaseConfig {
                 String::from("bat"),
                 String::from("bottom"),
                 String::from("fzf"),
+                String::from("just"),
                 String::from("neovim"),
                 String::from("ripgrep"),
                 String::from("bandwhich"),
@@ -199,6 +205,14 @@ impl Default for NixBaseConfig {
             hostname_pi4: "nixblitzpi4".to_string(),
             hostname_pi5: "nixblitzpi5".to_string(),
             hostname_x86: "nixblitzx86".to_string(),
+            platform: Box::new(StringListOptionData::new(
+                NixBaseConfigOption::SystemPlatform.to_option_id(),
+                SystemPlatform::X86_64BareMetal.as_short_str().into(),
+                SystemPlatform::VARIANTS
+                    .iter()
+                    .map(|p| StringListOptionItem::new(p.as_short_str().into(), p.to_string()))
+                    .collect(),
+            )),
         }
     }
 }
@@ -208,7 +222,9 @@ pub enum NixBaseConfigsTemplates {
     Common,
 }
 
-#[derive(Debug, Clone, Copy, EnumCount, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, EnumCount, VariantArray, Hash, PartialEq, Eq, Serialize, Deserialize,
+)]
 pub enum NixBaseConfigOption {
     AllowUnfree,
     TimeZone,
@@ -216,6 +232,7 @@ pub enum NixBaseConfigOption {
     DiskoDevice,
     Username,
     InitialPassword,
+    SystemPlatform,
 }
 
 impl ToOptionId for NixBaseConfigOption {
@@ -235,6 +252,7 @@ impl FromStr for NixBaseConfigOption {
             "disko_device" => Ok(NixBaseConfigOption::DiskoDevice),
             "username" => Ok(NixBaseConfigOption::Username),
             "initial_password" => Ok(NixBaseConfigOption::InitialPassword),
+            "platform" => Ok(NixBaseConfigOption::SystemPlatform),
             _ => Err(()),
         }
     }
@@ -249,6 +267,7 @@ impl Display for NixBaseConfigOption {
             NixBaseConfigOption::DiskoDevice => "disko_device",
             NixBaseConfigOption::Username => "username",
             NixBaseConfigOption::InitialPassword => "initial_password",
+            NixBaseConfigOption::SystemPlatform => "platform",
         };
         write!(f, "{}", s)
     }
@@ -298,6 +317,7 @@ impl NixBaseConfig {
         hostname_pi4: String,
         hostname_pi5: String,
         hostname_x86: String,
+        platform: Box<StringListOptionData>,
     ) -> Self {
         Self {
             allow_unfree,
@@ -314,6 +334,7 @@ impl NixBaseConfig {
             hostname_pi4,
             hostname_pi5,
             hostname_x86,
+            platform,
         }
     }
 
@@ -513,6 +534,15 @@ impl AppConfig for NixBaseConfig {
                         NixBaseConfigOption::InitialPassword.to_string(),
                     )))?;
                 }
+            } else if opt == NixBaseConfigOption::SystemPlatform {
+                if let OptionDataChangeNotification::StringList(val) = option {
+                    res = Ok(*self.platform.value().to_string() != val.value);
+                    self.platform.set_value(val.value.clone());
+                } else {
+                    Err(Report::new(ProjectError::ChangeOptionValueError(
+                        NixBaseConfigOption::SystemPlatform.to_string(),
+                    )))?;
+                }
             } else {
                 Err(
                     Report::new(ProjectError::ChangeOptionValueError(opt.to_string()))
@@ -531,6 +561,7 @@ impl AppConfig for NixBaseConfig {
             OptionData::Bool(self.allow_unfree.clone()),
             OptionData::StringList(self.time_zone.clone()),
             OptionData::StringList(self.default_locale.clone()),
+            OptionData::StringList(self.platform.clone()),
             OptionData::TextEdit(Box::new(TextOptionData::new(
                 NixBaseConfigOption::DiskoDevice.to_option_id(),
                 self.disko_device.clone(),
@@ -577,6 +608,7 @@ impl AppConfig for NixBaseConfig {
     fn set_applied(&mut self) {
         self.allow_unfree.set_applied();
         self.time_zone.set_applied();
+        self.platform.set_applied();
         self.default_locale.set_applied();
         self.hashed_password.set_applied();
     }
@@ -707,6 +739,14 @@ mod tests {
             "nixblitzpi4".to_string(),
             "nixblitzpi5".to_string(),
             "nixblitzx86".to_string(),
+            Box::new(StringListOptionData::new(
+                NixBaseConfigOption::SystemPlatform.to_option_id(),
+                SystemPlatform::VARIANTS[0].as_short_str().into(),
+                SystemPlatform::VARIANTS
+                    .iter()
+                    .map(|p| StringListOptionItem::new(p.as_short_str().into(), p.to_string()))
+                    .collect(),
+            )),
         );
 
         let result = config.render(NixBaseConfigsTemplates::Common);
@@ -787,15 +827,7 @@ mod tests {
 
     #[test]
     fn test_nix_base_config_option_from_str_and_to_string() {
-        let options = [
-            NixBaseConfigOption::AllowUnfree,
-            NixBaseConfigOption::TimeZone,
-            NixBaseConfigOption::DefaultLocale,
-            NixBaseConfigOption::Username,
-            NixBaseConfigOption::InitialPassword,
-        ];
-
-        for &option in &options {
+        for &option in NixBaseConfigOption::VARIANTS {
             let option_str = option.to_string();
             let parsed_option = NixBaseConfigOption::from_str(&option_str).unwrap();
             assert_eq!(option, parsed_option, "Failed for option: {:?}", option);

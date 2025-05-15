@@ -11,6 +11,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicI8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::{fmt, thread};
+use strum::VariantArray;
 use sysinfo::System;
 
 use crate::commands::set::set_option_value;
@@ -521,7 +522,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         Ok(p) => p,
         Err(e) => {
             println!("❌ Error checking for platform: {}", e);
-            error!("Error checking for platform: {}", e.to_string());
+            error!("Error checking for platform: {}", e);
             std::process::exit(1);
         }
     };
@@ -667,7 +668,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
 
             match install_system_streaming(
                 work_dir,
-                platform.to_nixos_system_name(),
+                platform.as_nixos_system_name(),
                 &selected_disk.path,
             ) {
                 Ok(()) => {}
@@ -705,6 +706,26 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
                 "\n❌ Set disko device ({}) failed: {}",
                 selected_disk.path, e
             );
+            eprintln!("\n--- Full Collected Output (from error) ---");
+            error!("{}", e);
+            eprintln!("--- End of Output ---");
+
+            std::process::exit(1);
+        }
+    };
+
+    // Set the platform option
+    match set_option_value(
+        work_dir,
+        &SupportedAppsValueEnum::from_base(nixblitzlib::apps::SupportedApps::NixOS),
+        "platform",
+        &platform.to_string(),
+    ) {
+        Ok(()) => {
+            info!("\n✅ Platform set successfully to {}", platform);
+        }
+        Err(e) => {
+            eprintln!("\n❌ Set platform ({}) failed: {}", platform, e);
             eprintln!("\n--- Full Collected Output (from error) ---");
             error!("{}", e);
             eprintln!("--- End of Output ---");
@@ -764,10 +785,9 @@ fn ensure_system_platform() -> Result<SystemPlatform, CliError> {
 
     let platform = Select::new(
         "Please select the correct platform.",
-        SystemPlatform::to_string_array().to_vec(),
+        SystemPlatform::VARIANTS.to_vec(),
     )
     .prompt()
-    .map(|s| SystemPlatform::from_string(s).unwrap())
     .map_err(|e| {
         error!("User selected an unknown platform: {:?}", e);
         CliError::Unknown

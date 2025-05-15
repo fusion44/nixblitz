@@ -1,6 +1,7 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use error_stack::{Result, ResultExt};
+use log::{debug, info};
 
 use crate::{
     app_config::AppConfig,
@@ -14,6 +15,7 @@ use crate::{
     lnd::{self, LightningNetworkDaemonService},
     nix_base_config::{self, NixBaseConfig},
     utils::load_json_file,
+    SystemPlatform,
 };
 
 /// Represents a system config that is stored at :Wathe [System::path].
@@ -136,6 +138,7 @@ impl Project {
             .attach_printable(format!("Trying to load {}", blitz_webui::JSON_FILE_NAME))?;
         let blitz_webui = Rc::new(RefCell::new(blitz_webui));
 
+        info!("Loaded project from work_dir: {work_dir:?}");
         Ok(Self {
             selected_app: Box::new(nix_base.clone()),
             work_dir,
@@ -221,6 +224,7 @@ impl Project {
     /// This function will return an error if any of the components fail to save
     /// their state to the working directory.
     pub fn set_changes_applied(&mut self) -> Result<(), ProjectError> {
+        debug!("Setting changes applied in project.");
         self.nix_base.borrow_mut().set_applied();
         self.nix_base.borrow_mut().save(&self.work_dir)?;
 
@@ -240,5 +244,15 @@ impl Project {
         self.blitz_webui.borrow_mut().save(&self.work_dir)?;
 
         Ok(())
+    }
+
+    /// Returns the working directory of the project.
+    pub fn get_work_dir(&self) -> &PathBuf {
+        &self.work_dir
+    }
+
+    /// Returns the currently selected application.
+    pub fn get_platform(&self) -> Option<SystemPlatform> {
+        SystemPlatform::from_short_str_option(self.nix_base.borrow().platform.value())
     }
 }

@@ -8,6 +8,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::task;
 
 use crate::errors::CommandError;
+use crate::SystemPlatform;
 
 #[derive(Debug, Clone)]
 pub enum ProcessOutput {
@@ -34,16 +35,22 @@ impl fmt::Display for ProcessOutput {
 /// Returns a `CommandStartError` if the process cannot be started.
 pub async fn run_nixos_rebuild_switch_async(
     work_dir: String,
+    platform: &SystemPlatform,
 ) -> Result<UnboundedReceiver<ProcessOutput>, CommandError> {
     let (tx, rx) = unbounded_channel();
 
     let command_str = "nixos-rebuild";
-    let system = format!("{}/src#nixblitzx86", work_dir.clone());
+    let system = format!(
+        "{}/src#{}",
+        work_dir.clone(),
+        platform.as_nixos_system_name()
+    );
     // TODO: add a debug mode. Possible flags:
     // "--show-trace",
     // "--print-build-logs",
     // "--verbose",
     let args = ["switch", "--flake", system.as_str(), "--impure"];
+    info!("nixos-rebuild command: {:?}", args);
 
     let mut cmd = Command::new(command_str);
     cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -110,7 +117,6 @@ async fn manage_process(
             result = stderr_reader.next_line(), if !stderr_done => {
                  match result {
                     Ok(Some(line)) => {
-                        println!("line: {}", line);
                         if tx.send(ProcessOutput::Stderr(line)).is_err() {
                             error!("Output channel receiver dropped (stderr). Stopping task.");
                             break;

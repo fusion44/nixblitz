@@ -58,6 +58,10 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
         NixBaseConfigOption::InitialPassword.to_option_id(),
         "Initial Password",
     );
+    map.insert(
+        NixBaseConfigOption::SystemPlatform.to_option_id(),
+        "System Platform",
+    );
 
     // BITCOIN CORE
     map.insert(BitcoindConfigOption::Enable.to_option_id(), "Enable");

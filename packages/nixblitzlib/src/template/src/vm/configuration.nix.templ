@@ -1,4 +1,4 @@
-{...}: {
+{lib, ...}: {
   imports = [
     ./hardware-configuration.nix
     ../configuration.common.nix
@@ -6,10 +6,9 @@
 
   boot.loader = {
     grub = {
-      enable = true;
-      devices = [ "/dev/sda" ];
+      enable = lib.mkDefault true;
+      efiSupport = lib.mkDefault true;
     };
-    efi.canTouchEfiVariables = true;
   };
 
   virtualisation.vmVariant = {
