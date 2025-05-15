@@ -101,9 +101,23 @@ in {
         BLITZ_CONFIG_PATH="/home/${user}/config"
 
         FILE="/home/${user}/.bash_profile"
-
         cat <<EOL > "$FILE"
+
+        if [ ! -d "config" ]; then
+          sudo mkdir -p /mnt/data/lnd
+          sudo mkdir -p /mnt/data/clightning
+          sudo mkdir -p /mnt/hdd/bitcoind
+          nixblitz init -w $BLITZ_CONFIG_PATH
+          # DIRTY HACK: find out why this is necessary; the lock file in the
+                        template is not properly updated
+          cd $BLITZ_CONFIG_PATH/src
+          sleep 3s
+          nix flake update nixblitz
+          cd ~
+        fi
+
         clear
+
         # https://patorjk.com/software/taag/#p=display&f=Epic&t=NixBlitz
         # https://patorjk.com/software/taag/#p=display&f=Ivrit&t=NixBlitz <-- current
         echo '   _   _ _      ____  _ _ _       '
@@ -118,12 +132,6 @@ in {
         alias test_remote_build="sudo ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i /root/.ssh/remotebuild remotebuild@192.168.8.202"
         alias sync_config="sudo mkdir -p /mnt/data && sudo mount /dev/vda3 /mnt/data && sudo rsync -av --delete /home/${user}/config/ /mnt/data/config && sudo chown -R 1000:100 /mnt/data/config"
 
-        if [ ! -d "config" ]; then
-          sudo mkdir -p /mnt/data/lnd
-          sudo mkdir -p /mnt/data/clightning
-          sudo mkdir -p /mnt/hdd/bitcoind
-          nixblitz init -w $BLITZ_CONFIG_PATH
-        fi
         nixblitz install -w $BLITZ_CONFIG_PATH
         EOL
 
