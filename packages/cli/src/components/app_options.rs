@@ -23,7 +23,7 @@ use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::{Report, Result, ResultExt};
 
 use indexmap::IndexMap;
-use log::{error, info, warn};
+use log::{error, warn};
 use nixblitzlib::{
     app_option_data::option_data::{GetOptionId, OptionData},
     project::Project,

@@ -97,7 +97,7 @@ rsync target:
     print $"Syncing {{target}}"
     let $data = $data | get {{target}}
     let cmd = $data.user + "@" + $data.host + ":" + $data.path
-    rsync -rvz --exclude .git --exclude docs/ --exclude packages/target/ . $cmd
+    rsync -rvz -e $'ssh -p ($data.port) -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no' --exclude nixblitz-disk.qcow2 --exclude .git --exclude docs/ --exclude packages/target/ . $cmd
   }
 
 build-installer verbosity="normal":

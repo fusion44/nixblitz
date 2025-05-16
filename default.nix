@@ -1,6 +1,6 @@
 {pkgs ? import <nixpkgs> {}}: let
   manifest = (pkgs.lib.importTOML ./packages/cli/Cargo.toml).package;
-  rev = "1550131b2749e22c5d30d55d8c871b0ae8dedad1";
+  rev = "a2dc1b51881efdbb52f6354d51c7a253c3d31fb2";
   src = pkgs.fetchFromGitHub {
     owner = "fusion44";
     repo = "nixblitz";

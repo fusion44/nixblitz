@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use error_stack::{Result, ResultExt};
 use ratatui::{layout::Rect, Frame};

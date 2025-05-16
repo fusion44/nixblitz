@@ -125,8 +125,8 @@ fn get_disk_info() -> Result<Vec<DiskInfo>, CliError> {
     let parsed: serde_json::Value = serde_json::from_str(&output_str).map_err(|e| {
         error!(
             "Error parsing 'lsblk' output:\n Cmd:\n{}\nOutput:\n{}\n",
-            format!("{} {}", cmd, args.join(" ")),
-            e.to_string()
+            format_args!("{} {}", cmd, args.join(" ")),
+            e
         );
         CliError::JsonParseError
     })?;

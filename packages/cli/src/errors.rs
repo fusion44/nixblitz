@@ -44,8 +44,6 @@ pub enum CliError {
     UnableCanonicalizeWorkDir(String),
     #[error("Error while running command: {}\nError: {}", .0,.1 )]
     CommandError(String, String),
-    #[error("Error while building the system: {}", .0)]
-    BuildExecutionFailed(String),
     #[error("Error while installing the system: {}", .0)]
     InstallExecutionFailed(String),
     #[error("Lock operation error: {}", .0)]

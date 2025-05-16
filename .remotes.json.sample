@@ -2,6 +2,7 @@
   "remotename": {
     "user": "username",
     "host": "host_ip",
+    "port": 22,
     "path": "/target/path/on/host"
   }
 }

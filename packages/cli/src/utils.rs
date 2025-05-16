@@ -1,6 +1,3 @@
-use std::cmp;
-
-use log::warn;
 use nixblitzlib::strings::{Strings, STRINGS};
 
 use crate::errors::CliError;

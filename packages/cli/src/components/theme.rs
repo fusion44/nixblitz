@@ -288,7 +288,6 @@ pub mod button {
 }
 
 pub mod menu {
-    use log::info;
     use ratatui::{
         style::{Style, Stylize},
         text::{Line, Span},

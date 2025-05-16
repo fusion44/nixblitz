@@ -2,7 +2,8 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    nixblitz.url = "path:..";
+    # nixblitz.url = "path:..";
+    nixblitz.url = "github:fusion44/nixblitz/main";
     nixblitz.inputs.nixpkgs.follows = "nixpkgs";
 
     nixos-hardware.url = "github:nixos/nixos-hardware";

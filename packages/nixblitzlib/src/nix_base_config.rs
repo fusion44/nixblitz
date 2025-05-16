@@ -1,6 +1,5 @@
 use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
-use garde::external::compact_str::ToCompactString;
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, path::Path, str::FromStr};
