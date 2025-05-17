@@ -17,6 +17,27 @@ pub enum CommandError {
     PipeError(String),
 }
 
+/// Represents errors that can occur when interacting with the git repository.
+#[derive(Debug, Error)]
+pub enum GitError {
+    #[error("Unable to initialize git repository in directory: {}", .0)]
+    InitError(String),
+    #[error("Unable to add file to git repository in directory: {}", .0)]
+    AddFileError(String),
+    #[error("Unable to commit changes to git repository in directory: {}", .0)]
+    CommitError(String),
+    #[error("Unable to push changes to git repository in directory: {}", .0)]
+    PushError(String),
+    #[error("Unable to pull changes from git repository in directory: {}", .0)]
+    PullError(String),
+    #[error("Unable to checkout a branch from git repository in directory: {}", .0)]
+    CheckoutError(String),
+    #[error("Unable to fetch changes from git repository in directory: {}", .0)]
+    FetchError(String),
+    #[error("The given workpath is invalid: {}", .0)]
+    InvalidPath(String),
+}
+
 #[derive(Debug, Error)]
 pub enum PasswordError {
     #[error("Password too short")]

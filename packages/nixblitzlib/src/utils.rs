@@ -3,6 +3,7 @@ use std::{
     fs::{self, File},
     io::{Read, Write},
     path::{Path, PathBuf},
+    process::{Command, Stdio},
 };
 
 use error_stack::{Report, Result, ResultExt};
@@ -16,7 +17,7 @@ use crate::{
     blitz_api::BlitzApiService,
     blitz_webui::BlitzWebUiService,
     cln::CoreLightningService,
-    errors::{PasswordError, ProjectError},
+    errors::{GitError, PasswordError, ProjectError},
     lnd::LightningNetworkDaemonService,
     nix_base_config::{NixBaseConfig, NixBaseConfigsTemplates},
     project::Project,
@@ -195,6 +196,30 @@ pub fn init_default_project(work_dir: &Path, force: Option<bool>) -> Result<(), 
     }
 
     render_template_files(work_dir, templ_files, force)
+}
+
+pub fn commit_config<'a, P: Into<&'a str>>(work_dir: P, message: &str) -> Result<(), GitError> {
+    info!("Committing config changes with message: {}", message);
+    let work_dir = work_dir.into();
+    let args = &["-C", work_dir, "commit", "-a", "-m", message];
+    info!("Committing with args: {:?}", args);
+
+    let status = Command::new("git")
+        .args(args)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
+        .change_context(GitError::CommitError(work_dir.to_string()))?;
+
+    // fatal: not a git repository (or any of the parent directories): .git
+    //
+    // ❌ System commit failed: Unable to commit changes to git repository in directory: /home/nixos/config
+    //
+    if !status.success() {
+        return Err(Report::new(GitError::CommitError(work_dir.to_string())).attach_printable(""));
+    }
+
+    Ok(())
 }
 
 pub async fn apply_changes(work_dir: &Path) -> Result<(), ProjectError> {

@@ -55,7 +55,6 @@ in {
   environment.systemPackages = with pkgs; [
     bat
     fzf
-    git
     vim
     just
     disko
@@ -93,6 +92,17 @@ in {
     nixblitz.enable = true;
   };
 
+  programs = {
+    git = {
+      enable = true;
+      config = {
+        core.editor = "nvim";
+        user.name = "nixblitz";
+        user.email = "nixblitz";
+      };
+    };
+  };
+
   systemd = {
     services.make-home-bash_profile = {
       wantedBy = ["multi-user.target"];
@@ -113,6 +123,7 @@ in {
           cd $BLITZ_CONFIG_PATH/src
           sleep 3s
           nix flake update nixblitz
+          cd $BLITZ_CONFIG_PATH && git init && git add --all && git commit -m "init"
           cd ~
         fi
 

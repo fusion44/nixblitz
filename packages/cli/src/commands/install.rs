@@ -1,7 +1,7 @@
 use error_stack::{Report, Result, ResultExt};
 use inquire::{Confirm, Select};
 use log::{debug, error, info, warn};
-use nixblitzlib::utils::get_system_platform;
+use nixblitzlib::utils::{commit_config, get_system_platform};
 use nixblitzlib::SystemPlatform;
 use serde_json;
 use std::io::{self, BufRead, BufReader, Write};
@@ -733,6 +733,32 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
             std::process::exit(1);
         }
     };
+
+    let work_dir_str = work_dir.to_str();
+    match work_dir_str {
+        Some(work_dir_str) => {
+            let res = commit_config(work_dir_str, "system installed");
+            match res {
+                Ok(()) => {
+                    println!("\n✅ System config committed successfully");
+                }
+                Err(e) => {
+                    eprintln!("\n❌ System commit failed: {}", e);
+                    eprintln!("\n--- Full Collected Output (from error) ---");
+                    error!("{}", e);
+                    eprintln!("--- End of Output ---");
+
+                    std::process::exit(1);
+                }
+            };
+        }
+        None => {
+            let message =
+                "Unable to convert work_dir to string. Can't commit config changes to Git.";
+            eprintln!("\n⚠️ {}", message);
+            error!("{}", message);
+        }
+    }
 
     // Sync config files
     let res = sync_config(work_dir, &selected_disk.path);

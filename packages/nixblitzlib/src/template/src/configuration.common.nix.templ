@@ -79,13 +79,7 @@ in {
         user.name = "nixblitz";
         user.email = "nixblitz";
 
-        # Git (version 2.35.2+) requires this due to security enhancements
-        # to prevent operating on repositories in directories not owned by the current user.
-        # This setting is required when Nix builds, running as root,
-        # need to access Git repositories owned by other users.
-        # To mark additional directories as safe, add them to the comma-separated list.
-        # "directory" = "/mnt/data/config:/path/to/another/repo";
-        safe.directory = "/mnt/data/config:/home/admin/config";
+        safe.directory = "*";
       };
     };
   };
