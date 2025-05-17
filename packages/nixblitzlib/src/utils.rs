@@ -8,7 +8,7 @@ use std::{
 
 use error_stack::{Report, Result, ResultExt};
 use include_dir::{include_dir, Dir};
-use log::{debug, info};
+use log::{debug, error, info};
 use raw_cpuid::CpuId;
 
 use crate::{
@@ -267,6 +267,26 @@ pub async fn apply_changes(work_dir: &Path) -> Result<(), ProjectError> {
         Err(report) => {
             info!("Failed to start command: {}", report);
             panic!("Failed to start command: {}", report);
+        }
+    }
+
+    let work_dir_str = work_dir.to_str();
+    match work_dir_str {
+        Some(work_dir_str) => {
+            let res = commit_config(work_dir_str, "update config");
+            match res {
+                Ok(()) => {
+                    info!("\n✅ System config update committed successfully");
+                }
+                Err(e) => {
+                    error!("{}", e);
+                }
+            };
+        }
+        None => {
+            let message =
+                "Unable to convert work_dir to string. Can't commit config changes to Git.";
+            error!("{}", message);
         }
     }
 
