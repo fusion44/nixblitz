@@ -719,7 +719,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
         work_dir,
         &SupportedAppsValueEnum::from_base(nixblitzlib::apps::SupportedApps::NixOS),
         "platform",
-        &platform.to_string(),
+        platform.as_short_str(),
     ) {
         Ok(()) => {
             info!("\n✅ Platform set successfully to {}", platform);

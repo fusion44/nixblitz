@@ -535,6 +535,21 @@ impl AppConfig for NixBaseConfig {
                 }
             } else if opt == NixBaseConfigOption::SystemPlatform {
                 if let OptionDataChangeNotification::StringList(val) = option {
+                    if SystemPlatform::from_short_str_option(val.value.as_str()).is_none() {
+                        return Err(Report::new(ProjectError::ChangeOptionValueError(
+                            NixBaseConfigOption::SystemPlatform.to_string(),
+                        ))
+                        .attach_printable(format!(
+                            "Got '{}', but expected one of: {}",
+                            val.value.as_str(),
+                            SystemPlatform::VARIANTS
+                                .iter()
+                                .map(|p| p.as_short_str().into())
+                                .collect::<Vec<String>>()
+                                .join(", "),
+                        )));
+                    }
+
                     res = Ok(*self.platform.value().to_string() != val.value);
                     self.platform.set_value(val.value.clone());
                 } else {
