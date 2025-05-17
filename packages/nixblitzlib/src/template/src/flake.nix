@@ -1,20 +1,17 @@
 {
   inputs = {
-    # nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     nix-bitcoin.url = "github:fort-nix/nix-bitcoin";
     nix-bitcoin.inputs.nixpkgs.follows = "nixpkgs";
 
     blitz-api.url = "github:fusion44/blitz_api/dev";
-    # blitz-api.url = "git+file:../../../../api/nixosify/";
     blitz-api.inputs.nixpkgs.follows = "nixpkgs";
 
     blitz-web.url = "github:fusion44/raspiblitz-web/master";
     blitz-web.inputs.nixpkgs.follows = "nixpkgs";
 
     nixblitz.url = "github:fusion44/nixblitz/main";
-    # nixblitz.url = "path:/home/f44/dev/blitz/nixblitz/main";
     nixblitz.inputs.nixpkgs.follows = "nixpkgs";
 
     home-mgr.url = "github:nix-community/home-manager";

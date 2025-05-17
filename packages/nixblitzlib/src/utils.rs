@@ -211,10 +211,6 @@ pub fn commit_config<'a, P: Into<&'a str>>(work_dir: P, message: &str) -> Result
         .status()
         .change_context(GitError::CommitError(work_dir.to_string()))?;
 
-    // fatal: not a git repository (or any of the parent directories): .git
-    //
-    // ❌ System commit failed: Unable to commit changes to git repository in directory: /home/nixos/config
-    //
     if !status.success() {
         return Err(Report::new(GitError::CommitError(work_dir.to_string())).attach_printable(""));
     }

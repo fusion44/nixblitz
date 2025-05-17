@@ -134,8 +134,6 @@ build-installer verbosity="normal":
     )
   }
 
-
-
 run-installer-vm target='default':
   #!/usr/bin/env nu
   if not ('result/iso' | path exists) {
