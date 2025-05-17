@@ -5,7 +5,7 @@ use commands::{
     set::set_option_value, tui::start_tui,
 };
 use error_stack::Result;
-use errors::CliError;
+use errors::{init_error_handlers, CliError};
 
 mod action;
 mod app;
@@ -29,6 +29,7 @@ async fn main() -> Result<(), CliError> {
 
     // Initialize logging with CLI args
     logging::init_logging(&cli);
+    init_error_handlers();
 
     match &cli.command {
         Some(commands::Commands::Tui {

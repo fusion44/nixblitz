@@ -3,13 +3,9 @@ use std::path::PathBuf;
 use error_stack::{Result, ResultExt};
 use log::error;
 
-use crate::{
-    app::App,
-    errors::{init_error_handlers, CliError},
-};
+use crate::{app::App, errors::CliError};
 
 pub async fn start_tui(tick_rate: f64, frame_rate: f64, work_dir: PathBuf) -> Result<(), CliError> {
-    init_error_handlers();
     let absolute_work_dir =
         work_dir
             .canonicalize()
