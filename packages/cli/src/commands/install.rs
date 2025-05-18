@@ -954,14 +954,14 @@ fn sync_config(work_dir: &Path, selected_disk: &str) -> Result<(), CliError> {
         "3"
     };
     let disk = format!("{}{}", selected_disk, post).to_owned();
-    let mkdir_args = &["mkdir", "-p", "/mnt/data"];
-    let mount_args = &["mount", &disk, "/mnt/data"];
+    let mkdir_args = &["mkdir", "-p", "/mnt/data/config"];
+    let mount_args = &["mount", &disk, "/mnt/data/config"];
     let rsync_args = &[
         "rsync",
         "-av",
         "--delete",
         &work_dir.to_string_lossy(),
-        "/mnt/data/",
+        "/mnt/data/config",
     ];
     let chown_args = &["chown", "-R", "1000:100", "/mnt/data/config"];
     println!("──────────────────────────────────────────────────────────────");
