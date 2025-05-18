@@ -6,8 +6,6 @@
 in {
   imports = [
     ./nix-bitcoin/secure-node.nix
-    ./blitz.nix
-    ./btc.nix
     "${builtins.fetchTarball {
       url = "https://github.com/nix-community/disko/archive/refs/tags/v1.11.0.tar.gz";
       sha256 = "sha256:13brimg7z7k9y36n4jc1pssqyw94nd8qvgfjv53z66lv4xkhin92";
@@ -76,9 +74,6 @@ in {
     superfile
   ];
 
-  blitz.enable = true;
-  btc.enable = true;
-
   nix-bitcoin = {
     generateSecrets = true;
     operator = {
@@ -88,6 +83,31 @@ in {
   };
 
   services = {
+    blitz-api = {
+      enable = true;
+      nginx = {
+        enable = true;
+      };
+    };
+
+    blitz-web = {
+      enable = true;
+      nginx = {
+        enable = false;
+      };
+    };
+
+    nixblitz.enable = true;
+    bitcoind = {
+      enable = true;
+      regtest = true;
+    };
+    clightning.enable = true;
+    lnd = {
+      enable = true;
+      port = 9999;
+    };
+
     openssh = {
       enable = true;
       ports = [22];
