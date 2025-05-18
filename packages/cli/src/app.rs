@@ -7,6 +7,8 @@ use nixblitzlib::project::Project;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::Rect,
+    style::{Color, Style},
+    text::{Line, Span},
     Frame,
 };
 use ratatui_macros::constraints;
@@ -424,6 +426,52 @@ impl App {
         Ok(())
     }
 
+    fn draw_footer(
+        &mut self,
+        frame: &mut Frame,
+        area: Rect,
+        _: &RenderContext,
+    ) -> Result<(), CliError> {
+        // <←→> or <hl> => navigate between panes. | <enter> => to change an option
+        // <↓↑> or <jk> => navigate app and option list entries.
+
+        let oneliner = area.width > 100;
+        let panes = vec![
+            Span::from("<"),
+            Span::styled("←→", Style::default().fg(Color::Green)),
+            Span::from("> or <"),
+            Span::styled("hl", Style::default().fg(Color::Green)),
+            Span::from("> => navigate between panes. "),
+        ];
+        let options = vec![
+            Span::from("<"),
+            Span::styled("↓↑", Style::default().fg(Color::Green)),
+            Span::from("> or <"),
+            Span::styled("jk", Style::default().fg(Color::Green)),
+            Span::from("> => navigate app and option list entries. "),
+        ];
+
+        let change_option = vec![
+            Span::from("<"),
+            Span::styled("ENTER", Style::default().fg(Color::Green)),
+            Span::from("> to change an option. "),
+        ];
+        if oneliner {
+            frame.render_widget(Line::from([panes, options, change_option].concat()), area);
+        } else {
+            let layout = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(constraints![==1, ==1])
+                .split(area);
+            let line1 = Line::from([panes, change_option].concat());
+            let line2 = Line::from(options);
+            frame.render_widget(line1, layout[0]);
+            frame.render_widget(line2, layout[1]);
+        };
+
+        Ok(())
+    }
+
     fn render(&mut self, tui: &mut Tui) -> Result<(), CliError> {
         let ctx = RenderContext::new(self.modal_open, self.theme.clone(), self.project.clone());
 
@@ -442,7 +490,11 @@ impl App {
             if let Err(e) = res {
                 error!("{}", e);
             }
-            frame.render_widget(theme::block::no_border(&ctx), main_layout[2]);
+
+            let res = self.draw_footer(frame, main_layout[2], &ctx);
+            if let Err(e) = res {
+                error!("{}", e);
+            }
         })
         .attach_printable_lazy(|| "Unable to draw the frame")
         .change_context(CliError::Unknown)?;
