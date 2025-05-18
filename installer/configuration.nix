@@ -20,6 +20,9 @@ in {
     volumeID = isoLabel;
     storeContents = with pkgs; [
       targetSystemConfig.config.system.build.toplevel
+      inputs.nixblitz.outputs.packages.x86_64-linux.default
+      inputs.blitz-api.outputs.packages.x86_64-linux.default
+      # inputs.blitz-web.outputs.packages.x86_64-linux.default
       bitcoind
       clightning
       lnd
