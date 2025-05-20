@@ -29,6 +29,7 @@ strum = { version = "0.26.1", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
 tokio-util = "0.7.12"
 nixblitzlib = { path = "../nixblitzlib" }
+common = { path = "../common" }
 tui-scrollview = "0.4.1"
 tui-prompts = "0.4.1"
 tui-popup = "0.5.1"

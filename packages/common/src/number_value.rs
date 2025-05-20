@@ -32,7 +32,7 @@ impl NumberValue {
     /// # Examples
     ///
     /// ```
-    /// use nixblitzlib::number_value::NumberValue;
+    /// use common::number_value::NumberValue;
     ///
     /// let num = NumberValue::UInt(Some(42));
     /// assert_eq!(num.to_string_or("default"), "42");
@@ -64,7 +64,7 @@ impl NumberValue {
     /// # Examples
     ///
     /// ```
-    /// use nixblitzlib::number_value::NumberValue;
+    /// use common::number_value::NumberValue;
     ///
     /// let result = NumberValue::from_string("42".to_string(), NumberValue::UInt(None));
     /// assert!(result.is_ok());
@@ -101,7 +101,7 @@ impl NumberValue {
     /// # Examples
     ///
     /// ```
-    /// use nixblitzlib::number_value::NumberValue;
+    /// use common::number_value::NumberValue;
     ///
     /// let num = NumberValue::Float(Some(3.14));
     /// assert!(num.is_float());
@@ -115,7 +115,7 @@ impl NumberValue {
     /// # Examples
     ///
     /// ```
-    /// use nixblitzlib::number_value::NumberValue;
+    /// use common::number_value::NumberValue;
     ///
     /// let num = NumberValue::UInt(Some(42));
     /// let none_num = num.as_none();
@@ -135,7 +135,7 @@ impl NumberValue {
     /// # Examples
     ///
     /// ```
-    /// use nixblitzlib::number_value::NumberValue;
+    /// use common::number_value::NumberValue;
     ///
     /// let num = NumberValue::UInt(None);
     /// assert!(num.is_none());
@@ -162,7 +162,7 @@ impl NumberValue {
     /// # Examples
     ///
     /// ```
-    /// use nixblitzlib::number_value::NumberValue;
+    /// use common::number_value::NumberValue;
     ///
     /// let mut num = NumberValue::UInt(None);
     /// num.set_value(Some(42.0));
@@ -193,7 +193,7 @@ impl Display for NumberValue {
     /// # Examples
     ///
     /// ```
-    /// use nixblitzlib::number_value::NumberValue;
+    /// use common::number_value::NumberValue;
     ///
     /// let num = NumberValue::UInt(Some(42));
     /// assert_eq!(num.to_string(), "42");
@@ -289,21 +289,21 @@ mod tests {
     #[test]
     fn test_from_string_overflow() {
         assert!(NumberValue::from_string("65536".to_string(), NumberValue::U16(None)).is_err());
-        assert!(NumberValue::from_string(
-            "18446744073709551616".to_string(),
-            NumberValue::UInt(None)
-        )
-        .is_err());
-        assert!(NumberValue::from_string(
-            "9223372036854775808".to_string(),
-            NumberValue::Int(None)
-        )
-        .is_err());
-        assert!(NumberValue::from_string(
-            "1.7976931348623157e+309".to_string(),
-            NumberValue::Float(None)
-        )
-        .is_err());
+        assert!(
+            NumberValue::from_string("18446744073709551616".to_string(), NumberValue::UInt(None))
+                .is_err()
+        );
+        assert!(
+            NumberValue::from_string("9223372036854775808".to_string(), NumberValue::Int(None))
+                .is_err()
+        );
+        assert!(
+            NumberValue::from_string(
+                "1.7976931348623157e+309".to_string(),
+                NumberValue::Float(None)
+            )
+            .is_err()
+        );
     }
 
     #[test]

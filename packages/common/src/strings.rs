@@ -1,37 +1,60 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use once_cell::sync::Lazy;
-use strum::Display;
 
 use crate::{
     app_option_data::option_data::{OptionId, ToOptionId},
-    bitcoind::BitcoindConfigOption,
-    blitz_api::BlitzApiConfigOption,
-    blitz_webui::BlitzWebUiConfigOption,
-    cln::ClnConfigOption,
-    lnd::LndConfigOption,
-    nix_base_config::NixBaseConfigOption,
+    errors::StringErrors,
+    option_definitions::{
+        bitcoind::BitcoindConfigOption, blitz_api::BlitzApiConfigOption,
+        blitz_webui::BlitzWebUiConfigOption, cln::ClnConfigOption, lnd::LndConfigOption,
+        nix_base::NixBaseConfigOption,
+    },
+    utils::GetStringOrCliError,
 };
-
-// default password: "nixblitz"
-pub(crate) static INITIAL_PASSWORD: &str = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.";
 
 pub static DECIMAL_SIGN: char = ',';
 
-#[derive(Debug, Display, Hash, Eq, PartialEq)]
-pub enum Strings {
+#[derive(Debug, Hash, Eq, PartialEq)]
+pub enum CommonStrings {
     PasswordInputPlaceholderMain,
     PasswordInputPlaceholderConfirm,
 }
 
-pub static STRINGS: Lazy<HashMap<Strings, &str>> = Lazy::new(|| {
+impl Display for CommonStrings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CommonStrings::PasswordInputPlaceholderMain => {
+                f.write_str("PasswordInputPlaceholderMain")
+            }
+            CommonStrings::PasswordInputPlaceholderConfirm => {
+                f.write_str("PasswordInputPlaceholderConfirm")
+            }
+        }
+    }
+}
+
+impl GetStringOrCliError for CommonStrings {
+    fn get_or_err(&self) -> Result<&str, StringErrors> {
+        match self {
+            CommonStrings::PasswordInputPlaceholderMain => Ok(STRINGS
+                .get(self)
+                .ok_or(StringErrors::StringRetrievalError(self.to_string()))?),
+            CommonStrings::PasswordInputPlaceholderConfirm => Ok(STRINGS
+                .get(self)
+                .ok_or(StringErrors::StringRetrievalError(self.to_string()))?),
+        }
+    }
+}
+
+pub static STRINGS: Lazy<HashMap<CommonStrings, &str>> = Lazy::new(|| {
     let mut map = HashMap::new();
     map.insert(
-        Strings::PasswordInputPlaceholderMain,
+        CommonStrings::PasswordInputPlaceholderMain,
         "Please enter your password",
     );
     map.insert(
-        Strings::PasswordInputPlaceholderConfirm,
+        CommonStrings::PasswordInputPlaceholderConfirm,
         "Please confirm your password",
     );
     map

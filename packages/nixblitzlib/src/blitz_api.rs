@@ -1,125 +1,31 @@
-use core::fmt;
 use std::{collections::HashMap, path::Path, str::FromStr};
 
 use alejandra::format;
+use common::option_definitions::blitz_api::{
+    BlitzApiConfigOption, BlitzApiLogLevel, ConnectionType,
+};
 use error_stack::{Report, Result, ResultExt};
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 
-use crate::{
+use common::{
     app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
         option_data::{
-            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification,
             ToNixString, ToOptionId,
         },
         path_data::PathOptionData,
         string_list_data::{StringListOptionData, StringListOptionItem},
     },
-    apps::SupportedApps,
     errors::{ProjectError, TemplatingError},
-    utils::{update_file, BASE_TEMPLATE},
 };
+
+use crate::utils::{update_file, BASE_TEMPLATE};
 
 pub const TEMPLATE_FILE_NAME: &str = "src/blitz/api.nix.templ";
 pub const JSON_FILE_NAME: &str = "src/blitz/api.json";
-
-/// To which node to connect to
-enum ConnectionType {
-    /// LND via GRPC
-    LndGrpc,
-    /// CLN via Json-RPC
-    ClnJrpc,
-    /// CLN via GRPC
-    ClnGrpc,
-    /// Bitcoin only mode
-    None,
-}
-
-impl ConnectionType {
-    pub fn to_string_array() -> [&'static str; 4] {
-        ["lnd_grpc", "cln_jrpc", "cln_grpc", "none"]
-    }
-}
-
-impl fmt::Display for ConnectionType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let conn_type_str = match self {
-            ConnectionType::LndGrpc => "lnd_grpc",
-            ConnectionType::ClnJrpc => "cln_jrpc",
-            ConnectionType::ClnGrpc => "cln_grpc",
-            ConnectionType::None => "none",
-        };
-        write!(f, "{}", conn_type_str)
-    }
-}
-
-impl FromStr for ConnectionType {
-    type Err = ();
-
-    fn from_str(s: &str) -> std::result::Result<ConnectionType, ()> {
-        match s {
-            "lnd_grpc" => Ok(ConnectionType::LndGrpc),
-            "cln_jrpc" => Ok(ConnectionType::ClnJrpc),
-            "cln_grpc" => Ok(ConnectionType::ClnGrpc),
-            "none" => Ok(ConnectionType::None),
-            _ => Err(()),
-        }
-    }
-}
-
-/// Log levels according to the loguru library
-/// https://loguru.readthedocs.io/en/stable/api/logger.html
-enum BlitzApiLogLevel {
-    Trace,
-    Debug,
-    Info,
-    Success,
-    Warning,
-    Error,
-    Critical,
-}
-
-impl BlitzApiLogLevel {
-    pub fn to_string_array() -> [&'static str; 7] {
-        [
-            "TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL",
-        ]
-    }
-}
-
-impl fmt::Display for BlitzApiLogLevel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let level_str = match self {
-            BlitzApiLogLevel::Trace => "TRACE",
-            BlitzApiLogLevel::Debug => "DEBUG",
-            BlitzApiLogLevel::Info => "INFO",
-            BlitzApiLogLevel::Success => "SUCCESS",
-            BlitzApiLogLevel::Warning => "WARNING",
-            BlitzApiLogLevel::Error => "ERROR",
-            BlitzApiLogLevel::Critical => "CRITICAL",
-        };
-        write!(f, "{}", level_str)
-    }
-}
-
-impl FromStr for BlitzApiLogLevel {
-    type Err = ();
-
-    fn from_str(s: &str) -> std::result::Result<BlitzApiLogLevel, ()> {
-        match s {
-            "TRACE" => Ok(BlitzApiLogLevel::Trace),
-            "DEBUG" => Ok(BlitzApiLogLevel::Debug),
-            "INFO" => Ok(BlitzApiLogLevel::Info),
-            "SUCCESS" => Ok(BlitzApiLogLevel::Success),
-            "WARNING" => Ok(BlitzApiLogLevel::Warning),
-            "ERROR" => Ok(BlitzApiLogLevel::Error),
-            "CRITICAL" => Ok(BlitzApiLogLevel::Critical),
-            _ => Err(()),
-        }
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct BlitzApiService {
@@ -154,62 +60,6 @@ pub struct BlitzApiService {
 
     /// Where to which path the service should be mounted to
     pub nginx_location: Box<PathOptionData>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum BlitzApiConfigOption {
-    Enable,
-    ConnectionType,
-    LogLevel,
-    GenerateEnvFile,
-    EnvFilePath,
-    PasswordFile,
-    RootPath,
-    NginxEnable,
-    NginxOpenFirewall,
-    NginxLocation,
-}
-
-impl ToOptionId for BlitzApiConfigOption {
-    fn to_option_id(&self) -> OptionId {
-        OptionId::new(SupportedApps::BlitzAPI, self.to_string())
-    }
-}
-impl FromStr for BlitzApiConfigOption {
-    type Err = ();
-
-    fn from_str(s: &str) -> std::result::Result<BlitzApiConfigOption, ()> {
-        match s {
-            "enable" => Ok(BlitzApiConfigOption::Enable),
-            "connection_type" => Ok(BlitzApiConfigOption::ConnectionType),
-            "log_level" => Ok(BlitzApiConfigOption::LogLevel),
-            "env_file" => Ok(BlitzApiConfigOption::EnvFilePath),
-            "password_file" => Ok(BlitzApiConfigOption::PasswordFile),
-            "root_path" => Ok(BlitzApiConfigOption::RootPath),
-            "nginx_enable" => Ok(BlitzApiConfigOption::NginxEnable),
-            "nginx_open_firewall" => Ok(BlitzApiConfigOption::NginxOpenFirewall),
-            "nginx_location" => Ok(BlitzApiConfigOption::NginxLocation),
-            _ => Err(()),
-        }
-    }
-}
-
-impl fmt::Display for BlitzApiConfigOption {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let option_str = match self {
-            BlitzApiConfigOption::Enable => "enable",
-            BlitzApiConfigOption::ConnectionType => "connection_type",
-            BlitzApiConfigOption::LogLevel => "log_level",
-            BlitzApiConfigOption::GenerateEnvFile => "generate_env_file",
-            BlitzApiConfigOption::EnvFilePath => "env_file",
-            BlitzApiConfigOption::PasswordFile => "password_file",
-            BlitzApiConfigOption::RootPath => "root_path",
-            BlitzApiConfigOption::NginxEnable => "nginx_enable",
-            BlitzApiConfigOption::NginxOpenFirewall => "nginx_open_firewall",
-            BlitzApiConfigOption::NginxLocation => "nginx_location",
-        };
-        write!(f, "{}", option_str)
-    }
 }
 
 impl AppConfig for BlitzApiService {
@@ -521,9 +371,10 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
-    use crate::{
+    use crate::utils::{init_default_project, trim_lines_left};
+    use common::{
         app_option_data::option_data::ToNixString,
-        utils::{init_default_project, trim_lines_left},
+        option_definitions::blitz_api::{BlitzApiLogLevel, ConnectionType},
     };
 
     use super::*;
@@ -594,7 +445,7 @@ mod tests {
         // force enable to "true"
         let _ = service
             .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
+                common::app_option_data::bool_data::BoolOptionChangeData {
                     id: BlitzApiConfigOption::Enable.to_option_id(),
                     value: true,
                 },
@@ -623,7 +474,7 @@ mod tests {
         // force enable to "false"
         let _ = service
             .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
+                common::app_option_data::bool_data::BoolOptionChangeData {
                     id: BlitzApiConfigOption::Enable.to_option_id(),
                     value: false,
                 },

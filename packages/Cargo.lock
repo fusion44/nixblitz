@@ -342,6 +342,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "error-stack",
+ "once_cell",
+ "serde",
+ "strum",
+ "strum_macros",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "compact_str"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1531,6 +1543,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "clap",
+ "common",
  "config",
  "crossterm 0.28.1",
  "derive_deref",
@@ -1570,12 +1583,12 @@ name = "nixblitzlib"
 version = "0.1.0"
 dependencies = [
  "alejandra",
+ "common",
  "error-stack",
  "garde",
  "handlebars",
  "include_dir",
  "log",
- "once_cell",
  "raw-cpuid",
  "serde",
  "serde_json",

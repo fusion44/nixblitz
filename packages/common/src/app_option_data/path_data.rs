@@ -116,13 +116,23 @@ impl GetOptionId for PathOptionChangeData {
 
 #[cfg(test)]
 mod tests {
-    use crate::{app_option_data::option_data::ToOptionId, nix_base_config::NixBaseConfigOption};
+    use crate::{app_option_data::option_data::ToOptionId, apps::SupportedApps};
 
     use super::*;
 
+    pub enum TestOption {
+        Username,
+    }
+
+    impl ToOptionId for TestOption {
+        fn to_option_id(&self) -> OptionId {
+            OptionId::new(SupportedApps::NixOS, "username".into())
+        }
+    }
+
     #[test]
     fn test_path_option_data_new() {
-        let id = NixBaseConfigOption::Username.to_option_id();
+        let id = TestOption::Username.to_option_id();
         let value = Some(String::from("/tmp/some/folder"));
         let applied = false;
         let original = Some(String::from("/tmp/some/folder"));
@@ -145,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_path_option_data_set_value() {
-        let id = NixBaseConfigOption::Username.to_option_id();
+        let id = TestOption::Username.to_option_id();
         let original = Some(String::from("original"));
         let mut path_option =
             PathOptionData::new(id, original.clone(), None, false, original.clone());
@@ -161,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_to_nix_string() {
-        let id = NixBaseConfigOption::Username.to_option_id();
+        let id = TestOption::Username.to_option_id();
         let value = Some(String::from("test"));
         let path_option = PathOptionData::new(id, value.clone(), None, false, value.clone());
 
@@ -171,7 +181,7 @@ mod tests {
 
     #[test]
     fn test_to_nix_string_with_none_value() {
-        let id = NixBaseConfigOption::Username.to_option_id();
+        let id = TestOption::Username.to_option_id();
         let path_opt = PathOptionData::new(id, None, None, false, None);
 
         assert_eq!(path_opt.to_nix_string(true), "null");
@@ -180,7 +190,7 @@ mod tests {
 
     #[test]
     fn test_path_option_change_data_new() {
-        let id = NixBaseConfigOption::Username.to_option_id();
+        let id = TestOption::Username.to_option_id();
         let value = Some(String::from("change"));
         let change_data = PathOptionChangeData::new(id.clone(), value.clone());
 

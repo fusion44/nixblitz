@@ -1,21 +1,23 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
-use error_stack::{Result, ResultExt};
-use log::{debug, info};
-
-use crate::{
+use common::{
     app_config::AppConfig,
     app_option_data::option_data::{OptionData, OptionDataChangeNotification},
     apps::SupportedApps,
+    errors::ProjectError,
+    system_platform::SystemPlatform,
+};
+use error_stack::{Result, ResultExt};
+use log::{debug, error, info};
+
+use crate::{
     bitcoind::{self, BitcoinDaemonService},
     blitz_api::{self, BlitzApiService},
     blitz_webui::{self, BlitzWebUiService},
     cln::{self, CoreLightningService},
-    errors::ProjectError,
     lnd::{self, LightningNetworkDaemonService},
     nix_base_config::{self, NixBaseConfig},
     utils::load_json_file,
-    SystemPlatform,
 };
 
 /// Represents a system config that is stored at :Wathe [System::path].
@@ -253,6 +255,12 @@ impl Project {
 
     /// Returns the currently selected application.
     pub fn get_platform(&self) -> Option<SystemPlatform> {
-        SystemPlatform::from_short_str_option(self.nix_base.borrow().platform.value())
+        match SystemPlatform::from_short_str_option(self.nix_base.borrow().platform.value()) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                error!("{e}");
+                None
+            }
+        }
     }
 }

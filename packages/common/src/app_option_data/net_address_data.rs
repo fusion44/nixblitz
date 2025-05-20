@@ -92,6 +92,8 @@ impl GetOptionId for NetAddressOptionChangeData {
 
 #[cfg(test)]
 mod tests {
+    use crate::apps::SupportedApps;
+
     use super::*;
     use std::net::IpAddr;
     use std::str::FromStr;
@@ -99,7 +101,7 @@ mod tests {
     #[test]
     fn test_net_address_option_data_new() {
         let id = OptionId {
-            app: crate::apps::SupportedApps::BitcoinCore,
+            app: SupportedApps::BitcoinCore,
             option: "1".into(),
         };
         let ip = IpAddr::from_str("192.168.1.1").unwrap();
@@ -113,7 +115,7 @@ mod tests {
     #[test]
     fn test_net_address_option_data_set_value() {
         let id = OptionId {
-            app: crate::apps::SupportedApps::BitcoinCore,
+            app: SupportedApps::BitcoinCore,
             option: "1".into(),
         };
         let ip1 = IpAddr::from_str("192.168.1.1").unwrap();
@@ -132,7 +134,7 @@ mod tests {
     #[test]
     fn test_net_address_option_data_to_nix_string() {
         let id = OptionId {
-            app: crate::apps::SupportedApps::BitcoinCore,
+            app: SupportedApps::BitcoinCore,
             option: "1".into(),
         };
         let ip = IpAddr::from_str("192.168.1.1").unwrap();
@@ -148,7 +150,7 @@ mod tests {
     #[test]
     fn test_net_address_option_change_data_new() {
         let id = OptionId {
-            app: crate::apps::SupportedApps::BitcoinCore,
+            app: SupportedApps::BitcoinCore,
             option: "1".into(),
         };
         let ip = IpAddr::from_str("192.168.1.1").unwrap();

@@ -1,3 +1,5 @@
+use common::errors::CommandError;
+use common::system_platform::SystemPlatform;
 use core::fmt;
 use error_stack::{Report, Result};
 use log::{debug, error, info};
@@ -6,9 +8,6 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::task;
-
-use crate::errors::CommandError;
-use crate::SystemPlatform;
 
 #[derive(Debug, Clone)]
 pub enum ProcessOutput {

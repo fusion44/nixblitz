@@ -6,10 +6,10 @@ use crate::{
     constants::FocusableComponent,
     errors::CliError,
 };
+use common::apps::SupportedApps;
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::Result;
 
-use nixblitzlib::apps::SupportedApps;
 use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;
 

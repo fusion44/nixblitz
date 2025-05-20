@@ -98,13 +98,23 @@ impl GetOptionId for TextOptionChangeData {
 
 #[cfg(test)]
 mod tests {
-    use crate::{app_option_data::option_data::ToOptionId, nix_base_config::NixBaseConfigOption};
+    use crate::{app_option_data::option_data::ToOptionId, apps::SupportedApps};
 
     use super::*;
 
+    pub enum TestOption {
+        Username,
+    }
+
+    impl ToOptionId for TestOption {
+        fn to_option_id(&self) -> OptionId {
+            OptionId::new(SupportedApps::NixOS, "username".into())
+        }
+    }
+
     #[test]
     fn test_text_option_data_new() {
-        let id = NixBaseConfigOption::Username.to_option_id();
+        let id = TestOption::Username.to_option_id();
         let value = String::from("test");
         let max_lines = 5;
         let applied = false;
@@ -127,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_text_option_data_set_value() {
-        let id = NixBaseConfigOption::Username.to_option_id();
+        let id = TestOption::Username.to_option_id();
         let original = String::from("original");
         let mut text_option = TextOptionData::new(id, original.clone(), 5, false, original.clone());
 
@@ -142,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_to_nix_string() {
-        let id = NixBaseConfigOption::Username.to_option_id();
+        let id = TestOption::Username.to_option_id();
         let value = String::from("test");
         let text_option = TextOptionData::new(id, value.clone(), 5, false, value.clone());
 
@@ -152,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_text_option_change_data_new() {
-        let id = NixBaseConfigOption::Username.to_option_id();
+        let id = TestOption::Username.to_option_id();
         let value = String::from("change");
         let change_data = TextOptionChangeData::new(id.clone(), value.clone());
 

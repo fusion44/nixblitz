@@ -1,6 +1,9 @@
+use common::{
+    app_option_data::password_data::PasswordOptionData, strings::CommonStrings,
+    utils::GetStringOrCliError,
+};
 use crossterm::event::KeyCode;
-use error_stack::Result;
-use nixblitzlib::{app_option_data::password_data::PasswordOptionData, strings::Strings};
+use error_stack::{Result, ResultExt};
 use ratatui::{
     layout::{Layout, Rect},
     widgets::Clear,
@@ -14,7 +17,6 @@ use crate::{
     app_contexts::{RenderContext, UpdateContext},
     components::{password_input::PasswordInput, theme::popup, Component},
     errors::CliError,
-    utils::GetStringOrCliError,
 };
 
 use super::{popup::center, popup_confirm_btn_bar::PopupConfirmButtonBar};
@@ -44,9 +46,14 @@ pub struct PasswordConfirmPopup<'a> {
 
 impl PasswordConfirmPopup<'_> {
     pub fn new(title: &str, data: PasswordOptionData) -> Result<Self, CliError> {
-        let main = Strings::PasswordInputPlaceholderMain.get_or_err()?;
-        let ta_main = PasswordInput::new(Some(main), true, false, true)?;
-        let conf = Strings::PasswordInputPlaceholderConfirm.get_or_err()?;
+        let main = CommonStrings::PasswordInputPlaceholderMain
+            .get_or_err()
+            .change_context(CliError::StringRetrievalError)?;
+        let ta_main = PasswordInput::new(Some(main), true, false, true)
+            .change_context(CliError::StringRetrievalError)?;
+        let conf = CommonStrings::PasswordInputPlaceholderConfirm
+            .get_or_err()
+            .change_context(CliError::StringRetrievalError)?;
         let ta_confirm = PasswordInput::new(Some(conf), false, false, true)?;
 
         Ok(Self {

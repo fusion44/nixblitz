@@ -1,8 +1,8 @@
+use common::system_platform::SystemPlatform;
 use error_stack::{Report, Result, ResultExt};
 use inquire::{Confirm, Select};
 use log::{debug, error, info, warn};
 use nixblitzlib::utils::{commit_config, get_system_platform};
-use nixblitzlib::SystemPlatform;
 use serde_json;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
@@ -691,7 +691,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
 
     match set_option_value(
         work_dir,
-        &SupportedAppsValueEnum::from_base(nixblitzlib::apps::SupportedApps::NixOS),
+        &SupportedAppsValueEnum::from_base(common::apps::SupportedApps::NixOS),
         "disko_device",
         &selected_disk.path,
     ) {
@@ -717,7 +717,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
     // Set the platform option
     match set_option_value(
         work_dir,
-        &SupportedAppsValueEnum::from_base(nixblitzlib::apps::SupportedApps::NixOS),
+        &SupportedAppsValueEnum::from_base(common::apps::SupportedApps::NixOS),
         "platform",
         platform.as_short_str(),
     ) {

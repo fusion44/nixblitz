@@ -1,4 +1,16 @@
 [workspace]
 
-members = ["cli", "nixblitzlib"]
+members = ["cli", "common", "nixblitzlib"]
 resolver = "2"
+
+[profile]
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"

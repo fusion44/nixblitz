@@ -1,13 +1,13 @@
 use std::{net::IpAddr, str::FromStr};
 
-use error_stack::{Report, Result, ResultExt};
-use nixblitzlib::{
+use common::{
     app_option_data::{
         net_address_data::{NetAddressOptionChangeData, NetAddressOptionData},
         option_data::{GetOptionId, OptionDataChangeNotification},
     },
     strings::OPTION_TITLES,
 };
+use error_stack::{Report, Result, ResultExt};
 use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 

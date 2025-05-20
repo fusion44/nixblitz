@@ -116,16 +116,25 @@ impl GetOptionId for PasswordOptionChangeData {
 mod tests {
     use crate::{
         app_option_data::{
-            option_data::{ToNixString, ToOptionId},
+            option_data::{OptionId, ToNixString, ToOptionId},
             password_data::PasswordOptionData,
         },
-        nix_base_config::NixBaseConfigOption,
-        utils::unix_hash_password,
+        apps::SupportedApps,
     };
+
+    pub enum TestOption {
+        InitialPassword,
+    }
+
+    impl ToOptionId for TestOption {
+        fn to_option_id(&self) -> OptionId {
+            OptionId::new(SupportedApps::NixOS, "initial_password".into())
+        }
+    }
 
     #[test]
     fn test_password_option_data_creation() {
-        let id = NixBaseConfigOption::InitialPassword.to_option_id();
+        let id = TestOption::InitialPassword.to_option_id();
         let hashed_value = "hashed_password".to_string();
         let confirm = true;
         let min_length = 8;
@@ -151,8 +160,8 @@ mod tests {
 
     #[test]
     fn test_password_option_data_setters() {
-        let id = NixBaseConfigOption::InitialPassword.to_option_id();
-        let pw = unix_hash_password("initial password").unwrap();
+        let id = TestOption::InitialPassword.to_option_id();
+        let pw = "initial password".to_string();
         let mut password_option =
             PasswordOptionData::new(id, pw.clone(), false, 8, false, pw.clone());
 
@@ -166,8 +175,8 @@ mod tests {
 
     #[test]
     fn test_password_option_data_to_nix_string() {
-        let id = NixBaseConfigOption::InitialPassword.to_option_id();
-        let pw = unix_hash_password("initial password").unwrap();
+        let id = TestOption::InitialPassword.to_option_id();
+        let pw = "initial password".to_string();
         let password_option =
             PasswordOptionData::new(id, pw.clone(), false, 8, false, "".to_string());
 

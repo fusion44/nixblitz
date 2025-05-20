@@ -19,12 +19,7 @@ use tokio::sync::mpsc;
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{
-        menu::Menu,
-        theme::{self, ThemeData},
-        title::Title,
-        Component,
-    },
+    components::{menu::Menu, theme::ThemeData, title::Title, Component},
     config::Config,
     errors::CliError,
     pages::{

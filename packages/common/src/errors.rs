@@ -105,3 +105,9 @@ pub enum ParseError {
     #[error("Unable to parse string '{}'", .0)]
     StringParseError(String),
 }
+
+#[derive(Debug, Error)]
+pub enum StringErrors {
+    #[error("Unable to retrieve string: {:?} ", .0)]
+    StringRetrievalError(String),
+}

@@ -83,13 +83,23 @@ impl GetOptionId for BoolOptionChangeData {
 
 #[cfg(test)]
 mod tests {
-    use crate::{app_option_data::option_data::ToOptionId, nix_base_config::NixBaseConfigOption};
+    use crate::{app_option_data::option_data::ToOptionId, apps::SupportedApps};
 
     use super::*;
 
+    enum TestOption {
+        AllowUnfree,
+    }
+
+    impl ToOptionId for TestOption {
+        fn to_option_id(&self) -> OptionId {
+            OptionId::new(SupportedApps::NixOS, "allow_unfree".into())
+        }
+    }
+
     #[test]
     fn test_bool_option_data_new() {
-        let id = NixBaseConfigOption::AllowUnfree.to_option_id();
+        let id = TestOption::AllowUnfree.to_option_id();
         let value = true;
         let bool_option = BoolOptionData::new(id.clone(), value);
         assert_eq!(bool_option.id(), &id);
@@ -99,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_bool_option_data_set_value() {
-        let id = NixBaseConfigOption::AllowUnfree.to_option_id();
+        let id = TestOption::AllowUnfree.to_option_id();
         let mut bool_option = BoolOptionData::new(id, false);
         bool_option.set_value(true);
         assert!(bool_option.value());
@@ -108,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_bool_option_data_to_nix_string() {
-        let id = NixBaseConfigOption::AllowUnfree.to_option_id();
+        let id = TestOption::AllowUnfree.to_option_id();
         let bool_option = BoolOptionData::new(id, true);
         assert_eq!(bool_option.to_nix_string(true), "\"true\"");
         assert_eq!(bool_option.to_nix_string(false), "true");
@@ -116,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_bool_option_change_data_new() {
-        let id = NixBaseConfigOption::AllowUnfree.to_option_id();
+        let id = TestOption::AllowUnfree.to_option_id();
         let value = true;
         let change_data = BoolOptionChangeData::new(id.clone(), value);
         assert_eq!(change_data.id(), &id);

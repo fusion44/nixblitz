@@ -34,8 +34,8 @@ pub enum CliError {
     OptionRetrievalError(String),
     #[error("Unable to find title for option {}", .0)]
     OptionTitleRetrievalError(String),
-    #[error("Unable to find string for id {}", .0)]
-    StringRetrievalError(String),
+    #[error("Unable to find string")]
+    StringRetrievalError,
     #[error("Wrong option type was provided. What we are looking for: {}, What we are: {}", .0, .1)]
     OptionTypeMismatch(String, String),
     #[error("{}", .0 )]

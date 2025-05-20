@@ -8,25 +8,24 @@ resolver = "2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garde = { version = "0.18.0", features = ["full"] }
-serde = { version = "1.0.199", features = ["derive"] }
-toml = "0.8.12"
-log = "0.4"
-
 # crates.io version is out of date
 # https://github.com/kamadorueda/alejandra/issues/406
 alejandra = "3.1.0"
-include_dir = { version = "0.7.4", features = ["glob"] }
-handlebars = "6.1.0"
+common = { path = "../common" }
 error-stack = "0.5.0"
-thiserror = "1.0.63"
-sha-crypt = "0.5.0"
+garde = { version = "0.18.0", features = ["full"] }
+handlebars = "6.1.0"
+include_dir = { version = "0.7.4", features = ["glob"] }
+log = "0.4"
+raw-cpuid = "11.5.0"
+serde = { version = "1.0.199", features = ["derive"] }
 serde_json = "1.0.128"
-once_cell = "1.20.2"
+sha-crypt = "0.5.0"
 strum = "0.26.3"
 strum_macros = "0.26.4"
+thiserror = "1.0.63"
 tokio = { version = "1.40.0", features = ["rt-multi-thread", "sync", "process", "io-util", "macros"] }
-raw-cpuid = "11.5.0"
+toml = "0.8.12"
 
 [dev-dependencies]
 tempdir = "0.3.7"

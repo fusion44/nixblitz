@@ -1,11 +1,11 @@
-use error_stack::{Result, ResultExt};
-use nixblitzlib::{
+use common::{
     app_option_data::{
         option_data::{GetOptionId, OptionDataChangeNotification},
         string_list_data::{StringListOptionChangeData, StringListOptionData},
     },
     strings::OPTION_TITLES,
 };
+use error_stack::{Result, ResultExt};
 use ratatui::{layout::Rect, Frame};
 use tokio::sync::mpsc::UnboundedSender;
 

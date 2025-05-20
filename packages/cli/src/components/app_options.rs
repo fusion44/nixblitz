@@ -19,15 +19,13 @@ use crate::{
     errors::CliError,
 };
 
+use common::app_option_data::option_data::{GetOptionId, OptionData};
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::{Report, Result, ResultExt};
 
 use indexmap::IndexMap;
 use log::{error, warn};
-use nixblitzlib::{
-    app_option_data::option_data::{GetOptionId, OptionData},
-    project::Project,
-};
+use nixblitzlib::project::Project;
 use ratatui::prelude::*;
 use tokio::sync::mpsc::UnboundedSender;
 

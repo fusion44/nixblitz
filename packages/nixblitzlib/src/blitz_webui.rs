@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{collections::HashMap, path::Path, str::FromStr};
 
 use alejandra::format;
@@ -6,19 +5,19 @@ use error_stack::{Report, Result, ResultExt};
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 
-use crate::{
+use common::{
     app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
         option_data::{
-            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
-            ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, ToOptionId,
         },
     },
-    apps::SupportedApps,
     errors::{ProjectError, TemplatingError},
-    utils::{update_file, BASE_TEMPLATE},
+    option_definitions::blitz_webui::BlitzWebUiConfigOption,
 };
+
+use crate::utils::{update_file, BASE_TEMPLATE};
 
 pub const TEMPLATE_FILE_NAME: &str = "src/blitz/web.nix.templ";
 pub const JSON_FILE_NAME: &str = "src/blitz/web.json";
@@ -30,39 +29,6 @@ pub struct BlitzWebUiService {
 
     /// Whether to expose this service via nginx
     pub nginx_enable: Box<BoolOptionData>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum BlitzWebUiConfigOption {
-    Enable,
-    NginxEnable,
-}
-
-impl ToOptionId for BlitzWebUiConfigOption {
-    fn to_option_id(&self) -> OptionId {
-        OptionId::new(SupportedApps::WebUI, self.to_string())
-    }
-}
-impl FromStr for BlitzWebUiConfigOption {
-    type Err = ();
-
-    fn from_str(s: &str) -> std::result::Result<BlitzWebUiConfigOption, ()> {
-        match s {
-            "enable" => Ok(BlitzWebUiConfigOption::Enable),
-            "nginx_enable" => Ok(BlitzWebUiConfigOption::NginxEnable),
-            _ => Err(()),
-        }
-    }
-}
-
-impl fmt::Display for BlitzWebUiConfigOption {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let option_str = match self {
-            BlitzWebUiConfigOption::Enable => "enable",
-            BlitzWebUiConfigOption::NginxEnable => "nginx_enable",
-        };
-        write!(f, "{}", option_str)
-    }
 }
 
 impl AppConfig for BlitzWebUiService {
@@ -255,7 +221,7 @@ mod tests {
         // force enable to "true"
         let _ = config
             .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
+                common::app_option_data::bool_data::BoolOptionChangeData {
                     id: BlitzWebUiConfigOption::Enable.to_option_id(),
                     value: true,
                 },
@@ -284,7 +250,7 @@ mod tests {
         // force enable to "false"
         let _ = config
             .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
+                common::app_option_data::bool_data::BoolOptionChangeData {
                     id: BlitzWebUiConfigOption::Enable.to_option_id(),
                     value: false,
                 },

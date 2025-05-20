@@ -1,7 +1,7 @@
+use common::{number_value::NumberValue, strings::DECIMAL_SIGN};
 use crossterm::event::KeyCode;
 use error_stack::Result;
 use log::warn;
-use nixblitzlib::{number_value::NumberValue, strings::DECIMAL_SIGN};
 use ratatui::{layout::Rect, widgets::Clear, Frame};
 use ratatui_macros::constraint;
 use tokio::sync::mpsc::UnboundedSender;

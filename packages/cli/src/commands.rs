@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use clap::{builder::PossibleValue, Subcommand, ValueEnum};
-use nixblitzlib::apps::SupportedApps;
+use common::apps::SupportedApps;
 
 use crate::define_clap_apps_value_enum;
 

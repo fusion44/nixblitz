@@ -111,11 +111,11 @@ impl GetOptionId for NumberOptionChangeData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::number_value::NumberValue;
+    use crate::{apps::SupportedApps, number_value::NumberValue};
 
     #[test]
     fn test_number_option_data_new() {
-        let id = OptionId::new(crate::apps::SupportedApps::BitcoinCore, "test".into());
+        let id = OptionId::new(SupportedApps::BitcoinCore, "test".into());
         let value = NumberValue::UInt(Some(10));
         let original = NumberValue::UInt(Some(10));
         let number_option =
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_number_option_data_set_value() {
-        let id = OptionId::new(crate::apps::SupportedApps::BitcoinCore, "test".into());
+        let id = OptionId::new(SupportedApps::BitcoinCore, "test".into());
         let original = NumberValue::UInt(Some(10));
         let mut number_option =
             NumberOptionData::new(id, original.clone(), 0, 100, false, original.clone()).unwrap();
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_number_option_data_range() {
-        let id = OptionId::new(crate::apps::SupportedApps::BitcoinCore, "test".into());
+        let id = OptionId::new(SupportedApps::BitcoinCore, "test".into());
         let value = NumberValue::UInt(Some(10));
         let original = NumberValue::UInt(Some(10));
         let number_option = NumberOptionData::new(id, value, 5, 50, false, original).unwrap();
@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_to_nix_string() {
-        let id = OptionId::new(crate::apps::SupportedApps::BitcoinCore, "test".into());
+        let id = OptionId::new(SupportedApps::BitcoinCore, "test".into());
         let value = NumberValue::UInt(Some(10));
         let original = NumberValue::UInt(Some(10));
         let number_option = NumberOptionData::new(id, value, 0, 100, false, original).unwrap();

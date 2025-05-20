@@ -1,0 +1,12 @@
+[package]
+name = "common"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+error-stack = "0.5.0"
+once_cell = "1.20.2"
+serde = { version = "1.0.219", features = ["derive"] }
+strum = "0.26.3"
+strum_macros = "0.26.4"
+thiserror = "1.0.63"

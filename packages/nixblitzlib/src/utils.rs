@@ -6,24 +6,28 @@ use std::{
     process::{Command, Stdio},
 };
 
-use error_stack::{Report, Result, ResultExt};
-use include_dir::{include_dir, Dir};
-use log::{debug, error, info};
-use raw_cpuid::CpuId;
-
 use crate::{
     apply_changes::{run_nixos_rebuild_switch_async, ProcessOutput},
     bitcoind::BitcoinDaemonService,
     blitz_api::BlitzApiService,
     blitz_webui::BlitzWebUiService,
     cln::CoreLightningService,
-    errors::{GitError, PasswordError, ProjectError},
     lnd::LightningNetworkDaemonService,
     nix_base_config::{NixBaseConfig, NixBaseConfigsTemplates},
     project::Project,
-    SystemPlatform,
 };
+use common::{
+    errors::{GitError, PasswordError, ProjectError},
+    system_platform::SystemPlatform,
+};
+use error_stack::{Report, Result, ResultExt};
+use include_dir::{include_dir, Dir};
+use log::{debug, error, info};
+use raw_cpuid::CpuId;
 use sha_crypt::{sha512_simple, Sha512Params};
+
+// default password: "nixblitz"
+pub(crate) static INITIAL_PASSWORD: &str = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.";
 
 pub struct AutoLineString(String);
 
@@ -706,13 +710,11 @@ pub fn get_system_platform() -> SystemPlatform {
 mod tests {
     use std::fs::{self, create_dir, create_dir_all, File};
 
-    use crate::{
-        errors::ProjectError,
-        utils::{
-            check_password_validity_confirm, create_file, safety_checks, trim_lines_left,
-            unix_hash_password, update_file,
-        },
+    use crate::utils::{
+        check_password_validity_confirm, create_file, safety_checks, trim_lines_left,
+        unix_hash_password, update_file,
     };
+    use common::errors::ProjectError;
     use sha_crypt::sha512_check;
 
     #[test]

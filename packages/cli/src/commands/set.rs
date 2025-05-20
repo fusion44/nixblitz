@@ -1,17 +1,17 @@
 use std::path::Path;
 
-use error_stack::{Result, ResultExt};
-use log::info;
-use nixblitzlib::{
+use common::{
     app_option_data::{
         option_data::{OptionDataChangeNotification, ToOptionId},
         string_list_data::StringListOptionChangeData,
         text_edit_data::TextOptionChangeData,
     },
     apps::SupportedApps,
-    nix_base_config::NixBaseConfigOption,
-    project::Project,
+    option_definitions::nix_base::NixBaseConfigOption,
 };
+use error_stack::{Result, ResultExt};
+use log::info;
+use nixblitzlib::project::Project;
 
 use crate::errors::CliError;
 
@@ -97,7 +97,8 @@ fn set_nixos(work_dir: &Path, option_name: &str, value_str: &str) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use crate::{commands::set::set_option_value, errors::CliError};
-    use nixblitzlib::{apps::SupportedApps, utils::init_default_project, SystemPlatform};
+    use common::{apps::SupportedApps, system_platform::SystemPlatform};
+    use nixblitzlib::utils::init_default_project;
     use std::fs;
 
     // TODO: these are more like integration tests than unit tests

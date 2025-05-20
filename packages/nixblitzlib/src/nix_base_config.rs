@@ -3,27 +3,28 @@ use error_stack::{Report, Result, ResultExt};
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, path::Path, str::FromStr};
-use strum::{EnumCount, VariantArray};
+use strum::VariantArray;
 
-use crate::{
+use crate::utils::{
+    check_password_validity_confirm, unix_hash_password, update_file, BASE_TEMPLATE,
+    INITIAL_PASSWORD,
+};
+use common::{
     app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
         option_data::{
-            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
-            ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, ToOptionId,
         },
         password_data::PasswordOptionData,
         string_list_data::{StringListOptionData, StringListOptionItem},
         text_edit_data::TextOptionData,
     },
-    apps::SupportedApps,
     errors::{ProjectError, TemplatingError},
     locales::LOCALES,
-    strings::INITIAL_PASSWORD,
+    option_definitions::nix_base::NixBaseConfigOption,
+    system_platform::SystemPlatform,
     timezones::TIMEZONES,
-    utils::{check_password_validity_confirm, unix_hash_password, update_file, BASE_TEMPLATE},
-    SystemPlatform,
 };
 
 pub const TEMPLATE_FILE_NAME: &str = "src/configuration.common.nix.templ";
@@ -219,57 +220,6 @@ impl Default for NixBaseConfig {
 #[derive(Debug)]
 pub enum NixBaseConfigsTemplates {
     Common,
-}
-
-#[derive(
-    Debug, Clone, Copy, EnumCount, VariantArray, Hash, PartialEq, Eq, Serialize, Deserialize,
-)]
-pub enum NixBaseConfigOption {
-    AllowUnfree,
-    TimeZone,
-    DefaultLocale,
-    DiskoDevice,
-    Username,
-    InitialPassword,
-    SystemPlatform,
-}
-
-impl ToOptionId for NixBaseConfigOption {
-    fn to_option_id(&self) -> OptionId {
-        OptionId::new(SupportedApps::NixOS, self.to_string())
-    }
-}
-
-impl FromStr for NixBaseConfigOption {
-    type Err = ();
-
-    fn from_str(s: &str) -> std::result::Result<NixBaseConfigOption, ()> {
-        match s {
-            "allow_unfree" => Ok(NixBaseConfigOption::AllowUnfree),
-            "time_zone" => Ok(NixBaseConfigOption::TimeZone),
-            "default_locale" => Ok(NixBaseConfigOption::DefaultLocale),
-            "disko_device" => Ok(NixBaseConfigOption::DiskoDevice),
-            "username" => Ok(NixBaseConfigOption::Username),
-            "initial_password" => Ok(NixBaseConfigOption::InitialPassword),
-            "platform" => Ok(NixBaseConfigOption::SystemPlatform),
-            _ => Err(()),
-        }
-    }
-}
-
-impl Display for NixBaseConfigOption {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            NixBaseConfigOption::AllowUnfree => "allow_unfree",
-            NixBaseConfigOption::TimeZone => "time_zone",
-            NixBaseConfigOption::DefaultLocale => "default_locale",
-            NixBaseConfigOption::DiskoDevice => "disko_device",
-            NixBaseConfigOption::Username => "username",
-            NixBaseConfigOption::InitialPassword => "initial_password",
-            NixBaseConfigOption::SystemPlatform => "platform",
-        };
-        write!(f, "{}", s)
-    }
 }
 
 const _FILES: [&str; 5] = [
@@ -535,7 +485,7 @@ impl AppConfig for NixBaseConfig {
                 }
             } else if opt == NixBaseConfigOption::SystemPlatform {
                 if let OptionDataChangeNotification::StringList(val) = option {
-                    if SystemPlatform::from_short_str_option(val.value.as_str()).is_none() {
+                    if SystemPlatform::from_short_str_option(val.value.as_str()).is_err() {
                         return Err(Report::new(ProjectError::ChangeOptionValueError(
                             NixBaseConfigOption::SystemPlatform.to_string(),
                         ))
@@ -633,6 +583,7 @@ mod tests {
     use super::*;
     use crate::utils::{init_default_project, unix_hash_password};
 
+    use common::app_option_data::bool_data::BoolOptionChangeData;
     use std::fs;
     use tempfile::tempdir;
 
@@ -649,12 +600,10 @@ mod tests {
 
         // force enable to "true"
         let _ = config
-            .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
-                    id: NixBaseConfigOption::AllowUnfree.to_option_id(),
-                    value: true,
-                },
-            ))
+            .app_option_changed(&OptionDataChangeNotification::Bool(BoolOptionChangeData {
+                id: NixBaseConfigOption::AllowUnfree.to_option_id(),
+                value: true,
+            }))
             .unwrap();
 
         // Call the save function
@@ -678,12 +627,10 @@ mod tests {
 
         // force enable to "false"
         let _ = config
-            .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
-                    id: NixBaseConfigOption::AllowUnfree.to_option_id(),
-                    value: false,
-                },
-            ))
+            .app_option_changed(&OptionDataChangeNotification::Bool(BoolOptionChangeData {
+                id: NixBaseConfigOption::AllowUnfree.to_option_id(),
+                value: false,
+            }))
             .unwrap();
         let _ = config.save(work_dir);
 

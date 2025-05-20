@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{collections::HashMap, net::IpAddr, path::Path, str::FromStr};
 
 use alejandra::format;
@@ -6,23 +5,24 @@ use error_stack::{Report, Result, ResultExt};
 use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 
-use crate::{
+use common::{
     app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
         net_address_data::NetAddressOptionData,
         option_data::{
-            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification,
             ToNixString, ToOptionId,
         },
         port_data::PortOptionData,
         text_edit_data::TextOptionData,
     },
-    apps::SupportedApps,
     errors::{ProjectError, TemplatingError},
     number_value::NumberValue,
-    utils::{update_file, BASE_TEMPLATE},
+    option_definitions::cln::ClnConfigOption,
 };
+
+use crate::utils::{update_file, BASE_TEMPLATE};
 
 pub const TEMPLATE_FILE_NAME: &str = "src/btc/cln.nix.templ";
 pub const JSON_FILE_NAME: &str = "src/btc/cln.json";
@@ -78,60 +78,6 @@ pub struct CoreLightningService {
     ///
     /// default: ""
     pub get_public_address_cmd: Box<TextOptionData>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum ClnConfigOption {
-    Enable,
-    Address,
-    Port,
-    Proxy,
-    AlwaysUseProxy,
-    DataDir,
-    Wallet,
-    ExtraConfig,
-    GetPublicAddressCmd,
-}
-
-impl ToOptionId for ClnConfigOption {
-    fn to_option_id(&self) -> OptionId {
-        OptionId::new(SupportedApps::CoreLightning, self.to_string())
-    }
-}
-impl FromStr for ClnConfigOption {
-    type Err = ();
-
-    fn from_str(s: &str) -> std::result::Result<ClnConfigOption, ()> {
-        match s {
-            "enable" => Ok(ClnConfigOption::Enable),
-            "address" => Ok(ClnConfigOption::Address),
-            "port" => Ok(ClnConfigOption::Port),
-            "proxy" => Ok(ClnConfigOption::Proxy),
-            "always_use_proxy" => Ok(ClnConfigOption::AlwaysUseProxy),
-            "data_dir" => Ok(ClnConfigOption::DataDir),
-            "wallet" => Ok(ClnConfigOption::Wallet),
-            "extra_config" => Ok(ClnConfigOption::ExtraConfig),
-            "get_public_address_cmd" => Ok(ClnConfigOption::GetPublicAddressCmd),
-            _ => Err(()),
-        }
-    }
-}
-
-impl fmt::Display for ClnConfigOption {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let option_str = match self {
-            ClnConfigOption::Enable => "enable",
-            ClnConfigOption::Address => "address",
-            ClnConfigOption::Port => "port",
-            ClnConfigOption::Proxy => "proxy",
-            ClnConfigOption::AlwaysUseProxy => "always_use_proxy",
-            ClnConfigOption::DataDir => "data_dir",
-            ClnConfigOption::Wallet => "wallet",
-            ClnConfigOption::ExtraConfig => "extra_config",
-            ClnConfigOption::GetPublicAddressCmd => "get_public_address_cmd",
-        };
-        write!(f, "{}", option_str)
-    }
 }
 
 impl AppConfig for CoreLightningService {
@@ -325,7 +271,7 @@ impl CoreLightningService {
                 return Err(Report::new(TemplatingError::FileNotFound(
                     TEMPLATE_FILE_NAME.to_string(),
                 ))
-                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))?
+                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))?;
             }
         };
 
@@ -337,7 +283,7 @@ impl CoreLightningService {
                 ))
                 .attach_printable(format!(
                     "Unable to read file contents of {TEMPLATE_FILE_NAME}"
-                )))
+                )));
             }
         };
 
@@ -479,7 +425,7 @@ mod tests {
         // force enable to "true"
         let _ = service
             .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
+                common::app_option_data::bool_data::BoolOptionChangeData {
                     id: ClnConfigOption::Enable.to_option_id(),
                     value: true,
                 },
@@ -508,7 +454,7 @@ mod tests {
         // force enable to "false"
         let _ = service
             .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
+                common::app_option_data::bool_data::BoolOptionChangeData {
                     id: ClnConfigOption::Enable.to_option_id(),
                     value: false,
                 },

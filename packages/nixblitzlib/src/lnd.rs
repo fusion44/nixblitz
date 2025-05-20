@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{collections::HashMap, net::IpAddr, path::Path, str::FromStr};
 
 use alejandra::format;
@@ -7,22 +6,22 @@ use handlebars::{no_escape, Handlebars};
 use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::{
+use crate::utils::{update_file, BASE_TEMPLATE};
+use common::{
     app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
         net_address_data::NetAddressOptionData,
         option_data::{
-            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification,
             ToNixString, ToOptionId,
         },
         port_data::PortOptionData,
         text_edit_data::TextOptionData,
     },
-    apps::SupportedApps,
     errors::{ProjectError, TemplatingError},
     number_value::NumberValue,
-    utils::{update_file, BASE_TEMPLATE},
+    option_definitions::lnd::LndConfigOption,
 };
 
 pub const TEMPLATE_FILE_NAME: &str = "src/btc/lnd.nix.templ";
@@ -66,66 +65,6 @@ pub struct LightningNetworkDaemonService {
     /// See here for all available options:
     /// https://github.com/lightningnetwork/lnd/blob/master/sample-lnd.conf
     pub extra_config: Box<TextOptionData>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum LndConfigOption {
-    Enable,
-    Address,
-    Port,
-    RpcAddress,
-    RpcPort,
-    RestAddress,
-    RestPort,
-    DataDir,
-    CertExtraIps,
-    CertExtraDomains,
-    ExtraConfig,
-}
-
-impl ToOptionId for LndConfigOption {
-    fn to_option_id(&self) -> OptionId {
-        OptionId::new(SupportedApps::LND, self.to_string())
-    }
-}
-impl FromStr for LndConfigOption {
-    type Err = ();
-
-    fn from_str(s: &str) -> std::result::Result<LndConfigOption, ()> {
-        match s {
-            "enable" => Ok(LndConfigOption::Enable),
-            "address" => Ok(LndConfigOption::Address),
-            "port" => Ok(LndConfigOption::Port),
-            "rpc_address" => Ok(LndConfigOption::RpcAddress),
-            "rpc_port" => Ok(LndConfigOption::RpcPort),
-            "rest_address" => Ok(LndConfigOption::RestAddress),
-            "rest_port" => Ok(LndConfigOption::RestPort),
-            "data_dir" => Ok(LndConfigOption::DataDir),
-            "cert_extra_ips" => Ok(LndConfigOption::CertExtraIps),
-            "cert_extra_domains" => Ok(LndConfigOption::CertExtraDomains),
-            "extra_config" => Ok(LndConfigOption::ExtraConfig),
-            _ => Err(()),
-        }
-    }
-}
-
-impl fmt::Display for LndConfigOption {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let option_str = match self {
-            LndConfigOption::Enable => "enable",
-            LndConfigOption::Address => "address",
-            LndConfigOption::Port => "port",
-            LndConfigOption::RpcAddress => "rpc_address",
-            LndConfigOption::RpcPort => "rpc_port",
-            LndConfigOption::RestAddress => "rest_address",
-            LndConfigOption::RestPort => "rest_port",
-            LndConfigOption::DataDir => "data_dir",
-            LndConfigOption::CertExtraIps => "cert_extra_ips",
-            LndConfigOption::CertExtraDomains => "cert_extra_domains",
-            LndConfigOption::ExtraConfig => "extra_config",
-        };
-        write!(f, "{}", option_str)
-    }
 }
 
 impl AppConfig for LightningNetworkDaemonService {
@@ -513,7 +452,7 @@ mod tests {
         // force enable to "true"
         let _ = service
             .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
+                common::app_option_data::bool_data::BoolOptionChangeData {
                     id: LndConfigOption::Enable.to_option_id(),
                     value: true,
                 },
@@ -542,7 +481,7 @@ mod tests {
         // force enable to "false"
         let _ = service
             .app_option_changed(&OptionDataChangeNotification::Bool(
-                crate::app_option_data::bool_data::BoolOptionChangeData {
+                common::app_option_data::bool_data::BoolOptionChangeData {
                     id: LndConfigOption::Enable.to_option_id(),
                     value: false,
                 },
