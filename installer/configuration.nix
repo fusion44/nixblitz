@@ -67,6 +67,7 @@ in {
     ripgrep
     bandwhich
     superfile
+    dioxus-cli
     nixos-anywhere
   ];
 

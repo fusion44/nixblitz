@@ -59,6 +59,12 @@
             typos # code spell checker
             statix
             fd
+            dioxus-cli
+            wasm-bindgen-cli
+            lld
+            nodejs
+            tailwindcss_4
+            watchman
           ];
           nativeBuildInputs = with pkgs; [
             pkg-config

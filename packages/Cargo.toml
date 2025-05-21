@@ -1,9 +1,7 @@
 [workspace]
 
-members = ["cli", "common", "nixblitzlib"]
+members = ["cli", "common", "nixblitzlib", "web_app"]
 resolver = "2"
-
-[profile]
 
 [profile.wasm-dev]
 inherits = "dev"
