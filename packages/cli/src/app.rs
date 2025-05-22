@@ -9,6 +9,7 @@ use ratatui::{
     prelude::Rect,
     style::{Color, Style},
     text::{Line, Span},
+    widgets::{Paragraph, Wrap},
     Frame,
 };
 use ratatui_macros::constraints;
@@ -427,42 +428,34 @@ impl App {
         area: Rect,
         _: &RenderContext,
     ) -> Result<(), CliError> {
-        // <←→> or <hl> => navigate between panes. | <enter> => to change an option
-        // <↓↑> or <jk> => navigate app and option list entries.
-
-        let oneliner = area.width > 100;
-        let panes = vec![
+        let all_of_it = Line::from(vec![
+            // panes
             Span::from("<"),
             Span::styled("←→", Style::default().fg(Color::Green)),
             Span::from("> or <"),
             Span::styled("hl", Style::default().fg(Color::Green)),
             Span::from("> => navigate between panes. "),
-        ];
-        let options = vec![
+            // options
             Span::from("<"),
             Span::styled("↓↑", Style::default().fg(Color::Green)),
             Span::from("> or <"),
             Span::styled("jk", Style::default().fg(Color::Green)),
             Span::from("> => navigate app and option list entries. "),
-        ];
-
-        let change_option = vec![
+            // change option
             Span::from("<"),
             Span::styled("ENTER", Style::default().fg(Color::Green)),
             Span::from("> to change an option. "),
-        ];
-        if oneliner {
-            frame.render_widget(Line::from([panes, options, change_option].concat()), area);
-        } else {
-            let layout = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints(constraints![==1, ==1])
-                .split(area);
-            let line1 = Line::from([panes, change_option].concat());
-            let line2 = Line::from(options);
-            frame.render_widget(line1, layout[0]);
-            frame.render_widget(line2, layout[1]);
-        };
+            // quit
+            Span::from("<"),
+            Span::styled("q", Style::default().fg(Color::Green)),
+            Span::from("> to quit"),
+        ]);
+
+        let p = Paragraph::new(all_of_it)
+            .alignment(ratatui::layout::Alignment::Center)
+            .wrap(Wrap { trim: true });
+
+        frame.render_widget(p, area);
 
         Ok(())
     }
@@ -473,7 +466,7 @@ impl App {
         tui.draw(|frame| {
             let main_layout = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints(constraints![==1, *=1, ==2])
+                .constraints(constraints![==1, *=1, ==3])
                 .split(frame.area());
 
             let res = self.draw_app_bar(frame, main_layout[0], &ctx);
