@@ -2,9 +2,14 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    # nixblitz.url = "path:..";
     nixblitz.url = "github:fusion44/nixblitz/main";
     nixblitz.inputs.nixpkgs.follows = "nixpkgs";
+
+    blitz-api.url = "github:fusion44/blitz_api/dev";
+    blitz-api.inputs.nixpkgs.follows = "nixpkgs";
+
+    blitz-web.url = "github:raspiblitz/raspiblitz-web/master";
+    blitz-web.inputs.nixpkgs.follows = "nixpkgs";
 
     nixos-hardware.url = "github:nixos/nixos-hardware";
 

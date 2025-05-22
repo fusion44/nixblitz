@@ -1,14 +1,14 @@
 # default.nix
 {pkgs ? import <nixpkgs> {}}: let
   manifest = (pkgs.lib.importTOML ./packages/cli/Cargo.toml).package;
-  commitSha = "eb1c9a5e2928982bf25d91cab4842e8fa6608b8b";
+  commitSha = "fa0a71963bf49352ac24a33532f52c4f8280c3c9";
   shortSha = builtins.substring 0 7 commitSha;
 
   src = pkgs.fetchFromGitHub {
     owner = "fusion44";
     repo = "nixblitz";
     rev = commitSha;
-    sha256 = "sha256-3gs7+A/B3pWIvmBG9vK1/eKf+3FQGnFL/4whxN3ToTs=";
+    sha256 = "sha256-BCT+ZlNJzAmrf4WC8plHA8QlUujEbsNAhiSzEKpv1dU=";
   };
 
   crateSource = src + "/packages";
