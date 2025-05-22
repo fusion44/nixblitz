@@ -4,6 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 use super::{
     list_options::{
         base_option::OptionListItem, bool::BoolOptionComponent,
+        manual_string_list::ManualStringListOptionComponent,
         net_address::NetAddressOptionComponent, number::NumberOptionComponent,
         password::PasswordOptionComponent, path::PathOptionComponent,
         string_list::StringListOptionComponent, text::TextOptionComponent,
@@ -41,6 +42,7 @@ use tokio::sync::mpsc::UnboundedSender;
 enum OptionControl<'a> {
     Bool(BoolOptionComponent),
     StringList(StringListOptionComponent),
+    ManualStringList(ManualStringListOptionComponent<'a>),
     EditText(TextOptionComponent<'a>),
     Path(PathOptionComponent<'a>),
     Password(PasswordOptionComponent<'a>),
@@ -54,6 +56,7 @@ impl fmt::Display for OptionControl<'_> {
         match self {
             OptionControl::Bool(_) => write!(f, "OptionControl::Bool"),
             OptionControl::StringList(_) => write!(f, "OptionControl::StringList"),
+            OptionControl::ManualStringList(_) => write!(f, "OptionControl::ManualStringList"),
             OptionControl::EditText(_) => write!(f, "OptionControl::EditText"),
             OptionControl::Path(_) => write!(f, "OptionControl::Path"),
             OptionControl::Password(_) => write!(f, "OptionControl::Password"),
@@ -70,6 +73,7 @@ impl OptionControl<'_> {
         match self {
             OptionControl::Bool(comp) => comp,
             OptionControl::StringList(comp) => comp,
+            OptionControl::ManualStringList(comp) => comp,
             OptionControl::EditText(comp) => comp,
             OptionControl::Path(comp) => comp,
             OptionControl::Password(comp) => comp,
@@ -84,6 +88,7 @@ impl OptionControl<'_> {
         match self {
             OptionControl::Bool(comp) => comp,
             OptionControl::StringList(comp) => comp,
+            OptionControl::ManualStringList(comp) => comp,
             OptionControl::EditText(comp) => comp,
             OptionControl::Path(comp) => comp,
             OptionControl::Password(comp) => comp,
@@ -98,6 +103,9 @@ impl OptionControl<'_> {
         match (self, option_data) {
             (OptionControl::Bool(comp), OptionData::Bool(data)) => comp.set_data(data),
             (OptionControl::StringList(comp), OptionData::StringList(data)) => comp.set_data(data),
+            (OptionControl::ManualStringList(comp), OptionData::ManualStringList(data)) => {
+                comp.set_data(data)
+            }
             (OptionControl::EditText(comp), OptionData::TextEdit(data)) => comp.set_data(data),
             (OptionControl::Path(comp), OptionData::Path(data)) => comp.set_data(data),
             (OptionControl::Password(comp), OptionData::PasswordEdit(data)) => comp.set_data(data),
@@ -229,6 +237,12 @@ impl<'a> AppOptions<'a> {
                                 opt.id().to_string(),
                                 Box::new(OptionControl::StringList(
                                     StringListOptionComponent::new(opt, index == selected),
+                                )),
+                            ),
+                            OptionData::ManualStringList(opt) => (
+                                opt.id().to_string(),
+                                Box::new(OptionControl::ManualStringList(
+                                    ManualStringListOptionComponent::new(opt, index == selected),
                                 )),
                             ),
                             OptionData::TextEdit(opt) => (

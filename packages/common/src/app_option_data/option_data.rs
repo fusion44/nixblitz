@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     bool_data::{BoolOptionChangeData, BoolOptionData},
+    manual_string_list_data::{ManualStringListOptionChangeData, ManualStringListOptionData},
     net_address_data::{NetAddressOptionChangeData, NetAddressOptionData},
     number_data::{NumberOptionChangeData, NumberOptionData},
     password_data::{PasswordOptionChangeData, PasswordOptionData},
@@ -55,6 +56,7 @@ impl OptionId {
 pub enum OptionData {
     Bool(Box<BoolOptionData>),
     StringList(Box<StringListOptionData>),
+    ManualStringList(Box<ManualStringListOptionData>),
     TextEdit(Box<TextOptionData>),
     Path(Box<PathOptionData>),
     PasswordEdit(Box<PasswordOptionData>),
@@ -83,6 +85,7 @@ impl GetOptionId for OptionData {
         match self {
             OptionData::Bool(data) => data.id(),
             OptionData::StringList(data) => data.id(),
+            OptionData::ManualStringList(data) => data.id(),
             OptionData::TextEdit(data) => data.id(),
             OptionData::Path(data) => data.id(),
             OptionData::PasswordEdit(data) => data.id(),
@@ -97,6 +100,7 @@ impl GetOptionId for OptionData {
 pub enum OptionDataChangeNotification {
     Bool(BoolOptionChangeData),
     StringList(StringListOptionChangeData),
+    ManualStringList(ManualStringListOptionChangeData),
     TextEdit(TextOptionChangeData),
     Path(PathOptionChangeData),
     PasswordEdit(PasswordOptionChangeData),
@@ -110,6 +114,7 @@ impl GetOptionId for OptionDataChangeNotification {
         match self {
             OptionDataChangeNotification::Bool(data) => data.id(),
             OptionDataChangeNotification::StringList(data) => data.id(),
+            OptionDataChangeNotification::ManualStringList(data) => data.id(),
             OptionDataChangeNotification::TextEdit(data) => data.id(),
             OptionDataChangeNotification::Path(data) => data.id(),
             OptionDataChangeNotification::PasswordEdit(data) => data.id(),

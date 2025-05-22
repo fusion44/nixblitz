@@ -1,5 +1,6 @@
 pub mod base_option;
 pub mod bool;
+pub mod manual_string_list;
 pub mod net_address;
 pub mod number;
 pub mod number_popup;

@@ -47,8 +47,7 @@ in {
       extraGroups = ["wheel"];
       hashedPassword = "{{ initial_password }}";
       openssh.authorizedKeys.keys = [
-        {{ openssh_auth_keys }}
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID+U9Viom6UfZdRF7c5V+F/dIUKBs6jEaPy6HgXw/1CA ssh.giggling916@passmail.net"
+        {{ ssh_auth_keys }}
       ];
     };
   };

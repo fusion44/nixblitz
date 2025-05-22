@@ -13,8 +13,10 @@ use common::{
     app_config::AppConfig,
     app_option_data::{
         bool_data::BoolOptionData,
+        manual_string_list_data::ManualStringListOptionData,
         option_data::{
-            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification,
+            ToNixString, ToOptionId,
         },
         password_data::PasswordOptionData,
         string_list_data::{StringListOptionData, StringListOptionItem},
@@ -94,7 +96,7 @@ pub struct NixBaseConfig {
     ///
     /// [nixos.org:users.users.\<name\>.openssh.authorizedKeys.keys](https://search.nixos.org/options?show=users.users.<name>.openssh.authorizedKeys.keys)
     ///
-    pub openssh_auth_keys: Vec<String>,
+    pub ssh_auth_keys: Box<ManualStringListOptionData>,
 
     ///  Additional packages to install from the nixos repository. Any package from the
     ///
@@ -188,7 +190,11 @@ impl Default for NixBaseConfig {
                 false,
                 INITIAL_PASSWORD.to_string(),
             )),
-            openssh_auth_keys: vec![],
+            ssh_auth_keys: Box::new(ManualStringListOptionData::new(
+                NixBaseConfigOption::SshAuthKeys.to_option_id(),
+                vec![],
+                999,
+            )),
             system_packages: vec![
                 String::from("fd"),
                 String::from("bat"),
@@ -259,7 +265,7 @@ impl NixBaseConfig {
         username: String,
         ssh_password_auth: bool,
         hashed_password: Box<PasswordOptionData>,
-        openssh_auth_keys: Vec<String>,
+        ssh_auth_keys: Box<ManualStringListOptionData>,
         system_packages: Vec<String>,
         ports: Vec<usize>,
         hostname_vm: String,
@@ -276,7 +282,7 @@ impl NixBaseConfig {
             username: username.clone(),
             ssh_password_auth,
             hashed_password,
-            openssh_auth_keys,
+            ssh_auth_keys,
             system_packages,
             ports,
             hostname_vm,
@@ -342,10 +348,11 @@ impl NixBaseConfig {
                         self.hashed_password.hashed_value().clone(),
                     ),
                     (
-                        "openssh_auth_keys",
-                        self.openssh_auth_keys
+                        "ssh_auth_keys",
+                        self.ssh_auth_keys
+                            .value()
                             .iter()
-                            .map(|s| format!("\"{}\"", s))
+                            .map(|v| format!("\"{}\"", v))
                             .collect::<Vec<_>>()
                             .join("\n"),
                     ),
@@ -507,6 +514,15 @@ impl AppConfig for NixBaseConfig {
                         NixBaseConfigOption::SystemPlatform.to_string(),
                     )))?;
                 }
+            } else if opt == NixBaseConfigOption::SshAuthKeys {
+                if let OptionDataChangeNotification::ManualStringList(val) = option {
+                    res = Ok(*self.ssh_auth_keys.value() != val.value);
+                    self.ssh_auth_keys.set_value(val.value.clone());
+                } else {
+                    Err(Report::new(ProjectError::ChangeOptionValueError(
+                        NixBaseConfigOption::SshAuthKeys.to_string(),
+                    )))?;
+                }
             } else {
                 Err(
                     Report::new(ProjectError::ChangeOptionValueError(opt.to_string()))
@@ -527,13 +543,6 @@ impl AppConfig for NixBaseConfig {
             OptionData::StringList(self.default_locale.clone()),
             OptionData::StringList(self.platform.clone()),
             OptionData::TextEdit(Box::new(TextOptionData::new(
-                NixBaseConfigOption::DiskoDevice.to_option_id(),
-                self.disko_device.clone(),
-                1,
-                false,
-                self.disko_device.clone(),
-            ))),
-            OptionData::TextEdit(Box::new(TextOptionData::new(
                 NixBaseConfigOption::Username.to_option_id(),
                 self.username.clone(),
                 1,
@@ -541,6 +550,14 @@ impl AppConfig for NixBaseConfig {
                 self.username.clone(),
             ))),
             OptionData::PasswordEdit(self.hashed_password.clone()),
+            OptionData::ManualStringList(self.ssh_auth_keys.clone()),
+            OptionData::TextEdit(Box::new(TextOptionData::new(
+                NixBaseConfigOption::DiskoDevice.to_option_id(),
+                self.disko_device.clone(),
+                1,
+                false,
+                self.disko_device.clone(),
+            ))),
         ]
     }
 
@@ -653,7 +670,7 @@ mod tests {
         assert_eq!(config.default_locale.value(), "en_US.utf8");
         assert_eq!(config.username, "admin");
         assert!(!config.ssh_password_auth);
-        assert_eq!(config.openssh_auth_keys.len(), 0);
+        assert_eq!(config.ssh_auth_keys.value().len(), 0);
     }
 
     #[test]
@@ -693,7 +710,11 @@ mod tests {
                 false,
                 pw.to_string(),
             )),
-            vec![String::from("123"), String::from("234")],
+            Box::new(ManualStringListOptionData::new(
+                NixBaseConfigOption::SshAuthKeys.to_option_id(),
+                vec![String::from("123"), String::from("234")],
+                999,
+            )),
             vec![String::from("bat"), String::from("yazi")],
             vec![22, 1337],
             "nixblitzvm".to_string(),
@@ -726,7 +747,7 @@ mod tests {
             "time.timeZone = \"{}\";",
             config.time_zone.value()
         )));
-        for key in config.openssh_auth_keys {
+        for key in config.ssh_auth_keys.value() {
             assert!(res_base.contains(&format!("\"{}\"", key)));
         }
         assert!(res_base.contains(&format!(

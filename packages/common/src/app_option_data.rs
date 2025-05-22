@@ -1,4 +1,5 @@
 pub mod bool_data;
+pub mod manual_string_list_data;
 pub mod net_address_data;
 pub mod number_data;
 pub mod option_data;

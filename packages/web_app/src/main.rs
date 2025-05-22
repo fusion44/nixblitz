@@ -3,10 +3,11 @@ use common::app_option_data::{
     option_data::{GetOptionId, OptionData},
 };
 use components::option_editors::{
-    bool_option_editor::BooleanOptionEditor, netaddress_option_editor::NetAddressOptionEditor,
-    number_option_editor::NumberOptionEditor, path_option_editor::PathOptionEditor,
-    port_option_editor::PortOptionEditor, string_list_option_editor::StringListOptionEditor,
-    text_option_editor::TextOptionEditor,
+    bool_option_editor::BooleanOptionEditor,
+    manual_string_list_option_editor::ManualStringListOptionEditor,
+    netaddress_option_editor::NetAddressOptionEditor, number_option_editor::NumberOptionEditor,
+    path_option_editor::PathOptionEditor, port_option_editor::PortOptionEditor,
+    string_list_option_editor::StringListOptionEditor, text_option_editor::TextOptionEditor,
 };
 
 use dioxus::prelude::*;
@@ -121,6 +122,16 @@ pub fn Config() -> Element {
                             applied: data.is_applied(),
                             id: data.id().clone(),
                             options: data.options().to_vec(),
+                        }
+                    }
+                }
+                OptionData::ManualStringList(data) => {
+                    rsx! {
+                        ManualStringListOptionEditor {
+                            value: data.value().clone(),
+                            applied: data.is_applied(),
+                            id: data.id().clone(),
+                            max_lines: data.max_lines(),
                         }
                     }
                 }

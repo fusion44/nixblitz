@@ -128,7 +128,7 @@ impl Component for TextInputPopup<'_> {
     fn draw(&mut self, frame: &mut Frame, _: Rect, ctx: &RenderContext) -> Result<(), CliError> {
         let rect = frame.area();
         // calculate the max height we can use as a base
-        let mut height: u16 = frame.area().height - 4;
+        let mut height: u16 = frame.area().height - 16;
         let mut show_scrollbar: bool = false;
         if self.max_lines == 1 {
             // single line popup

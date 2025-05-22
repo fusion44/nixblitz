@@ -19,6 +19,7 @@ pub enum NixBaseConfigOption {
     Username,
     InitialPassword,
     SystemPlatform,
+    SshAuthKeys,
 }
 
 impl ToOptionId for NixBaseConfigOption {
@@ -39,6 +40,7 @@ impl FromStr for NixBaseConfigOption {
             "username" => Ok(NixBaseConfigOption::Username),
             "initial_password" => Ok(NixBaseConfigOption::InitialPassword),
             "platform" => Ok(NixBaseConfigOption::SystemPlatform),
+            "ssh_auth_keys" => Ok(NixBaseConfigOption::SshAuthKeys),
             _ => Err(()),
         }
     }
@@ -54,6 +56,7 @@ impl Display for NixBaseConfigOption {
             NixBaseConfigOption::Username => "username",
             NixBaseConfigOption::InitialPassword => "initial_password",
             NixBaseConfigOption::SystemPlatform => "platform",
+            NixBaseConfigOption::SshAuthKeys => "ssh_auth_keys",
         };
         write!(f, "{}", s)
     }

@@ -1,4 +1,5 @@
 pub mod bool_option_editor;
+pub mod manual_string_list_option_editor;
 pub mod netaddress_option_editor;
 pub mod number_option_editor;
 pub mod password_option_editor;
