@@ -4,7 +4,7 @@ use common::app_option_data::{
 };
 use dioxus::prelude::*;
 
-use crate::server::set_app_option_wrapper;
+use crate::backend::set_app_option_wrapper;
 
 #[component]
 pub(crate) fn StringListOptionEditor(

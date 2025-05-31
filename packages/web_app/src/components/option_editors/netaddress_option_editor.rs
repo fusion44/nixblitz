@@ -11,7 +11,7 @@ use dioxus::prelude::*;
 use dioxus_logger::tracing;
 use tracing::info;
 
-use crate::{components::input_type::InputType, server::set_app_option_wrapper};
+use crate::{backend::set_app_option_wrapper, components::input_type::InputType};
 
 #[component]
 pub(crate) fn NetAddressOptionEditor(

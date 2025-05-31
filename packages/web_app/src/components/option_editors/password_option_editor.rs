@@ -6,7 +6,7 @@ use common::app_option_data::{
 };
 use dioxus::prelude::*;
 
-use crate::{components::input_type::InputType, server::set_app_option_wrapper};
+use crate::{backend::set_app_option_wrapper, components::input_type::InputType};
 
 #[component]
 pub(crate) fn PasswordOptionEditor(value: String, applied: bool, id: OptionId) -> Element {

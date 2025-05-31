@@ -10,7 +10,7 @@ use common::{
 };
 use dioxus::prelude::*;
 
-use crate::{components::input_type::InputType, server::set_app_option_wrapper};
+use crate::{backend::set_app_option_wrapper, components::input_type::InputType};
 
 #[component]
 pub(crate) fn NumberOptionEditor(value: NumberValue, applied: bool, id: OptionId) -> Element {

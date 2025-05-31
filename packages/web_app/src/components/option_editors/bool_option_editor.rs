@@ -6,7 +6,7 @@ use dioxus::prelude::*;
 use dioxus_logger::tracing;
 use tracing::info;
 
-use crate::server::set_app_option_wrapper;
+use crate::backend::set_app_option_wrapper;
 
 #[component]
 pub(crate) fn BooleanOptionEditor(value: bool, applied: bool, id: OptionId) -> Element {
