@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use clap::{builder::PossibleValue, Subcommand, ValueEnum};
-use common::apps::SupportedApps;
+use common::{apps::SupportedApps, constants::NIXBLITZ_WORK_DIR_ENV};
 
 use crate::define_clap_apps_value_enum;
 
@@ -23,7 +23,7 @@ pub enum Commands {
     /// Sets an app option in the given configuration
     Set {
         /// The working directory to operate on
-        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        #[arg(short, long, value_name = "PATH", env = NIXBLITZ_WORK_DIR_ENV)]
         work_dir: PathBuf,
 
         /// The application to set the option for
@@ -46,13 +46,13 @@ pub enum Commands {
         frame_rate: f64,
 
         /// The working directory to operate on
-        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        #[arg(short, long, value_name = "PATH", env = NIXBLITZ_WORK_DIR_ENV)]
         work_dir: PathBuf,
     },
     /// Initializes a new project in the given work dir
     Init {
         /// The working directory to operate on
-        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        #[arg(short, long, value_name = "PATH", env = NIXBLITZ_WORK_DIR_ENV)]
         work_dir: PathBuf,
 
         /// Whether to force overwrite existing files
@@ -62,13 +62,13 @@ pub enum Commands {
     /// Installs the system defined in the given work dir
     Install {
         /// The working directory to operate on
-        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        #[arg(short, long, value_name = "PATH", env = NIXBLITZ_WORK_DIR_ENV)]
         work_dir: PathBuf,
     },
     /// Applies changes to the system defined in the given work dir
     Apply {
         /// The working directory to operate on
-        #[arg(short, long, value_name = "PATH", default_value = ".")]
+        #[arg(short, long, value_name = "PATH", env = NIXBLITZ_WORK_DIR_ENV)]
         work_dir: PathBuf,
     },
     /// Analyze the project for common problems

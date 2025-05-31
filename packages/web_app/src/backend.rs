@@ -3,6 +3,25 @@ use common::app_option_data::option_data::{
 };
 use dioxus::prelude::*;
 
+#[cfg(feature = "server")]
+fn get_project() -> Result<nixblitzlib::project::Project, ServerFnError> {
+    use common::{constants::NIXBLITZ_WORK_DIR_ENV, errors::ProjectError};
+    use dioxus_logger::tracing::{error, info};
+    use nixblitzlib::project::Project;
+    use std::{env, path::PathBuf};
+
+    let work_dir = env::var(NIXBLITZ_WORK_DIR_ENV)?;
+    let mut p = Project::load(PathBuf::from(work_dir.clone()));
+
+    match p {
+        Ok(p) => Ok(p),
+        Err(e) => {
+            info!("Loaded project from {}", work_dir);
+            return Err(ServerFnError::ServerError(e.to_string()));
+        }
+    }
+}
+
 // This function is used to get the list of supported apps from the server.
 // It is compiled into the WASM client
 #[server]
@@ -36,11 +55,11 @@ async fn get_app_options(app: String) -> Result<Vec<OptionData>, ServerFnError> 
         apps::SupportedApps,
         errors::ProjectError,
     };
-    use error_stack::Report;
+    use error_stack::{Report, ResultExt};
     use nixblitzlib::project::Project;
-    use std::{path::PathBuf, rc::Rc};
+    use std::{env, path::PathBuf, rc::Rc};
 
-    let mut p = Project::load(PathBuf::from("/tmp/something6/")).unwrap();
+    let mut p = get_project()?;
     p.set_selected_app(SupportedApps::from(app.as_str()).unwrap());
     let o: Result<Rc<Vec<OptionData>>, Report<ProjectError>> = p.get_app_options();
     match o {
@@ -61,7 +80,7 @@ pub async fn set_app_options(n: OptionDataChangeNotification) -> Result<(), Serv
     use nixblitzlib::project::Project;
     use std::path::PathBuf;
 
-    let mut p = Project::load(PathBuf::from("/tmp/something6/")).unwrap();
+    let mut p = get_project()?;
     p.set_selected_app(n.id().app);
     let res = p.on_option_changed(n);
 

@@ -1,6 +1,7 @@
 pub mod app_config;
 pub mod app_option_data;
 pub mod apps;
+pub mod constants;
 pub mod errors;
 pub mod locales;
 pub mod number_value;
