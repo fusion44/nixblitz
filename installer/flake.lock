@@ -435,18 +435,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1747909121,
-        "narHash": "sha256-BCT+ZlNJzAmrf4WC8plHA8QlUujEbsNAhiSzEKpv1dU=",
-        "owner": "fusion44",
-        "repo": "nixblitz",
-        "rev": "fa0a71963bf49352ac24a33532f52c4f8280c3c9",
-        "type": "github"
+        "lastModified": 1748762839,
+        "narHash": "sha256-0sSXCCGOmHXB5UvkZ9q33KMtv4KtcQiu6AMdZV25PGM=",
+        "ref": "refs/heads/main",
+        "rev": "478ac23d8a9917fb06ac0957062b24de2fd9c1a7",
+        "revCount": 134,
+        "type": "git",
+        "url": "https://forge.f44.fyi/f44/nixblitz"
       },
       "original": {
-        "owner": "fusion44",
-        "ref": "main",
-        "repo": "nixblitz",
-        "type": "github"
+        "type": "git",
+        "url": "https://forge.f44.fyi/f44/nixblitz"
       }
     },
     "nixblitz_2": {

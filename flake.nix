@@ -11,21 +11,27 @@
     nixpkgs,
     flake-utils,
   }: let
-    name = "nixblitz";
+    cli_name = "nixblitz";
+    webapp_name = "nixblitz-webapp";
 
     module = {
       nixosModules = {
-        ${name} = {...}: {
+        ${cli_name} = {...}: {
           imports = [./modules/nixblitz.nix];
           nixpkgs.overlays = [self.overlays.default];
         };
-        default = self.nixosModules.${name};
+        ${webapp_name} = {...}: {
+          imports = [./modules/nixblitz-webapp.nix];
+          nixpkgs.overlays = [self.overlays.default];
+        };
+        default = self.nixosModules.${cli_name};
       };
     };
 
     overlays.overlays = {
       default = final: prev: {
-        ${name} = self.packages.${prev.stdenv.hostPlatform.system}.${name};
+        ${cli_name} = self.packages.${prev.stdenv.hostPlatform.system}.${cli_name};
+        ${webapp_name} = self.packages.${prev.stdenv.hostPlatform.system}.${webapp_name};
       };
     };
 
@@ -33,8 +39,9 @@
       pkgs = import nixpkgs {inherit system;};
     in {
       packages = {
-        ${name} = pkgs.callPackage ./default.nix {};
-        default = self.packages.${system}.${name};
+        ${cli_name} = pkgs.callPackage ./default.nix {};
+        ${webapp_name} = pkgs.callPackage ./packages/web_app/default.nix {};
+        default = self.packages.${system}.${cli_name};
       };
 
       devShell = with pkgs;
@@ -51,6 +58,7 @@
             rustPackages.clippy # rust linter
             python3 # to build the xcb Rust library
             nixd # for the flake files
+            statix
             nodePackages.prettier # for the markdown files
             dbus # needed for an openssl package
             openssl

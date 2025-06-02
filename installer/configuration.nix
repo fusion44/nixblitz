@@ -94,6 +94,10 @@ in {
     };
 
     nixblitz.enable = true;
+    nixblitz-webapp = {
+      enable = true;
+      dataDir = "/home/nixos/config";
+    };
   };
 
   programs = {

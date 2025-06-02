@@ -2,7 +2,8 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    nixblitz.url = "github:fusion44/nixblitz/main";
+    # nixblitz.url = "github:fusion44/nixblitz/main";
+    nixblitz.url = "git+https://forge.f44.fyi/f44/nixblitz";
     nixblitz.inputs.nixpkgs.follows = "nixpkgs";
 
     blitz-api.url = "github:fusion44/blitz_api/dev";
@@ -33,7 +34,8 @@
           ({modulesPath, ...}: {
             imports = [(modulesPath + "/installer/cd-dvd/installation-cd-minimal.nix")];
           })
-          nixblitz.nixosModules.default
+          nixblitz.nixosModules.nixblitz
+          nixblitz.nixosModules.nixblitz-webapp
           ./configuration.nix
         ];
       };
