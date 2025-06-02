@@ -94,7 +94,7 @@ in {
   config = mkIf cfg.enable {
     users.users = mkIf (cfg.user == defaultUser) {
       ${defaultUser} = {
-        description = "${name} service";
+        description = "${name} service user";
         inherit (cfg) group;
         isSystemUser = true;
       };
@@ -108,12 +108,19 @@ in {
       services.${name} = {
         wantedBy = ["multi-user.target"];
         description = "${name} server daemon";
+        environment = {
+          IP = cfg.host;
+          PORT = toString cfg.port;
+          NIXBLITZ_WORK_DIR = cfg.dataDir;
+        };
         serviceConfig = {
           ExecStart = "${cfg.package}/bin/server";
           User = cfg.user;
           Group = cfg.group;
           Restart = "always";
-          SyslogIdentifier = name;
+          RestartSec = "5s";
+          StartLimitBurst = 5;
+          StartLimitIntervalSec = "10min";
           ReadWritePaths = [cfg.dataDir];
         };
       };

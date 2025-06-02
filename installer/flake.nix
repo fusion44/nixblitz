@@ -4,6 +4,7 @@
 
     # nixblitz.url = "github:fusion44/nixblitz/main";
     nixblitz.url = "git+https://forge.f44.fyi/f44/nixblitz";
+    # nixblitz.url = "..";
     nixblitz.inputs.nixpkgs.follows = "nixpkgs";
 
     blitz-api.url = "github:fusion44/blitz_api/dev";

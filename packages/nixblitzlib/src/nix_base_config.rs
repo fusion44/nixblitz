@@ -198,10 +198,9 @@ impl Default for NixBaseConfig {
             system_packages: vec![
                 String::from("fd"),
                 String::from("bat"),
-                String::from("bottom"),
                 String::from("fzf"),
                 String::from("just"),
-                String::from("neovim"),
+                String::from("bottom"),
                 String::from("ripgrep"),
                 String::from("bandwhich"),
                 String::from("superfile"),

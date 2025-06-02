@@ -7,6 +7,8 @@
   user = "nixos";
   isoLabel = "NIXBLITZ";
   targetSystemConfig = inputs.targetSystem.nixosConfigurations.nixblitzx86vm;
+  initConfigPath = "/tmp/config";
+  webAppPort = 8080;
 in {
   boot.loader.grub.enable = false;
 
@@ -20,7 +22,8 @@ in {
     volumeID = isoLabel;
     storeContents = with pkgs; [
       targetSystemConfig.config.system.build.toplevel
-      inputs.nixblitz.outputs.packages.x86_64-linux.default
+      inputs.nixblitz.outputs.packages.x86_64-linux.nixblitz
+      inputs.nixblitz.outputs.packages.x86_64-linux.nixblitz-webapp
       inputs.blitz-api.outputs.packages.x86_64-linux.default
       # inputs.blitz-web.outputs.packages.x86_64-linux.default
       bitcoind
@@ -55,21 +58,28 @@ in {
     useXkbConfig = true;
   };
 
-  environment.systemPackages = with pkgs; [
-    bat
-    fzf
-    vim
-    just
-    disko
-    bottom
-    neovim
-    lazygit
-    ripgrep
-    bandwhich
-    superfile
-    dioxus-cli
-    nixos-anywhere
-  ];
+  environment = {
+    sessionVariables = {
+      EDITOR = "nvim";
+      VISUAL = "nvim";
+      NIXBLITZ_WORK_DIR = "${initConfigPath}";
+    };
+
+    systemPackages = with pkgs; [
+      bat
+      fzf
+      just
+      disko
+      bottom
+      neovim
+      lazygit
+      ripgrep
+      bandwhich
+      superfile
+      dioxus-cli
+      nixos-anywhere
+    ];
+  };
 
   users.users."${user}" = {
     hashedPassword = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B."; # nixblitz
@@ -96,7 +106,9 @@ in {
     nixblitz.enable = true;
     nixblitz-webapp = {
       enable = true;
-      dataDir = "/home/nixos/config";
+      dataDir = initConfigPath;
+      host = "0.0.0.0";
+      port = webAppPort;
     };
   };
 
@@ -107,6 +119,7 @@ in {
         core.editor = "nvim";
         user.name = "nixblitz";
         user.email = "nixblitz";
+        init.defaultBranch = "main";
       };
     };
   };
@@ -116,23 +129,22 @@ in {
       wantedBy = ["multi-user.target"];
       serviceConfig.Type = "oneshot";
       script = ''
-        BLITZ_CONFIG_PATH="/home/${user}/config"
-
         FILE="/home/${user}/.bash_profile"
         cat <<EOL > "$FILE"
 
-        if [ ! -d "config" ]; then
+        if [ ! -d "${initConfigPath}" ]; then
           sudo mkdir -p /mnt/data/lnd
           sudo mkdir -p /mnt/data/clightning
           sudo mkdir -p /mnt/hdd/bitcoind
-          nixblitz init -w $BLITZ_CONFIG_PATH
+          nixblitz init -w ${initConfigPath}
           # DIRTY HACK: find out why this is necessary; the lock file in the
-                        template is not properly updated
-          cd $BLITZ_CONFIG_PATH/src
+          #             template is not properly updated
+          cd ${initConfigPath}/src
           sleep 3s
           nix flake update nixblitz
-          cd $BLITZ_CONFIG_PATH && git init && git add --all && git commit -m "init"
+          cd ${initConfigPath} && git init && git add --all && git commit -m "init"
           cd ~
+          sudo chmod -R 777 ${initConfigPath}
         fi
 
         clear
@@ -145,13 +157,14 @@ in {
         echo '  | |\  | |>  <| |_) | | | |_ / / '
         echo '  |_| \_|_/_/\_\____/|_|_|\__/___|'
         echo ""
+        echo "Working directory: ${initConfigPath}"
 
-        alias build_nixblitz="sudo nix build -vvv --no-update-lock-file --max-jobs 0 '$BLITZ_CONFIG_PATH/src#nixosConfigurations.nixblitzx86.config.system.build.toplevel'"
+        alias build_nixblitz="sudo nix build -vvv --no-update-lock-file --max-jobs 0 '${initConfigPath}/src#nixosConfigurations.nixblitzx86.config.system.build.toplevel'"
         alias inst_nixblitz_vda="sudo disko-install --flake '/home/${user}/config/src#nixblitzx86' --disk main /dev/vda"
         alias test_remote_build="sudo ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i /root/.ssh/remotebuild remotebuild@192.168.8.202"
-        alias sync_config="sudo mkdir -p /mnt/data && sudo mount /dev/vda3 /mnt/data && sudo rsync -av --delete /home/${user}/config/ /mnt/data/config && sudo chown -R 1000:100 /mnt/data/config"
+        alias sync_config="sudo mkdir -p /mnt/data && sudo mount /dev/vda3 /mnt/data && sudo rsync -av --delete ${initConfigPath} /mnt/data/config && sudo chown -R 1000:100 /mnt/data/config"
 
-        nixblitz install -w $BLITZ_CONFIG_PATH
+        nixblitz install
         EOL
 
         chown "${user}":"users" "$FILE"
@@ -162,7 +175,7 @@ in {
 
   networking = {
     hostName = "nixblitz-installer";
-    firewall.allowedTCPPorts = [22];
+    firewall.allowedTCPPorts = [22 webAppPort];
   };
 
   system.stateVersion = "25.05";

@@ -11,7 +11,8 @@
     blitz-web.url = "github:fusion44/raspiblitz-web/master";
     blitz-web.inputs.nixpkgs.follows = "nixpkgs";
 
-    nixblitz.url = "github:fusion44/nixblitz/main";
+    # nixblitz.url = "github:fusion44/nixblitz/main";
+    nixblitz.url = "git+https://forge.f44.fyi/f44/nixblitz";
     nixblitz.inputs.nixpkgs.follows = "nixpkgs";
 
     home-mgr.url = "github:nix-community/home-manager";
@@ -45,7 +46,8 @@
           nix-bitcoin.nixosModules.default
           blitz-api.nixosModules.default
           blitz-web.nixosModules.default
-          nixblitz.nixosModules.default
+          nixblitz.nixosModules.nixblitz
+          nixblitz.nixosModules.nixblitz-webapp
           ./x86/configuration.nix
         ];
       };
@@ -57,7 +59,8 @@
           nix-bitcoin.nixosModules.default
           blitz-api.nixosModules.default
           blitz-web.nixosModules.default
-          nixblitz.nixosModules.default
+          nixblitz.nixosModules.nixblitz
+          nixblitz.nixosModules.nixblitz-webapp
           ./vm/configuration.nix
         ];
       };
@@ -72,7 +75,8 @@
           nix-bitcoin.nixosModules.default
           blitz-api.nixosModules.default
           blitz-web.nixosModules.default
-          nixblitz.nixosModules.default
+          nixblitz.nixosModules.nixblitz
+          nixblitz.nixosModules.nixblitz-webapp
           ./pi4/configuration.nix
         ];
       };
@@ -87,7 +91,8 @@
           nix-bitcoin.nixosModules.default
           blitz-api.nixosModules.default
           blitz-web.nixosModules.default
-          nixblitz.nixosModules.default
+          nixblitz.nixosModules.nixblitz
+          nixblitz.nixosModules.nixblitz-webapp
           ./pi5/configuration.nix
         ];
       };

@@ -268,18 +268,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1748707344,
-        "narHash": "sha256-N0DEs9Qud6hLyRkfFaVwTcM1j3cwykPZrDxHvRJi7c0=",
-        "owner": "fusion44",
-        "repo": "nixblitz",
-        "rev": "16a77970fb769a7d31f359e52009f3394cca19cd",
-        "type": "github"
+        "lastModified": 1748883288,
+        "narHash": "sha256-paTNRkTYjoeNZWIt5G4/kqWtvMfaBEyuRRyo7rwm/VY=",
+        "ref": "refs/heads/main",
+        "rev": "8d14a5219d49ff75335d92de05120756f413e2a5",
+        "revCount": 132,
+        "type": "git",
+        "url": "https://forge.f44.fyi/f44/nixblitz"
       },
       "original": {
-        "owner": "fusion44",
-        "ref": "main",
-        "repo": "nixblitz",
-        "type": "github"
+        "type": "git",
+        "url": "https://forge.f44.fyi/f44/nixblitz"
       }
     },
     "nixos-hardware": {

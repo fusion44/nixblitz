@@ -7,8 +7,8 @@
 }: let
   src = pkgs.fetchgit {
     url = "https://forge.f44.fyi/f44/nixblitz";
-    rev = "82d8b8d426d0a50ca15911641132739df43abc46";
-    sha256 = "sha256-gmH0XTWWqKs0WFGqP7ML/A+eZDbpWy0E5f/UXlW/8r4=";
+    rev = "6243d7d0bd94279418f852d03aac29bf7641bb82";
+    sha256 = "sha256-C5MgUaetAyhDjcDcmqczN7Pg7tdz2kcs7ZjmpVg0JOI=";
   };
 
   # src = fetchFromGitHub {

@@ -3,6 +3,8 @@
   pkgs,
   ...
 }: let
+  configPath = "/mnt/data/config";
+  webAppPort = 8080;
 in {
   imports = [
     ./nix-bitcoin/secure-node.nix
@@ -44,7 +46,7 @@ in {
     defaultUserShell = pkgs.nushell;
     users."admin" = {
       isNormalUser = true;
-      extraGroups = ["wheel"];
+      extraGroups = ["wheel" "doas"];
       hashedPassword = "{{ initial_password }}";
       openssh.authorizedKeys.keys = [
         {{ ssh_auth_keys }}
@@ -78,9 +80,18 @@ in {
     };
   };
 
-  environment.systemPackages = with pkgs; [
-    {{ system_packages }}
-  ];
+  environment = {
+    sessionVariables = {
+      EDITOR = "nvim";
+      VISUAL = "nvim";
+      NIXBLITZ_WORK_DIR = "${configPath}";
+    };
+
+    systemPackages = with pkgs; [
+      {{ system_packages }}
+      neovim
+    ];
+  };
 
   blitz.enable = true;
   btc.enable = true;
@@ -111,6 +122,7 @@ in {
 
   networking.firewall.allowedTCPPorts = [
     {{ ports }}
+    webAppPort
   ];
   system.stateVersion = "25.05";
 }
