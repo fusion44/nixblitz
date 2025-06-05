@@ -72,6 +72,7 @@ in {
       disko
       bottom
       neovim
+      nushell
       lazygit
       ripgrep
       bandwhich
@@ -79,6 +80,12 @@ in {
       dioxus-cli
       nixos-anywhere
     ];
+
+    etc = {
+      "nushell/dev_scripts.nu" = {
+        source = ./tools/dev_scripts.nu;
+      };
+    };
   };
 
   users.users."${user}" = {
@@ -163,6 +170,7 @@ in {
         alias inst_nixblitz_vda="sudo disko-install --flake '/home/${user}/config/src#nixblitzx86' --disk main /dev/vda"
         alias test_remote_build="sudo ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -i /root/.ssh/remotebuild remotebuild@192.168.8.202"
         alias sync_config="sudo mkdir -p /mnt/data && sudo mount /dev/vda3 /mnt/data && sudo rsync -av --delete ${initConfigPath} /mnt/data/config && sudo chown -R 1000:100 /mnt/data/config"
+        alias nu="nu -e 'source /etc/nushell/dev_scripts.nu'"
 
         nixblitz install
         EOL
