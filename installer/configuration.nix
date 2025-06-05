@@ -8,7 +8,6 @@
   isoLabel = "NIXBLITZ";
   targetSystemConfig = inputs.targetSystem.nixosConfigurations.nixblitzx86vm;
   initConfigPath = "/tmp/config";
-  webAppPort = 8080;
 in {
   boot.loader.grub.enable = false;
 
@@ -114,8 +113,20 @@ in {
     nixblitz-webapp = {
       enable = true;
       dataDir = initConfigPath;
-      host = "0.0.0.0";
-      port = webAppPort;
+      nginx = {
+        enable = true;
+        openFirewall = true;
+        location = "/";
+      };
+    };
+    nixblitz-docs = {
+      enable = true;
+      url = "https://docs.f44.fyi";
+      nginx = {
+        enable = true;
+        openFirewall = true;
+        location = "/docs";
+      };
     };
   };
 
@@ -183,7 +194,7 @@ in {
 
   networking = {
     hostName = "nixblitz-installer";
-    firewall.allowedTCPPorts = [22 webAppPort];
+    firewall.allowedTCPPorts = [22];
   };
 
   system.stateVersion = "25.05";
