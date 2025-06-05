@@ -123,6 +123,7 @@ build-installer verbosity="normal":
       nix build
         -L
         --no-update-lock-file
+        --show-trace
         './installer#nixosConfigurations.nixblitzx86installer.config.system.build.isoImage'
     )
   } else {
@@ -158,7 +159,7 @@ run-installer-vm target='default':
   if ("{{target}}" == "default" or "{{target}}" == "single") {
     print "Running installer VM with a single virtio disk"
     (qemu-system-x86_64 -enable-kvm -m 16384 -smp 4
-      -netdev user,id=mynet0,hostfwd=tcp::10022-:22,hostfwd=tcp::8080-:8080
+      -netdev user,id=mynet0,hostfwd=tcp::10022-:22,hostfwd=tcp::8080-:80
       -device virtio-net-pci,netdev=mynet0
       -drive file=nixblitz-disk.qcow2,if=none,id=virtio0,format=qcow2
       -device virtio-blk-pci,drive=virtio0

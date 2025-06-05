@@ -37,6 +37,7 @@
           })
           nixblitz.nixosModules.nixblitz
           nixblitz.nixosModules.nixblitz-webapp
+          nixblitz.nixosModules.nixblitz-docs
           ./configuration.nix
         ];
       };

@@ -12,12 +12,17 @@
     flake-utils,
   }: let
     cli_name = "nixblitz";
+    docs_name = "nixblitz-docs";
     webapp_name = "nixblitz-webapp";
 
     module = {
       nixosModules = {
         ${cli_name} = {...}: {
           imports = [./modules/nixblitz.nix];
+          nixpkgs.overlays = [self.overlays.default];
+        };
+        ${docs_name} = {...}: {
+          imports = [./modules/nixblitz-docs.nix];
           nixpkgs.overlays = [self.overlays.default];
         };
         ${webapp_name} = {...}: {
@@ -31,6 +36,7 @@
     overlays.overlays = {
       default = final: prev: {
         ${cli_name} = self.packages.${prev.stdenv.hostPlatform.system}.${cli_name};
+        ${docs_name} = self.packages.${prev.stdenv.hostPlatform.system}.${docs_name};
         ${webapp_name} = self.packages.${prev.stdenv.hostPlatform.system}.${webapp_name};
       };
     };
@@ -40,6 +46,7 @@
     in {
       packages = {
         ${cli_name} = pkgs.callPackage ./default.nix {};
+        ${docs_name} = pkgs.callPackage ./docs/default.nix {};
         ${webapp_name} = pkgs.callPackage ./packages/web_app/default.nix {};
         default = self.packages.${system}.${cli_name};
       };
