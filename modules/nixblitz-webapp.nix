@@ -62,7 +62,7 @@ in {
       server = {
         port = mkOption {
           type = types.port;
-          default = 8080;
+          default = 8181;
           description = "The internal port for the Dioxus server to bind to.";
         };
 
