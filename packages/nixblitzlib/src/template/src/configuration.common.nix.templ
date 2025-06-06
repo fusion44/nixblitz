@@ -54,6 +54,13 @@ in {
     };
   };
 
+  security.doas.extraRules = [
+    {
+      groups = [ "wheel" "doas" ];
+      keepEnv = true;
+    }
+  ];
+
   home-manager.users."admin" = {pkgs, ...}: {
     programs.nushell = {
       enable = true;

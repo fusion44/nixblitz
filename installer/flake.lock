@@ -435,10 +435,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1749223239,
-        "narHash": "sha256-FXGRQNXEMJfZIeRcOnelApsPiXRJO/CXAC5vCdoNEbY=",
+        "lastModified": 1749225397,
+        "narHash": "sha256-l9dx1bGHciwec0uj3xrMDfAV58ODUpElRNaPSbbT5IU=",
         "ref": "refs/heads/main",
-        "rev": "87a27197df7b121ad43a71a2df2327cd5359382c",
+        "rev": "2f08d75bd73ae12be8d54de78127af70ffb8ea68",
         "revCount": 137,
         "type": "git",
         "url": "https://forge.f44.fyi/f44/nixblitz"
