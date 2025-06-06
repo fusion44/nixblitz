@@ -19,8 +19,11 @@ in {
         # always enabled
         enable = true;
         dataDir = configPath;
-        host = "0.0.0.0";
-        port = webAppPort;
+        nginx = {
+          enable = true;
+          openFirewall = true;
+          location = "/";
+        };
       };
       blitz-api = import ./blitz/api.nix;
       blitz-web = import ./blitz/web.nix;

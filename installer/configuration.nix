@@ -13,7 +13,7 @@ in {
 
   nixpkgs.config.allowUnfree = false;
   time.timeZone = "Europe/Berlin";
-  i18n.defaultLocale = "en_US.utf8";
+  i18n.defaultLocale = "en_US.UTF-8";
 
   system.nixos.label = isoLabel;
   boot.kernelParams = ["iso_label=${isoLabel}"];

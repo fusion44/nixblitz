@@ -55,7 +55,6 @@ pub struct NixBaseConfig {
     /// Default: "en_US.UTF-8"
     ///
     /// Example: "nl_NL.UTF-8"
-    /// Example: "nl_NL.utf8"
     pub default_locale: Box<StringListOptionData>,
 
     /// The disk to use for the system
@@ -156,7 +155,7 @@ impl Default for NixBaseConfig {
     fn default() -> Self {
         let allow_unfree = false;
         let time_zone = "America/New_York".to_string();
-        let default_locale = "en_US.utf8".to_string();
+        let default_locale = "en_US.UTF-8".to_string();
         let username = "admin".to_string();
         Self {
             allow_unfree: Box::new(BoolOptionData::new(
@@ -666,7 +665,7 @@ mod tests {
 
         assert!(!config.allow_unfree.value());
         assert_eq!(config.time_zone.value(), "America/New_York");
-        assert_eq!(config.default_locale.value(), "en_US.utf8");
+        assert_eq!(config.default_locale.value(), "en_US.UTF-8");
         assert_eq!(config.username, "admin");
         assert!(!config.ssh_password_auth);
         assert_eq!(config.ssh_auth_keys.value().len(), 0);
