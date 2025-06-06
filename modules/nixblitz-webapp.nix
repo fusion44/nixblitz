@@ -54,8 +54,8 @@ in {
 
       dataDir = mkOption {
         type = types.path;
-        default = "/mnt/hdd/config";
-        example = "/mnt/hdd/config";
+        default = "/mnt/data/config";
+        example = "/path/to/config";
         description = "The config that will be edited by default";
       };
 

@@ -43,9 +43,7 @@ in {
     users."admin" = {
       extraGroups = ["wheel"];
       hashedPassword = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.";
-      openssh.authorizedKeys.keys = [
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID+U9Viom6UfZdRF7c5V+F/dIUKBs6jEaPy6HgXw/1CA ssh.giggling916@passmail.net"
-      ];
+      openssh.authorizedKeys.keys = [];
     };
   };
 
@@ -62,17 +60,25 @@ in {
     };
   };
 
-  environment.systemPackages = with pkgs; [
-    bat
-    bottom
-    fzf
-    git
-    neovim
-    ripgrep
-    bandwhich
-    just
-    superfile
-  ];
+  environment = {
+    sessionVariables = {
+      EDITOR = "nvim";
+      VISUAL = "nvim";
+      NIXBLITZ_WORK_DIR = "/mnt/data/config";
+    };
+
+    systemPackages = with pkgs; [
+      bat
+      bottom
+      fzf
+      git
+      neovim
+      ripgrep
+      bandwhich
+      just
+      superfile
+    ];
+  };
 
   nix-bitcoin = {
     generateSecrets = true;
