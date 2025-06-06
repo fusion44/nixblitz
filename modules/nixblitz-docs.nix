@@ -71,6 +71,18 @@ in {
           default = false;
           description = "Whether to open the Nginx ports in the firewall.";
         };
+
+        enableACME = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to ask Let’s Encrypt to sign a certificate for this vhost.";
+        };
+
+        forceSSL = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Whether to add a separate nginx server block that redirects (defaults to 301, configurable with redirectCode) all plain HTTP traffic to HTTPS. This will set defaults for listen to listen on all interfaces on the respective default ports (80, 443), where the non-SSL listens are used for the redirect vhosts.";
+        };
       };
     };
   };
@@ -79,8 +91,8 @@ in {
     services.nginx = mkIf cfg.nginx.enable {
       enable = true;
       virtualHosts.${cfg.nginx.hostName} = {
-        forceSSL = false;
-        enableACME = false;
+        inherit (cfg.nginx) forceSSL;
+        inherit (cfg.nginx) enableACME;
         locations =
           {
             "${servingLocationPath}" = {
