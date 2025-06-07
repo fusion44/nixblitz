@@ -1,6 +1,7 @@
 ---
 slug: /
 sidebar_position: 1
+sidebar_label: Introduction
 ---
 
 <div style={{textAlign: 'center'}}>
@@ -21,6 +22,8 @@ NixBlitz is an experimental new version of the RaspiBlitz project that is curren
 
 :::info
 The NixBlitz Project is currently in the early stages of testing and research, so it may undergo significant changes. This means that configurations generated via the CLI may become incompatible at some point. Do not use it with mainnet funds.
+
+Nix-bitcoin only supports `Mainnet` and `Regtest` at the moment, so does nixblitz.
 :::
 
 ## Disclaimer
