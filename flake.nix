@@ -80,6 +80,11 @@
             nodejs
             tailwindcss_4
             watchman
+
+            # for the docs
+            nodePackages.pnpm
+            yarn
+            eslint_d
           ];
           nativeBuildInputs = with pkgs; [
             pkg-config

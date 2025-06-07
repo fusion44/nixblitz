@@ -173,3 +173,26 @@ run-installer-vm target='default':
 run-installed-vm:
   #!/usr/bin/env nu
   nu installer/tools/run_vm.nu
+
+# Serve the documentation locally
+docs-serve:
+  #!/usr/bin/env bash
+  cd docs && npm start
+
+# Build the documentation files
+docs-build:
+  #!/usr/bin/env bash
+  cd docs && npm run build
+
+# Update all documentation
+docs-update-all:
+  #!/usr/bin/env bash
+  cd docs
+  npm update
+  yarn upgrade
+
+# Format the markdown files
+docs-format:
+  #!/usr/bin/env bash
+  cd docs
+  prettier -w .

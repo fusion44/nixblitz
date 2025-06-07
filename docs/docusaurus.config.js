@@ -81,7 +81,7 @@ const config = {
         title: "NixBlitz",
         logo: {
           alt: "NixBlitz logo",
-          src: "img/logo.svg",
+          src: "img/logo_small.png",
         },
         items: [
           {
@@ -91,7 +91,7 @@ const config = {
             label: "Tutorial",
           },
           {
-            href: "https://github.com/raspiblitz/nixblitz",
+            href: "https://github.com/fusion44/nixblitz",
             label: "GitHub",
             position: "right",
           },
