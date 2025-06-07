@@ -5,7 +5,7 @@ sidebar_label: Introduction
 ---
 
 <div style={{textAlign: 'center'}}>
-  <img src="/img/logo.png" alt="nixblitz cheap ai slop image" style={{maxWidth: '30%'}} />
+  <img src="img/logo.png" alt="nixblitz cheap ai slop image" style={{maxWidth: '30%'}} />
   <p style={{fontSize: '0.9em', color: '#555'}}>Mandatory nixblitz AI slop logo</p>
 </div>
 
