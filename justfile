@@ -170,8 +170,15 @@ run-installer-vm target='default':
     print "Unknown target '{{target}}'. Valid targets are 'default', 'single' and 'dual'."
   }
 
+# Build all packages
+nix-build-all:
+  #!/usr/bin/env bash
+  nix build .#nixblitz
+  nix build .#nixblitz-webapp
+  nix build .#nixblitz-docs
+
 run-installed-vm:
-  #!/usr/bin/env nu
+  #!/usr/bin/env bash
   nu installer/tools/run_vm.nu
 
 # Serve the documentation locally
