@@ -267,7 +267,7 @@ impl Default for BlitzApiService {
             )),
             root_path: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::RootPath.to_option_id(),
-                Some("/api".to_string()),
+                Some("/".to_string()),
             )),
             nginx_enable: Box::new(BoolOptionData::new(
                 BlitzApiConfigOption::NginxEnable.to_option_id(),
@@ -279,7 +279,7 @@ impl Default for BlitzApiService {
             )),
             nginx_location: Box::new(PathOptionData::default_from(
                 BlitzApiConfigOption::NginxLocation.to_option_id(),
-                Some("/".to_string()),
+                Some("/api".to_string()),
             )),
         }
     }

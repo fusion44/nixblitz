@@ -8,7 +8,7 @@
     blitz-api.url = "github:fusion44/blitz_api/dev";
     blitz-api.inputs.nixpkgs.follows = "nixpkgs";
 
-    blitz-web.url = "github:fusion44/raspiblitz-web/master";
+    blitz-web.url = "github:raspiblitz/raspiblitz-web/master";
     blitz-web.inputs.nixpkgs.follows = "nixpkgs";
 
     # nixblitz.url = "github:fusion44/nixblitz/main";
