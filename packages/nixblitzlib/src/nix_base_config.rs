@@ -15,8 +15,7 @@ use common::{
         bool_data::BoolOptionData,
         manual_string_list_data::ManualStringListOptionData,
         option_data::{
-            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification,
-            ToNixString, ToOptionId,
+            ApplicableOptionData, GetOptionId, OptionData, OptionDataChangeNotification, ToOptionId,
         },
         password_data::PasswordOptionData,
         string_list_data::{StringListOptionData, StringListOptionItem},
@@ -25,6 +24,7 @@ use common::{
     errors::{ProjectError, TemplatingError},
     locales::LOCALES,
     option_definitions::nix_base::NixBaseConfigOption,
+    shells::Shell,
     system_platform::SystemPlatform,
     timezones::TIMEZONES,
 };
@@ -149,6 +149,9 @@ pub struct NixBaseConfig {
 
     /// The system platform we're running on
     pub platform: Box<StringListOptionData>,
+
+    /// The default shell to use for the system
+    pub shell: Box<StringListOptionData>,
 }
 
 impl Default for NixBaseConfig {
@@ -217,6 +220,16 @@ impl Default for NixBaseConfig {
                     .map(|p| StringListOptionItem::new(p.as_short_str().into(), p.to_string()))
                     .collect(),
             )),
+            shell: Box::new(StringListOptionData::new(
+                NixBaseConfigOption::Shell.to_option_id(),
+                Shell::Bash.to_nix_package_name().into(),
+                Shell::VARIANTS
+                    .iter()
+                    .map(|p| {
+                        StringListOptionItem::new(p.to_nix_package_name().into(), p.to_string())
+                    })
+                    .collect(),
+            )),
         }
     }
 }
@@ -271,6 +284,7 @@ impl NixBaseConfig {
         hostname_pi5: String,
         hostname_x86: String,
         platform: Box<StringListOptionData>,
+        shell: Box<StringListOptionData>,
     ) -> Self {
         Self {
             allow_unfree,
@@ -288,6 +302,7 @@ impl NixBaseConfig {
             hostname_pi5,
             hostname_x86,
             platform,
+            shell,
         }
     }
 
@@ -363,6 +378,7 @@ impl NixBaseConfig {
                             .collect::<Vec<String>>()
                             .join(" "),
                     ),
+                    ("shell", self.shell.value().to_string()),
                 ]);
             } else if file_name == "src/vm/configuration.nix.templ" {
                 data = HashMap::from([("hostname", self.hostname_vm.clone())]);
@@ -512,6 +528,30 @@ impl AppConfig for NixBaseConfig {
                         NixBaseConfigOption::SystemPlatform.to_string(),
                     )))?;
                 }
+            } else if opt == NixBaseConfigOption::Shell {
+                if let OptionDataChangeNotification::StringList(val) = option {
+                    if Shell::from_str(val.value.as_str()).is_err() {
+                        return Err(Report::new(ProjectError::ChangeOptionValueError(
+                            NixBaseConfigOption::Shell.to_string(),
+                        ))
+                        .attach_printable(format!(
+                            "Got '{}', but expected one of: {}",
+                            val.value.as_str(),
+                            Shell::VARIANTS
+                                .iter()
+                                .map(|p| p.to_nix_package_name().into())
+                                .collect::<Vec<String>>()
+                                .join(", "),
+                        )));
+                    }
+
+                    res = Ok(*self.shell.value().to_string() != val.value);
+                    self.shell.set_value(val.value.clone());
+                } else {
+                    Err(Report::new(ProjectError::ChangeOptionValueError(
+                        NixBaseConfigOption::Shell.to_string(),
+                    )))?;
+                }
             } else if opt == NixBaseConfigOption::SshAuthKeys {
                 if let OptionDataChangeNotification::ManualStringList(val) = option {
                     res = Ok(*self.ssh_auth_keys.value() != val.value);
@@ -537,6 +577,7 @@ impl AppConfig for NixBaseConfig {
     fn get_options(&self) -> Vec<OptionData> {
         vec![
             OptionData::Bool(self.allow_unfree.clone()),
+            OptionData::StringList(self.shell.clone()),
             OptionData::StringList(self.time_zone.clone()),
             OptionData::StringList(self.default_locale.clone()),
             OptionData::StringList(self.platform.clone()),
@@ -588,6 +629,7 @@ impl AppConfig for NixBaseConfig {
         self.allow_unfree.set_applied();
         self.time_zone.set_applied();
         self.platform.set_applied();
+        self.shell.set_applied();
         self.default_locale.set_applied();
         self.hashed_password.set_applied();
     }
@@ -725,6 +767,14 @@ mod tests {
                 SystemPlatform::VARIANTS
                     .iter()
                     .map(|p| StringListOptionItem::new(p.as_short_str().into(), p.to_string()))
+                    .collect(),
+            )),
+            Box::new(StringListOptionData::new(
+                NixBaseConfigOption::Shell.to_option_id(),
+                Shell::VARIANTS[0].to_nix_package_name().into(),
+                Shell::VARIANTS
+                    .iter()
+                    .map(|p| StringListOptionItem::new(p.to_string().into(), p.to_string()))
                     .collect(),
             )),
         );

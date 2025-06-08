@@ -3,6 +3,7 @@
   manifest = (pkgs.lib.importTOML ./packages/cli/Cargo.toml).package;
   commitSha = "9c8fd971ad8f1a1814a9ee6ff084ef2d529752bd";
   shortSha = builtins.substring 0 7 commitSha;
+
   src = pkgs.fetchgit {
     url = "https://forge.f44.fyi/f44/nixblitz";
     rev = commitSha;

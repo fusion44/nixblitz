@@ -43,7 +43,7 @@ in {
   };
 
   users = {
-    defaultUserShell = pkgs.nushell;
+    defaultUserShell = pkgs.{{ shell }};
     users."admin" = {
       isNormalUser = true;
       extraGroups = ["wheel" "doas"];
@@ -66,6 +66,11 @@ in {
       enable = true;
       configFile.source = ./configs/nushell/config.nu;
       envFile.source = ./configs/nushell/env.nu;
+    };
+
+    programs.bash = {
+      enable = true;
+      shellAliases = import ./configs/bash/aliases.nix;
     };
 
     home = {
