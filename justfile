@@ -17,7 +17,11 @@ format:
   alejandra	.
   cd {{rust_src}}; cargo fmt
 
-update-flakes mode="nixblitz":
+update-default-nix:
+  nu ./scripts/update-default-nix.nu
+  git diff default.nix
+
+update-flake-locks mode="nixblitz":
   #!/usr/bin/env nu
   fd flake.lock | lines | path dirname | each { |d|
     cd $d
