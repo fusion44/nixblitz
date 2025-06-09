@@ -19,7 +19,7 @@ format:
 
 update-default-nix:
   nu ./scripts/update-default-nix.nu
-  git diff default.nix
+  git diff crates/nixblitz_cli/default.nix
 
 update-flake-locks mode="nixblitz":
   #!/usr/bin/env nu
@@ -177,8 +177,8 @@ run-installer-vm target='default':
 # Build all crates
 nix-build-all:
   #!/usr/bin/env bash
-  nix build .#nixblitz
-  nix build .#nixblitz-webapp
+  nix build .#nixblitz-cli
+  nix build .#nixblitz-norupo
   nix build .#nixblitz-docs
 
 run-installed-vm:

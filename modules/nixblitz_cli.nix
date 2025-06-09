@@ -4,7 +4,7 @@
   lib,
   ...
 }: let
-  name = "nixblitz";
+  name = "nixblitz-cli";
   cfg = config.services.${name};
 
   inherit (lib) mkOption mkIf types literalExpression;
@@ -14,7 +14,7 @@ in {
       enable = mkOption {
         type = types.bool;
         default = false;
-        description = "Enable the nixblitz package.";
+        description = "Enable the nixblitz-cli package.";
       };
 
       package = mkOption {
@@ -28,7 +28,7 @@ in {
 
   config = mkIf cfg.enable {
     environment.systemPackages = with pkgs; [
-      nixblitz
+      nixblitz-cli
     ];
   };
 }

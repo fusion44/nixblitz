@@ -268,11 +268,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1749485525,
-        "narHash": "sha256-XX2eAF2qj1DkLqxWRxjEW16U/CPvC8YiCCOkZkGQl94=",
+        "lastModified": 1749500908,
+        "narHash": "sha256-lRp+lhYX33RS7+rD/TajDeVjDaHZZ++RzhH9g48fArg=",
         "ref": "refs/heads/main",
-        "rev": "54d7624406b1cffd54792df114cb61563d633832",
-        "revCount": 151,
+        "rev": "b7135ad8f37ca877ff9bcd78e533431fa1b6383b",
+        "revCount": 152,
         "type": "git",
         "url": "https://forge.f44.fyi/f44/nixblitz"
       },

@@ -1,13 +1,13 @@
 [workspace]
 
-members = ["nixblitz_cli", "nixblitz_core", "nixblitz_system", "nixblitz_web"]
+members = ["nixblitz_cli", "nixblitz_core", "nixblitz_system", "nixblitz_norupo"]
 resolver = "2"
 
 [workspace.dependencies]
 nixblitz_cli = { path = "nixblitz_cli" }
 nixblitz_core = { path = "nixblitz_core" }
 nixblitz_system = { path = "nixblitz_system" }
-nixblitz_web = { path = "nixblitz_web" }
+nixblitz_norupo = { path = "nixblitz_norupo" }
 
 [profile.wasm-dev]
 inherits = "dev"

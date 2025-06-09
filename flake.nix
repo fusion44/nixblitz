@@ -11,9 +11,9 @@
     nixpkgs,
     flake-utils,
   }: let
-    cli_name = "nixblitz";
+    cli_name = "nixblitz-cli";
     docs_name = "nixblitz-docs";
-    webapp_name = "nixblitz-webapp";
+    webapp_name = "nixblitz-norupo";
 
     module = {
       nixosModules = {
@@ -26,7 +26,7 @@
           nixpkgs.overlays = [self.overlays.default];
         };
         ${webapp_name} = {...}: {
-          imports = [./modules/nixblitz_web.nix];
+          imports = [./modules/nixblitz_norupo.nix];
           nixpkgs.overlays = [self.overlays.default];
         };
         default = self.nixosModules.${cli_name};
@@ -45,9 +45,9 @@
       pkgs = import nixpkgs {inherit system;};
     in {
       packages = {
-        ${cli_name} = pkgs.callPackage ./default.nix {};
+        ${cli_name} = pkgs.callPackage ./crates/nixblitz_cli/default.nix {};
         ${docs_name} = pkgs.callPackage ./docs/default.nix {};
-        ${webapp_name} = pkgs.callPackage ./crates/nixblitz_web/default.nix {};
+        ${webapp_name} = pkgs.callPackage ./crates/nixblitz_norupo/default.nix {};
         default = self.packages.${system}.${cli_name};
       };
 

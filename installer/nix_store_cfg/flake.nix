@@ -46,7 +46,7 @@
           nix-bitcoin.nixosModules.default
           blitz-api.nixosModules.default
           blitz-web.nixosModules.default
-          nixblitz.nixosModules.default
+          nixblitz.nixosModules.nixblitz-cli
           ./x86/configuration.nix
         ];
       };

@@ -3989,7 +3989,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nixblitz_web"
+name = "nixblitz_norupo"
 version = "0.1.0"
 dependencies = [
  "dioxus",

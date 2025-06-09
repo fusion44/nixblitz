@@ -17,7 +17,7 @@ def main [
 
     print $"INFO: Using commit SHA: ($new_commit_sha)"
 
-    let file_path = "default.nix"
+    let file_path = "./crates/nixblitz_cli/default.nix"
 
     # --- 2. Update commitSha in default.nix ---
     print $"INFO: Updating 'commitSha' in ($file_path)..."

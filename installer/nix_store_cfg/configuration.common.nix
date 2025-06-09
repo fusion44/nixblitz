@@ -103,7 +103,9 @@ in {
       };
     };
 
-    nixblitz.enable = true;
+    nixblitz-cli.enable = true;
+    # nixblitz-norupo.enable = true;
+    # nixblitz-docs.enable = true;
     bitcoind = {
       enable = true;
       regtest = true;

@@ -8,11 +8,11 @@
   };
   config = lib.mkIf config.blitz.enable {
     services = {
-      nixblitz = {
+      nixblitz-cli = {
         # always enabled
         enable = true;
       };
-      nixblitz-webapp = {
+      nixblitz-norupo = {
         # always enabled
         enable = true;
         nginx = {

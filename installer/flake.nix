@@ -38,8 +38,8 @@
           ({modulesPath, ...}: {
             imports = [(modulesPath + "/installer/cd-dvd/installation-cd-minimal.nix")];
           })
-          nixblitz.nixosModules.nixblitz
-          nixblitz.nixosModules.nixblitz-webapp
+          nixblitz.nixosModules.nixblitz-cli
+          nixblitz.nixosModules.nixblitz-norupo
           nixblitz.nixosModules.nixblitz-docs
           ./configuration.nix
         ];

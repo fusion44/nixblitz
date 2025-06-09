@@ -21,9 +21,9 @@ in {
     volumeID = isoLabel;
     storeContents = with pkgs; [
       targetSystemConfig.config.system.build.toplevel
-      inputs.nixblitz.outputs.packages.x86_64-linux.nixblitz
-      inputs.nixblitz.outputs.packages.x86_64-linux.nixblitz-webapp
+      inputs.nixblitz.outputs.packages.x86_64-linux.nixblitz-cli
       inputs.nixblitz.outputs.packages.x86_64-linux.nixblitz-docs
+      inputs.nixblitz.outputs.packages.x86_64-linux.nixblitz-norupo
       inputs.blitz-api.outputs.packages.x86_64-linux.default
       # inputs.blitz-web.outputs.packages.x86_64-linux.default
       bitcoind
@@ -110,8 +110,8 @@ in {
       };
     };
 
-    nixblitz.enable = true;
-    nixblitz-webapp = {
+    nixblitz-cli.enable = true;
+    nixblitz-norupo = {
       enable = true;
       dataDir = initConfigPath;
       nginx = {

@@ -22,7 +22,7 @@
   rustWorkspacePath = src; # + "/crates";
 in
   rustPlatform.buildRustPackage {
-    pname = "nixblitz-web";
+    pname = "nixblitz-norupo";
     version = "0.1.0";
 
     src = rustWorkspacePath;
@@ -41,8 +41,8 @@ in
     buildInputs = [pkgs.openssl];
 
     preBuild = ''
-      local templatePath="nixblitz_web/Dioxus.toml.templ"
-      local configTargetPath="nixblitz_web/Dioxus.toml"
+      local templatePath="nixblitz_norupo/Dioxus.toml.templ"
+      local configTargetPath="nixblitz_norupo/Dioxus.toml"
       rm -f "$configTargetPath"
 
       if [ ! -f "$templatePath" ]; then
@@ -74,7 +74,7 @@ in
     buildPhase = ''
       runHook preBuild
 
-      cd nixblitz_web
+      cd nixblitz_norupo
       echo "Current directory for build: $(pwd)"
 
       echo "Running 'dx bundle --platform web'"
@@ -88,12 +88,12 @@ in
     installPhase = ''
       runHook preInstall
       mkdir -p $out
-      local assetsSourceDir="target/dx/nixblitz_web/release/web"
+      local assetsSourceDir="target/dx/nixblitz_norupo/release/web"
 
       if [ ! -d "$assetsSourceDir" ]; then
         echo "Error: Built Dioxus assets not found at $assetsSourceDir!"
-        # echo "Listing contents of nixblitz_web/target/dx if it exists:"
-        # ls -R target/dx 2>/dev/null || echo "nixblitz_web/target/dx does not exist or is empty"
+        # echo "Listing contents of nixblitz_norupo/target/dx if it exists:"
+        # ls -R target/dx 2>/dev/null || echo "nixblitz_norupo/target/dx does not exist or is empty"
         exit 1
       fi
 

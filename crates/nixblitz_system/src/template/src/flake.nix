@@ -42,9 +42,9 @@
       nix-bitcoin.nixosModules.default
       blitz-api.nixosModules.default
       blitz-web.nixosModules.default
-      nixblitz.nixosModules.nixblitz
+      nixblitz.nixosModules.nixblitz-cli
       nixblitz.nixosModules.nixblitz-docs
-      nixblitz.nixosModules.nixblitz-webapp
+      nixblitz.nixosModules.nixblitz-norupo
     ];
   in {
     nixosConfigurations = {

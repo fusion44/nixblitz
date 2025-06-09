@@ -4,9 +4,9 @@
   lib,
   ...
 }: let
-  defaultUser = "nixblitz_webapp";
+  defaultUser = "nixblitz_norupo";
   defaultGroup = defaultUser;
-  name = "nixblitz-webapp";
+  name = "nixblitz-norupo";
 
   cfg = config.services.${name};
 
@@ -37,7 +37,7 @@
       in
         lib.strings.removeSuffix "/" noLeadingSlash;
 
-  appPackage = pkgs.callPackage ../crates/nixblitz_web/default.nix {
+  appPackage = pkgs.callPackage ../crates/nixblitz_norupo/default.nix {
     basePath = dioxusTomlValueForBasePath;
   };
 in {
