@@ -1,5 +1,5 @@
 set shell := ["nu", "-c"]
-rust_src := "./packages"
+rust_src := "./crates"
 
 set positional-arguments
 
@@ -72,7 +72,7 @@ test trace="":
 
 # run the CLI with debug log enabled, any args are passed to the CLI unaltered
 run-cli *args='':
-  cd {{rust_src}}; $env.RUST_BACKTRACE = 1; $env.NIXBLITZ_LOG = "trace"; cargo run -p nixblitz -- {{args}}
+  cd {{rust_src}}; $env.RUST_BACKTRACE = 1; $env.NIXBLITZ_LOG = "trace"; cargo run -p nixblitz_cli -- {{args}}
 
 # shorthand for rsync this source directory to a remote node.
 rsync target:
@@ -94,21 +94,21 @@ rsync target:
       print $"Syncing ($remote.key)"
       let data2 = $remote.value
       let cmd = $data2.user + "@" + $data2.host + ":" + $data2.path
-      rsync -rvz --exclude .git --exclude docs/ --exclude packages/target/ . $cmd
+      rsync -rvz --exclude .git --exclude docs/ --exclude crates/target/ . $cmd
     }
     exit 0
   } else {
     print $"Syncing {{target}}"
     let $data = $data | get {{target}}
     let cmd = $data.user + "@" + $data.host + ":" + $data.path
-    rsync -rvz -e $'ssh -p ($data.port) -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no' --exclude nixblitz-disk.qcow2 --exclude .git --exclude docs/ --exclude packages/target/ . $cmd
+    rsync -rvz -e $'ssh -p ($data.port) -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no' --exclude nixblitz-disk.qcow2 --exclude .git --exclude docs/ --exclude crates/target/ . $cmd
   }
 
 build-installer verbosity="normal":
   #!/usr/bin/env nu
   let has_untracked_files = (
     try {
-        git status --porcelain=v1 | lines | where { |it| $it | str starts-with "?? packages" } | is-not-empty
+        git status --porcelain=v1 | lines | where { |it| $it | str starts-with "?? crates" } | is-not-empty
     } catch {
         # If git status fails, assume there might be issues (treat as "changes found")
         true
@@ -174,7 +174,7 @@ run-installer-vm target='default':
     print "Unknown target '{{target}}'. Valid targets are 'default', 'single' and 'dual'."
   }
 
-# Build all packages
+# Build all crates
 nix-build-all:
   #!/usr/bin/env bash
   nix build .#nixblitz

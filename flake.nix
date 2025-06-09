@@ -18,15 +18,15 @@
     module = {
       nixosModules = {
         ${cli_name} = {...}: {
-          imports = [./modules/nixblitz.nix];
+          imports = [./modules/nixblitz_cli.nix];
           nixpkgs.overlays = [self.overlays.default];
         };
         ${docs_name} = {...}: {
-          imports = [./modules/nixblitz-docs.nix];
+          imports = [./modules/nixblitz_docs.nix];
           nixpkgs.overlays = [self.overlays.default];
         };
         ${webapp_name} = {...}: {
-          imports = [./modules/nixblitz-webapp.nix];
+          imports = [./modules/nixblitz_web.nix];
           nixpkgs.overlays = [self.overlays.default];
         };
         default = self.nixosModules.${cli_name};
@@ -47,7 +47,7 @@
       packages = {
         ${cli_name} = pkgs.callPackage ./default.nix {};
         ${docs_name} = pkgs.callPackage ./docs/default.nix {};
-        ${webapp_name} = pkgs.callPackage ./packages/web_app/default.nix {};
+        ${webapp_name} = pkgs.callPackage ./crates/nixblitz_web/default.nix {};
         default = self.packages.${system}.${cli_name};
       };
 

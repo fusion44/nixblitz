@@ -8,9 +8,9 @@
 
 result
 
-packages/cli/target
-packages/target
-packages/nixblitz.log
+crates/nixblitz_cli/target
+crates/nixblitz_web/target
+crates/target
 
 *qcow2*
 *OVMF*

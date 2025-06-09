@@ -1,0 +1,20 @@
+[workspace]
+
+members = ["nixblitz_cli", "nixblitz_core", "nixblitz_system", "nixblitz_web"]
+resolver = "2"
+
+[workspace.dependencies]
+nixblitz_cli = { path = "nixblitz_cli" }
+nixblitz_core = { path = "nixblitz_core" }
+nixblitz_system = { path = "nixblitz_system" }
+nixblitz_web = { path = "nixblitz_web" }
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+
+[profile.server-dev]
+inherits = "dev"
+
+[profile.android-dev]
+inherits = "dev"
