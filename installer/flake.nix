@@ -39,6 +39,7 @@
             imports = [(modulesPath + "/installer/cd-dvd/installation-cd-minimal.nix")];
           })
           nixblitz.nixosModules.nixblitz-cli
+          nixblitz.nixosModules.nixblitz-install-engine
           nixblitz.nixosModules.nixblitz-norupo
           nixblitz.nixosModules.nixblitz-docs
           ./configuration.nix

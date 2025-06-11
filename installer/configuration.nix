@@ -111,6 +111,15 @@ in {
     };
 
     nixblitz-cli.enable = true;
+    nixblitz-install-engine = {
+      enable = true;
+      dataDir = initConfigPath;
+      nginx = {
+        enable = true;
+        openFirewall = true;
+        location = "/installer";
+      };
+    };
     nixblitz-norupo = {
       enable = true;
       dataDir = initConfigPath;
