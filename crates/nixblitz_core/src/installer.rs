@@ -22,6 +22,7 @@ pub enum ClientCommand {
     GetProcessList,
     SelectInstallDisk(String),
     StartInstallation,
+    DevReset,
 }
 
 // Events from the server to all clients

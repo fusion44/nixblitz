@@ -56,11 +56,28 @@ async fn websocket_handler(
 async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
     tracing::debug!("New WebSocket client connected.");
 
-    let (ws_sender, ws_receiver) = socket.split();
+    let (mut ws_sender, ws_receiver) = socket.split();
+
+    {
+        // send the current state to the new client
+        let engine_guard = engine.lock().await;
+        let current_state = engine_guard.state.clone();
+
+        tracing::debug!(?current_state, "Sending initial state to new client");
+
+        let event = ServerEvent::StateChanged(current_state);
+        let payload =
+            serde_json::to_string(&event).expect("Failed to serialize initial state event.");
+
+        if ws_sender.send(Message::Text(payload.into())).await.is_err() {
+            tracing::warn!("Client disconnected before initial state could be sent.");
+            return;
+        }
+    }
+
     let broadcast_rx = engine.lock().await.event_sender.subscribe();
 
     let outgoing_task = tokio::spawn(handle_outgoing_messages(ws_sender, broadcast_rx));
-
     let incoming_task = tokio::spawn(handle_incoming_messages(ws_receiver, engine.clone()));
 
     tokio::select! {

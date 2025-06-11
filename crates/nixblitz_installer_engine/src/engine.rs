@@ -1,7 +1,9 @@
 use nixblitz_core::*;
 use nixblitz_system::installer::{get_process_list, get_system_info, perform_system_check};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{Mutex, broadcast};
+use tokio::time::sleep;
 
 /// The state of the installation process.
 pub struct InstallEngine {
@@ -32,6 +34,7 @@ impl InstallEngine {
             ClientCommand::PerformSystemCheck => self.perform_system_check().await,
             ClientCommand::GetSystemSummary => self.get_system_summary().await,
             ClientCommand::GetProcessList => self.get_process_list().await,
+            ClientCommand::DevReset => self.dev_reset().await,
             ClientCommand::StartInstallation => self.start_installation().await,
             _ => {
                 let _ = self
@@ -51,9 +54,13 @@ impl InstallEngine {
     async fn perform_system_check(&mut self) {
         self.state = InstallState::PerformingCheck;
         self.broadcast_state();
+        // get_system_info() is a blocking call, so we need to wait a bit to let the state be
+        // broadcasted
+        let _ = sleep(Duration::from_millis(40)).await;
 
         let summary = get_system_info();
         let check_result = perform_system_check(&summary);
+
         self.state = InstallState::SystemCheckCompleted(check_result);
         self.broadcast_state();
     }
@@ -84,5 +91,10 @@ impl InstallEngine {
                 "System check must be performed before installation.".into(),
             ));
         }
+    }
+
+    async fn dev_reset(&mut self) {
+        self.state = InstallState::Idle;
+        self.broadcast_state();
     }
 }
