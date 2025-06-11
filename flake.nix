@@ -80,6 +80,7 @@
             nodejs
             tailwindcss_4
             watchman
+            websocat
 
             # for the docs
             nodePackages.pnpm

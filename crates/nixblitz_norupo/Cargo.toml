@@ -9,9 +9,11 @@ edition = "2024"
 [dependencies]
 nixblitz_core = { workspace = true }
 nixblitz_system = { workspace = true, optional = true }
-dioxus = { version = "0.6.0", features = ["router", "fullstack"] }
+dioxus = { version = "0.6.3", features = ["router", "fullstack"] }
 dioxus-i18n = "0.4.3"
 dioxus-logger = "0.6.2"
+dioxus-signals = "0.6.3"
+dioxus-hooks = "0.6.2"
 dioxus-material-icons = "3.0.0"
 error-stack = "0.5.0"
 freyr = "0.2.2"
@@ -19,6 +21,9 @@ strum = "0.26.3"
 strum_macros = "0.26.4"
 tracing-wasm = "0.2.1"
 web-sys = { version = "0.3.77", features = ["console"] }
+gloo-net = "0.6.0"
+serde_json = "1.0.140"
+futures = "0.3.31"
 
 [features]
 default = ["web"]

@@ -74,6 +74,14 @@ test trace="":
 run-cli *args='':
   cd {{rust_src}}; $env.RUST_BACKTRACE = 1; $env.NIXBLITZ_LOG = "trace"; cargo run -p nixblitz_cli -- {{args}}
 
+# serve the installer engine
+run-installer-engine:
+  cd {{rust_src}}; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "trace"; cargo run -p nixblitz_installer_engine
+
+# serve the norupo Web UI
+run-norupo:
+  cd {{rust_src}}/nixblitz_norupo; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "trace"; dx serve --platform web
+
 # shorthand for rsync this source directory to a remote node.
 rsync target:
   #!/usr/bin/env nu

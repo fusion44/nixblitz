@@ -1,4 +1,4 @@
-use crate::pages::config::Config;
+use crate::pages::{Config, Install};
 use dioxus::prelude::*;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
@@ -6,4 +6,7 @@ use dioxus::prelude::*;
 pub enum Route {
     #[route("/")]
     Config {},
+
+    #[route("/install")]
+    Install {},
 }

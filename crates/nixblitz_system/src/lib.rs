@@ -3,6 +3,7 @@ pub mod bitcoind;
 pub mod blitz_api;
 pub mod blitz_webui;
 pub mod cln;
+pub mod installer;
 pub mod lnd;
 pub mod nix_base_config;
 pub mod project;

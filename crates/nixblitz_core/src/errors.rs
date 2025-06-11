@@ -111,3 +111,9 @@ pub enum StringErrors {
     #[error("Unable to retrieve string: {:?} ", .0)]
     StringRetrievalError(String),
 }
+
+#[derive(Debug, Error)]
+pub enum SystemErrors {
+    #[error("Unable to retrieve system info: {:?} ", .0)]
+    GatherSystemInfoError(String),
+}
