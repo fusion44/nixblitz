@@ -30,7 +30,7 @@ pub(crate) fn StringListOptionEditor(
     });
 
     rsx! {
-        div { class: "flex items-center",
+        div { class: "flex items-start",
             label {
                 select {
                     class: "form-select h-6 w-100 text-zinc-300 rounded border-zinc-700 bg-zinc-800 focus:ring-blue-500",

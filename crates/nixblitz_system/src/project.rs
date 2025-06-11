@@ -263,4 +263,26 @@ impl Project {
             }
         }
     }
+
+    pub fn get_enabled_apps(&self) -> Vec<String> {
+        let mut apps = vec![];
+        apps.push("NixOS".to_string());
+        if self.bitcoin.borrow().enable.value() {
+            apps.push("Bitcoin".to_string());
+        }
+        if self.cln.borrow().enable.value() {
+            apps.push("Core Lightning".to_string());
+        }
+        if self.lnd.borrow().enable.value() {
+            apps.push("LND".to_string());
+        }
+        if self.blitz_api.borrow().enable.value() {
+            apps.push("Blitz API".to_string());
+        }
+        if self.blitz_webui.borrow().enable.value() {
+            apps.push("Raspiblitz WebUi".to_string());
+        }
+
+        apps
+    }
 }

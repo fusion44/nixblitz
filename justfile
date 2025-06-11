@@ -1,5 +1,6 @@
 set shell := ["nu", "-c"]
 rust_src := "./crates"
+work_dir := "/tmp/something1"
 
 set positional-arguments
 
@@ -77,7 +78,7 @@ run-cli *args='':
 
 # serve the installer engine
 run-installer-engine:
-  cd {{rust_src}}; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "trace"; cargo run -p nixblitz_installer_engine
+  cd {{rust_src}}; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "trace"; cargo run -p nixblitz_installer_engine
 
 # serve the norupo Web UI
 run-norupo:

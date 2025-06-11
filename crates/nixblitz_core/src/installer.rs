@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 pub use crate::SystemSummary;
-use crate::{CheckResult, ProcessList};
+use crate::{CheckResult, DiskInfo, PreInstallConfirmData, ProcessList};
 
 // State of the installation, visible to all clients
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -9,7 +9,11 @@ pub enum InstallState {
     Idle,
     PerformingCheck,
     SystemCheckCompleted(CheckResult),
-    Installing,
+    UpdateConfig,
+    SelectInstallDisk(Vec<DiskInfo>),
+    SelectDiskError(String),
+    PreInstallConfirm(PreInstallConfirmData),
+    Installing(String),
     InstallFailed(String),
     InstallSucceeded,
 }
@@ -20,7 +24,9 @@ pub enum ClientCommand {
     PerformSystemCheck,
     GetSystemSummary,
     GetProcessList,
-    SelectInstallDisk(String),
+    UpdateConfig,
+    UpdateConfigFinished,
+    InstallDiskSelected(String),
     StartInstallation,
     DevReset,
 }

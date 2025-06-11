@@ -201,15 +201,17 @@ pub fn Config() -> Element {
 
     rsx! {
         div { id: "hero",
-            div { class: "min-h-screen w-full bg-zinc-950 text-zinc-50 p-4 flex flex-col items-center",
+            div { class: "w-full text-zinc-50 p-4 flex flex-col items-center",
                 div { class: "flex flex-col md:flex-row justify-center items-start md:items-stretch w-full max-w-screen-xl space-y-4 md:space-y-0 md:space-x-8",
                     div { class: "p-4 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg flex flex-col items-center sticky top-4 md:top-8 flex-shrink-0",
                         div { class: "text-sm text-blue-400 mb-2 font-semibold", "Apps" }
                         {apps_list_content}
                     }
 
-                    div { class: "w-full p-4 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg flex flex-col flex-grow overflow-y-auto h-auto max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)]",
-                        div { class: "text-sm text-blue-400 mb-2 font-semibold", "Options" }
+                    div { class: "w-full items-start p-4 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg flex flex-col flex-grow overflow-y-auto h-auto max-h-[calc(100vh-8rem)] md:max-h-[calc(100vh-4rem)]",
+                        div { class: "text-sm items-start text-blue-400 mb-2 font-semibold",
+                            "Options"
+                        }
                         {options_list_content}
                     }
                 }

@@ -1,8 +1,12 @@
+use crate::components::Button;
 use dioxus::prelude::*;
 use nixblitz_core::CheckResult;
 
 #[component]
-pub fn SystemCheckDisplay(result: CheckResult) -> Element {
+pub fn SystemCheckDisplay(
+    result: CheckResult,
+    #[props(optional)] on_click: Option<EventHandler<MouseEvent>>,
+) -> Element {
     rsx! {
         div {
             h2 { class: "text-xl font-bold mb-2", "System Check Results" }
@@ -31,6 +35,17 @@ pub fn SystemCheckDisplay(result: CheckResult) -> Element {
                     "Memory: {result.summary.used_memory / 1024 / 1024} MB / {result.summary.total_memory / 1024 / 1024} MB"
                 }
                 p { "CPU Cores: {result.summary.cpus.len()}" }
+            }
+
+            div { class: "mt-4" }
+
+            Button {
+                on_click: move |evt| {
+                    if let Some(callback) = &on_click {
+                        callback.call(evt);
+                    }
+                },
+                "Configure NixBlitz"
             }
         }
     }

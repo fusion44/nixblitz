@@ -26,7 +26,7 @@ pub(crate) fn BooleanOptionEditor(value: bool, applied: bool, id: OptionId) -> E
     });
 
     rsx! {
-        div { class: "flex items-center",
+        div { class: "flex items-start",
             label {
                 input {
                     class: "form-checkbox h-4 w-4 text-blue-600

@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use dioxus_logger::tracing;
 
 use crate::classes::typography;
-use crate::components::button::Button;
+use crate::components::Button;
 
 #[component]
 pub fn Welcome(

@@ -15,11 +15,13 @@ use crate::{
     backend::{get_app_options_wrapper, get_supported_apps_wrapper},
     classes::{buttons, typography::headings},
     components::{
+        InstallDiskSelection, Installing, PreInstallConfirm,
         button::Button,
         install::{SystemCheckDisplay, Welcome},
         option_editors::*,
     },
     installer_engine_connection::EngineConnection,
+    pages::Config,
 };
 use futures::{SinkExt, StreamExt, channel::mpsc, future};
 use gloo_net::websocket::{Message, futures::WebSocket};
@@ -41,7 +43,7 @@ pub fn Install() -> Element {
     let maybe_state = state_lock.read().expect("BUG: state lock poisoned");
 
     rsx! {
-        div { class: "flex flex-col items-center justify-center text-center space-y-8 w-full",
+        div { class: "flex flex-col items-center justify-center text-center space-y-8 h-full w-full",
             h1 { class: "{headings::H1} text-slate-100", "NixBlitz Installer" }
 
             match &*maybe_state {
@@ -73,7 +75,6 @@ pub fn Install() -> Element {
                         Welcome {
                             loading: true,
                             on_click: move |_| {
-                                tracing::debug!("Clicked 'Next' button on welcome screen.");
                                 if let Some(sender) = command_sender.read().as_ref() {
                                     let _ = sender.unbounded_send(ClientCommand::PerformSystemCheck);
                                 }
@@ -83,7 +84,61 @@ pub fn Install() -> Element {
                 }
                 Some(InstallState::SystemCheckCompleted(result)) => {
                     rsx! {
-                        SystemCheckDisplay { result: result.clone() }
+                        SystemCheckDisplay {
+                            result: result.clone(),
+                            on_click: move |_| {
+                                if let Some(sender) = command_sender.read().as_ref() {
+                                    let _ = sender.unbounded_send(ClientCommand::UpdateConfig);
+                                }
+                            },
+                        }
+                    }
+                }
+                Some(InstallState::UpdateConfig) => {
+                    rsx! {
+                        div {
+                            "By default, no services will be enabled. Make sure to enable the services you want to use. You can also change the options for the services you enabled. Once you are done, click 'Continue' to continue with the installation."
+                        }
+                        Config {}
+                        Button {
+                            on_click: move |evt| {
+                                if let Some(sender) = command_sender.read().as_ref() {
+                                    let _ = sender.unbounded_send(ClientCommand::UpdateConfigFinished);
+                                }
+                            },
+                            "Continue"
+                        }
+                    }
+                }
+                Some(InstallState::SelectInstallDisk(disks)) => {
+                    rsx! {
+                        InstallDiskSelection {
+                            disks: disks.clone(),
+                            on_select: move |disk| {
+                                tracing::info!("Selected disk: {}", disk);
+                                if let Some(sender) = command_sender.read().as_ref() {
+                                    let _ = sender.unbounded_send(ClientCommand::InstallDiskSelected(disk));
+                                }
+                            },
+                        }
+                    }
+                }
+                Some(InstallState::PreInstallConfirm(data)) => {
+                    let clone1 = data.clone();
+                    rsx! {
+                        PreInstallConfirm {
+                            data: clone1,
+                            on_confirm: move |disk| {
+                                if let Some(sender) = command_sender.read().as_ref() {
+                                    let _ = sender.unbounded_send(ClientCommand::StartInstallation);
+                                }
+                            },
+                        }
+                    }
+                }
+                Some(InstallState::Installing(message)) => {
+                    rsx! {
+                        Installing { message }
                     }
                 }
                 Some(_) => {

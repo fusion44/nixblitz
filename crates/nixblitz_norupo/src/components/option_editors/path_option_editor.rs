@@ -34,7 +34,7 @@ pub(crate) fn PathOptionEditor(value: Option<String>, applied: bool, id: OptionI
     let class = "p-2 text-sm w-100 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
     rsx! {
-        div { class: "flex flex-col",
+        div { class: "flex items-start",
             label {
                 input {
                     class,

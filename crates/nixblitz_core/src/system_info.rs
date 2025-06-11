@@ -156,3 +156,19 @@ impl From<&System> for ProcessList {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct DiskInfo {
+    pub name: String,
+    pub path: String,
+    pub size_bytes: u64,
+    pub mount_points: Vec<String>,
+    pub is_removable: bool,
+    pub is_live_system: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct PreInstallConfirmData {
+    pub apps: Vec<String>,
+    pub disk: String,
+}
