@@ -1,15 +1,15 @@
 use error_stack::{Report, Result};
 use ratatui::{
+    Frame,
     layout::{Direction, Flex, Layout, Rect},
     style::Stylize,
     widgets::{Block, Clear},
-    Frame,
 };
 use ratatui_macros::constraints;
 
 use crate::{
     app_contexts::RenderContext,
-    components::{theme::popup, Component},
+    components::{Component, theme::popup},
     errors::CliError,
 };
 

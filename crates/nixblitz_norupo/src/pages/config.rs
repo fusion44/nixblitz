@@ -1,9 +1,9 @@
+use dioxus::prelude::*;
+use dioxus_logger::tracing;
 use nixblitz_core::app_option_data::{
     option_data::{GetOptionId, OptionData},
     *,
 };
-use dioxus::prelude::*;
-use dioxus_logger::tracing;
 
 use crate::{
     backend::{get_app_options_wrapper, get_supported_apps_wrapper},

@@ -1,7 +1,7 @@
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{theme, Component},
+    components::{Component, theme},
     config::Config,
     errors::CliError,
 };

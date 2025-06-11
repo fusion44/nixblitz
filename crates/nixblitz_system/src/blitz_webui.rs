@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path, str::FromStr};
 
 use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
-use handlebars::{no_escape, Handlebars};
+use handlebars::{Handlebars, no_escape};
 use serde::{Deserialize, Serialize};
 
 use nixblitz_core::{
@@ -17,7 +17,7 @@ use nixblitz_core::{
     option_definitions::blitz_webui::BlitzWebUiConfigOption,
 };
 
-use crate::utils::{update_file, BASE_TEMPLATE};
+use crate::utils::{BASE_TEMPLATE, update_file};
 
 pub const TEMPLATE_FILE_NAME: &str = "src/blitz/web.nix.templ";
 pub const JSON_FILE_NAME: &str = "src/blitz/web.json";
@@ -132,7 +132,7 @@ impl BlitzWebUiService {
                 return Err(Report::new(TemplatingError::FileNotFound(
                     TEMPLATE_FILE_NAME.to_string(),
                 ))
-                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))?
+                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))?;
             }
         };
 
@@ -144,7 +144,7 @@ impl BlitzWebUiService {
                 ))
                 .attach_printable(format!(
                     "Unable to read file contents of {TEMPLATE_FILE_NAME}"
-                )))
+                )));
             }
         };
 

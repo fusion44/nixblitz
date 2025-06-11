@@ -1,11 +1,11 @@
 use std::{collections::HashMap, path::Path, str::FromStr};
 
 use alejandra::format;
+use error_stack::{Report, Result, ResultExt};
+use handlebars::{Handlebars, no_escape};
 use nixblitz_core::option_definitions::blitz_api::{
     BlitzApiConfigOption, BlitzApiLogLevel, ConnectionType,
 };
-use error_stack::{Report, Result, ResultExt};
-use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 
 use nixblitz_core::{
@@ -22,7 +22,7 @@ use nixblitz_core::{
     errors::{ProjectError, TemplatingError},
 };
 
-use crate::utils::{update_file, BASE_TEMPLATE};
+use crate::utils::{BASE_TEMPLATE, update_file};
 
 pub const TEMPLATE_FILE_NAME: &str = "src/blitz/api.nix.templ";
 pub const JSON_FILE_NAME: &str = "src/blitz/api.json";
@@ -298,7 +298,7 @@ impl BlitzApiService {
                 return Err(Report::new(TemplatingError::FileNotFound(
                     TEMPLATE_FILE_NAME.to_string(),
                 ))
-                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))?
+                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))?;
             }
         };
 
@@ -310,7 +310,7 @@ impl BlitzApiService {
                 ))
                 .attach_printable(format!(
                     "Unable to read file contents of {TEMPLATE_FILE_NAME}"
-                )))
+                )));
             }
         };
 

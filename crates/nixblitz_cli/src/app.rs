@@ -5,12 +5,12 @@ use error_stack::{Report, Result, ResultExt};
 use log::{error, info, trace};
 use nixblitz_system::project::Project;
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout},
     prelude::Rect,
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Paragraph, Wrap},
-    Frame,
 };
 use ratatui_macros::constraints;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ use tokio::sync::mpsc;
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{menu::Menu, theme::ThemeData, title::Title, Component},
+    components::{Component, menu::Menu, theme::ThemeData, title::Title},
     config::Config,
     errors::CliError,
     pages::{
@@ -509,8 +509,7 @@ impl App {
 
         trace!(
             "Handle modal change. Modals open: {}; has_text_area: {}",
-            self.modal_open,
-            self.exclusive_input_component_shown
+            self.modal_open, self.exclusive_input_component_shown
         );
 
         Ok(())

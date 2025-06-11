@@ -5,7 +5,7 @@ use ratatui::{prelude::*, widgets::*};
 use ratatui_macros::constraint;
 use tui_textarea::TextArea;
 
-use super::{theme::input, Component};
+use super::{Component, theme::input};
 
 #[derive(Debug, Default)]
 pub struct PasswordInput<'a> {

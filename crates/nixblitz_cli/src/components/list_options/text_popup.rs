@@ -1,9 +1,9 @@
 use crossterm::event::KeyCode;
 use error_stack::{Result, ResultExt};
 use ratatui::{
+    Frame,
     layout::{Margin, Rect},
     widgets::{Clear, Scrollbar, ScrollbarOrientation, ScrollbarState},
-    Frame,
 };
 use ratatui_macros::constraint;
 use tokio::sync::mpsc::UnboundedSender;
@@ -12,7 +12,7 @@ use tui_textarea::TextArea;
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{theme::popup, Component},
+    components::{Component, theme::popup},
     errors::CliError,
 };
 

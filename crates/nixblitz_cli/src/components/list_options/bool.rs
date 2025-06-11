@@ -1,3 +1,4 @@
+use error_stack::{Report, Result, ResultExt};
 use nixblitz_core::{
     app_option_data::{
         bool_data::{BoolOptionChangeData, BoolOptionData},
@@ -5,13 +6,12 @@ use nixblitz_core::{
     },
     strings::OPTION_TITLES,
 };
-use error_stack::{Report, Result, ResultExt};
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{action::Action, app_contexts::RenderContext, components::Component, errors::CliError};
 
-use super::base_option::{draw_item, OptionListItem};
+use super::base_option::{OptionListItem, draw_item};
 
 #[derive(Debug, Default)]
 pub struct BoolOptionComponent {

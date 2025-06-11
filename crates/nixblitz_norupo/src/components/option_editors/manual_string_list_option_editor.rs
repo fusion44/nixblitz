@@ -1,9 +1,9 @@
+use dioxus::prelude::*;
+use dioxus_logger::tracing;
 use nixblitz_core::app_option_data::{
     manual_string_list_data::ManualStringListOptionChangeData,
     option_data::{OptionDataChangeNotification, OptionId},
 };
-use dioxus::prelude::*;
-use dioxus_logger::tracing;
 use tracing::info;
 
 use crate::backend::set_app_option_wrapper;
@@ -44,7 +44,7 @@ pub(crate) fn ManualStringListOptionEditor(
         max_lines
     };
 
-    let class  = "p-2 text-sm w-100 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
+    let class = "p-2 text-sm w-100 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
     rsx! {
         div { class: "flex flex-col",

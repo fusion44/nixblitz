@@ -1,6 +1,6 @@
 use crossterm::event::{KeyEvent, MouseEvent};
 use error_stack::Result;
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{

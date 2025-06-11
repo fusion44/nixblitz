@@ -1,5 +1,6 @@
 use std::{net::IpAddr, str::FromStr};
 
+use error_stack::{Report, Result, ResultExt};
 use nixblitz_core::{
     app_option_data::{
         net_address_data::{NetAddressOptionChangeData, NetAddressOptionData},
@@ -7,8 +8,7 @@ use nixblitz_core::{
     },
     strings::OPTION_TITLES,
 };
-use error_stack::{Report, Result, ResultExt};
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    base_option::{draw_item, OptionListItem},
+    base_option::{OptionListItem, draw_item},
     text_popup::TextInputPopup,
 };
 

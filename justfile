@@ -16,6 +16,7 @@ clean:
 format:
   alejandra	.
   cd {{rust_src}}; cargo fmt
+  dx fmt
 
 update-default-nix:
   nu ./scripts/update-default-nix.nu

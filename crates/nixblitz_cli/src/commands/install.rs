@@ -1,7 +1,7 @@
-use nixblitz_core::system_platform::SystemPlatform;
 use error_stack::{Report, Result, ResultExt};
 use inquire::{Confirm, Select};
 use log::{debug, error, info, warn};
+use nixblitz_core::system_platform::SystemPlatform;
 use nixblitz_system::utils::{commit_config, get_system_platform};
 use serde_json;
 use std::io::{self, BufRead, BufReader, Write};
@@ -14,8 +14,8 @@ use std::{fmt, thread};
 use strum::VariantArray;
 use sysinfo::System;
 
-use crate::commands::set::set_option_value;
 use crate::commands::SupportedAppsValueEnum;
+use crate::commands::set::set_option_value;
 use crate::errors::CliError;
 
 #[derive(Debug)]
@@ -645,7 +645,9 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
             "User selected a disk that appears to be part of the live system: {}",
             selected_disk.path
         );
-        println!("\n⚠️ CAUTION: This disk appears to be part of the live system you're currently running!");
+        println!(
+            "\n⚠️ CAUTION: This disk appears to be part of the live system you're currently running!"
+        );
         println!("Installing to this disk may cause your current system to become unstable.");
     }
 

@@ -2,11 +2,11 @@ use std::{collections::HashMap, net::IpAddr, path::Path, str::FromStr};
 
 use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
-use handlebars::{no_escape, Handlebars};
+use handlebars::{Handlebars, no_escape};
 use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::{update_file, BASE_TEMPLATE};
+use crate::utils::{BASE_TEMPLATE, update_file};
 use nixblitz_core::{
     app_config::AppConfig,
     app_option_data::{
@@ -276,7 +276,7 @@ impl LightningNetworkDaemonService {
                 return Err(Report::new(TemplatingError::FileNotFound(
                     TEMPLATE_FILE_NAME.to_string(),
                 ))
-                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))?
+                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))?;
             }
         };
 
@@ -288,7 +288,7 @@ impl LightningNetworkDaemonService {
                 ))
                 .attach_printable(format!(
                     "Unable to read file contents of {TEMPLATE_FILE_NAME}"
-                )))
+                )));
             }
         };
 

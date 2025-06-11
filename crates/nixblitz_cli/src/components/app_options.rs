@@ -2,6 +2,7 @@ use core::fmt;
 use std::{cell::RefCell, rc::Rc};
 
 use super::{
+    Component,
     list_options::{
         base_option::OptionListItem, bool::BoolOptionComponent,
         manual_string_list::ManualStringListOptionComponent,
@@ -10,7 +11,6 @@ use super::{
         string_list::StringListOptionComponent, text::TextOptionComponent,
     },
     theme::block,
-    Component,
 };
 use crate::{
     action::Action,
@@ -20,9 +20,9 @@ use crate::{
     errors::CliError,
 };
 
-use nixblitz_core::app_option_data::option_data::{GetOptionId, OptionData};
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::{Report, Result, ResultExt};
+use nixblitz_core::app_option_data::option_data::{GetOptionId, OptionData};
 
 use indexmap::IndexMap;
 use log::{error, warn};
@@ -379,10 +379,9 @@ impl<'a> AppOptions<'a> {
         if !is_even && !self.is_even_warning_printed {
             self.is_even_warning_printed = true;
             warn!(
-            "Area height must be a multiple of two for now.\ntotal_height: {}\nmax_num_items: {}",
-            total_height,
-            self.max_num_items
-        );
+                "Area height must be a multiple of two for now.\ntotal_height: {}\nmax_num_items: {}",
+                total_height, self.max_num_items
+            );
         }
 
         self.max_num_items = (if is_even {

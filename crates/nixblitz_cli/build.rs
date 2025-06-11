@@ -15,7 +15,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build()?;
         let _ = emitter.add_instructions(&git_instructions);
     } else {
-        println!("cargo:warning=VERGEN_IDEMPOTENT is set, skipping vergen's Git info generation. Expecting Nix to provide VERGEN_GIT_SHA, etc.");
+        println!(
+            "cargo:warning=VERGEN_IDEMPOTENT is set, skipping vergen's Git info generation. Expecting Nix to provide VERGEN_GIT_SHA, etc."
+        );
     }
 
     let _ = emitter.emit();

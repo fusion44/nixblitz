@@ -2,7 +2,7 @@ use std::{collections::HashMap, net::IpAddr, path::Path, str::FromStr};
 
 use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
-use handlebars::{no_escape, Handlebars};
+use handlebars::{Handlebars, no_escape};
 use serde::{Deserialize, Serialize};
 
 use nixblitz_core::{
@@ -22,7 +22,7 @@ use nixblitz_core::{
     option_definitions::cln::ClnConfigOption,
 };
 
-use crate::utils::{update_file, BASE_TEMPLATE};
+use crate::utils::{BASE_TEMPLATE, update_file};
 
 pub const TEMPLATE_FILE_NAME: &str = "src/btc/cln.nix.templ";
 pub const JSON_FILE_NAME: &str = "src/btc/cln.json";

@@ -1,9 +1,9 @@
+use dioxus::prelude::*;
+use dioxus_logger::tracing;
 use nixblitz_core::app_option_data::{
     bool_data::BoolOptionChangeData,
     option_data::{OptionDataChangeNotification, OptionId},
 };
-use dioxus::prelude::*;
-use dioxus_logger::tracing;
 use tracing::info;
 
 use crate::backend::set_app_option_wrapper;

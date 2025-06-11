@@ -1,4 +1,4 @@
-use super::{theme::list, Component};
+use super::{Component, theme::list};
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
@@ -6,9 +6,9 @@ use crate::{
     constants::FocusableComponent,
     errors::CliError,
 };
-use nixblitz_core::apps::SupportedApps;
 use crossterm::event::{MouseButton, MouseEventKind};
 use error_stack::Result;
+use nixblitz_core::apps::SupportedApps;
 
 use ratatui::{prelude::*, widgets::*};
 use tokio::sync::mpsc::UnboundedSender;

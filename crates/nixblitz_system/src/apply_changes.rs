@@ -1,12 +1,12 @@
-use nixblitz_core::errors::CommandError;
-use nixblitz_core::system_platform::SystemPlatform;
 use core::fmt;
 use error_stack::{Report, Result};
 use log::{debug, error, info};
+use nixblitz_core::errors::CommandError;
+use nixblitz_core::system_platform::SystemPlatform;
 use std::process::{ExitStatus, Stdio};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::task;
 
 #[derive(Debug, Clone)]

@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{app_list::AppList, app_options::AppOptions, Component},
+    components::{Component, app_list::AppList, app_options::AppOptions},
     config::Config,
     constants::FocusableComponent,
     errors::CliError,

@@ -4,7 +4,7 @@ use error_stack::{Report, Result, ResultExt};
 use log::debug;
 use ratatui::style::Color;
 
-use serde_json::{error::Category, Value};
+use serde_json::{Value, error::Category};
 
 use crate::{components::default_theme::DEFAULT_THEME_NO_TRUE_COLOR, errors::CliError};
 

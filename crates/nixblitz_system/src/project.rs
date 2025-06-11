@@ -1,5 +1,7 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
+use error_stack::{Result, ResultExt};
+use log::{debug, error, info};
 use nixblitz_core::{
     app_config::AppConfig,
     app_option_data::option_data::{OptionData, OptionDataChangeNotification},
@@ -7,8 +9,6 @@ use nixblitz_core::{
     errors::ProjectError,
     system_platform::SystemPlatform,
 };
-use error_stack::{Result, ResultExt};
-use log::{debug, error, info};
 
 use crate::{
     bitcoind::{self, BitcoinDaemonService},

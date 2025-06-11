@@ -1,8 +1,8 @@
 use error_stack::{Report, Result, ResultExt};
 use ratatui::{
+    Frame,
     layout::Rect,
     widgets::{Clear, ListState},
-    Frame,
 };
 use ratatui_macros::constraint;
 use tokio::sync::mpsc::UnboundedSender;
@@ -11,12 +11,12 @@ use crate::{
     action::{self, Action},
     app_contexts::{RenderContext, UpdateContext},
     components::{
+        Component,
         list_options::popup::center,
         theme::{
             list::{self, SelectableListItem},
             popup::{self},
         },
-        Component,
     },
     errors::CliError,
 };

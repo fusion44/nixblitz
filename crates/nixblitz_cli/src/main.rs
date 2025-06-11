@@ -5,7 +5,7 @@ use commands::{
     set::set_option_value, tui::start_tui,
 };
 use error_stack::Result;
-use errors::{init_error_handlers, CliError};
+use errors::{CliError, init_error_handlers};
 
 mod action;
 mod app;
@@ -42,7 +42,9 @@ async fn main() -> Result<(), CliError> {
         }
         Some(commands::Commands::Install { work_dir }) => install_wizard(work_dir)?,
         Some(commands::Commands::Doctor {}) => {
-            println!("We haven't quite figured out how to implement this yet. Maybe try asking a magic 8-ball instead?")
+            println!(
+                "We haven't quite figured out how to implement this yet. Maybe try asking a magic 8-ball instead?"
+            )
         }
         Some(commands::Commands::Apply { work_dir }) => apply_changes_cmd(work_dir).await?,
         Some(commands::Commands::Set {

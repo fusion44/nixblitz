@@ -1,11 +1,11 @@
 use error_stack::Result;
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{theme, Component},
+    components::{Component, theme},
     config::Config,
     errors::CliError,
 };

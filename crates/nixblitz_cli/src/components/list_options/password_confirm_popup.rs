@@ -1,13 +1,13 @@
+use crossterm::event::KeyCode;
+use error_stack::{Result, ResultExt};
 use nixblitz_core::{
     app_option_data::password_data::PasswordOptionData, strings::CommonStrings,
     utils::GetStringOrCliError,
 };
-use crossterm::event::KeyCode;
-use error_stack::{Result, ResultExt};
 use ratatui::{
+    Frame,
     layout::{Layout, Rect},
     widgets::Clear,
-    Frame,
 };
 use ratatui_macros::constraint;
 use tokio::sync::mpsc::UnboundedSender;
@@ -15,7 +15,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{password_input::PasswordInput, theme::popup, Component},
+    components::{Component, password_input::PasswordInput, theme::popup},
     errors::CliError,
 };
 

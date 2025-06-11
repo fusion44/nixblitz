@@ -3,6 +3,8 @@ use std::{collections::HashMap, net::IpAddr, path::Path, str::FromStr};
 
 use alejandra::format;
 
+use error_stack::{Report, Result, ResultExt};
+use handlebars::{Handlebars, no_escape};
 use nixblitz_core::{
     app_config::AppConfig,
     app_option_data::{
@@ -22,8 +24,6 @@ use nixblitz_core::{
         BitcoinDaemonServiceRPCUserConfigOption, BitcoinNetwork, BitcoindConfigOption, PruneOptions,
     },
 };
-use error_stack::{Report, Result, ResultExt};
-use handlebars::{no_escape, Handlebars};
 use serde::{Deserialize, Serialize};
 
 use nixblitz_core::app_option_data::{
@@ -31,7 +31,7 @@ use nixblitz_core::app_option_data::{
     string_list_data::StringListOptionData,
 };
 
-use crate::utils::{update_file, BASE_TEMPLATE};
+use crate::utils::{BASE_TEMPLATE, update_file};
 
 pub const TEMPLATE_FILE_NAME: &str = "src/btc/bitcoind.nix.templ";
 pub const JSON_FILE_NAME: &str = "src/btc/bitcoind.json";
@@ -315,7 +315,7 @@ impl BitcoinDaemonService {
                 return Err(Report::new(TemplatingError::FileNotFound(
                     TEMPLATE_FILE_NAME.to_string(),
                 ))
-                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")))
+                .attach_printable(format!("File {TEMPLATE_FILE_NAME} not found in template")));
             }
         };
 
@@ -327,7 +327,7 @@ impl BitcoinDaemonService {
                 ))
                 .attach_printable(format!(
                     "Unable to read file contents of {TEMPLATE_FILE_NAME}"
-                )))
+                )));
             }
         };
 

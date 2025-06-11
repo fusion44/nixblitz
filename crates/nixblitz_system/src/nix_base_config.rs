@@ -1,13 +1,13 @@
 use alejandra::format;
 use error_stack::{Report, Result, ResultExt};
-use handlebars::{no_escape, Handlebars};
+use handlebars::{Handlebars, no_escape};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, path::Path, str::FromStr};
 use strum::VariantArray;
 
 use crate::utils::{
-    check_password_validity_confirm, unix_hash_password, update_file, BASE_TEMPLATE,
-    INITIAL_PASSWORD,
+    BASE_TEMPLATE, INITIAL_PASSWORD, check_password_validity_confirm, unix_hash_password,
+    update_file,
 };
 use nixblitz_core::{
     app_config::AppConfig,
@@ -326,7 +326,7 @@ impl NixBaseConfig {
                     return Err(
                         Report::new(TemplatingError::FileNotFound(file_name.to_string()))
                             .attach_printable(format!("File {file_name} for {template} not found")),
-                    )
+                    );
                 }
             };
 
@@ -337,7 +337,7 @@ impl NixBaseConfig {
                         return Err(Report::new(TemplatingError::FileNotFound(
                             file_name.to_string(),
                         ))
-                        .attach_printable(format!("Unable to read file contents of {template}")))
+                        .attach_printable(format!("Unable to read file contents of {template}")));
                     }
                 };
 

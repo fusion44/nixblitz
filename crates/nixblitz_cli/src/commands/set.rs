@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use error_stack::{Result, ResultExt};
+use log::info;
 use nixblitz_core::{
     app_option_data::{
         option_data::{OptionDataChangeNotification, ToOptionId},
@@ -9,8 +11,6 @@ use nixblitz_core::{
     apps::SupportedApps,
     option_definitions::nix_base::NixBaseConfigOption,
 };
-use error_stack::{Result, ResultExt};
-use log::info;
 use nixblitz_system::project::Project;
 
 use crate::errors::CliError;

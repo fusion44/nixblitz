@@ -1,8 +1,8 @@
+use dioxus::prelude::*;
 use nixblitz_core::app_option_data::{
     option_data::{OptionDataChangeNotification, OptionId},
     string_list_data::{StringListOptionChangeData, StringListOptionItem},
 };
-use dioxus::prelude::*;
 
 use crate::backend::set_app_option_wrapper;
 

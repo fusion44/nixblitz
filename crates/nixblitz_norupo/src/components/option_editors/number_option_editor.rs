@@ -1,3 +1,4 @@
+use dioxus::prelude::*;
 use nixblitz_core::{
     app_option_data::{
         bool_data::BoolOptionChangeData,
@@ -8,7 +9,6 @@ use nixblitz_core::{
     },
     number_value::NumberValue,
 };
-use dioxus::prelude::*;
 
 use crate::{backend::set_app_option_wrapper, components::input_type::InputType};
 
@@ -32,7 +32,7 @@ pub(crate) fn NumberOptionEditor(value: NumberValue, applied: bool, id: OptionId
         }
     });
 
-    let class  = "p-2 text-sm w-100 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
+    let class = "p-2 text-sm w-100 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
     rsx! {
         div { class: "flex flex-col",

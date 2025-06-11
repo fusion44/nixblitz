@@ -1,4 +1,6 @@
-use nixblitz_core::{app_option_data::option_data::OptionDataChangeNotification, apps::SupportedApps};
+use nixblitz_core::{
+    app_option_data::option_data::OptionDataChangeNotification, apps::SupportedApps,
+};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 

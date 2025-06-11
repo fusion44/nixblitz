@@ -1,8 +1,8 @@
-use nixblitz_core::{number_value::NumberValue, strings::DECIMAL_SIGN};
 use crossterm::event::KeyCode;
 use error_stack::Result;
 use log::warn;
-use ratatui::{layout::Rect, widgets::Clear, Frame};
+use nixblitz_core::{number_value::NumberValue, strings::DECIMAL_SIGN};
+use ratatui::{Frame, layout::Rect, widgets::Clear};
 use ratatui_macros::constraint;
 use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::TextArea;
@@ -10,7 +10,7 @@ use tui_textarea::TextArea;
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{theme::popup, Component},
+    components::{Component, theme::popup},
     errors::CliError,
 };
 

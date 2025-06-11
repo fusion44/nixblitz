@@ -1,9 +1,9 @@
 use error_stack::Result;
 use ratatui::{
+    Frame,
     layout::{Direction, Layout, Rect},
     style::{Color, Modifier, Stylize},
     text::Line,
-    Frame,
 };
 use ratatui_macros::constraints;
 

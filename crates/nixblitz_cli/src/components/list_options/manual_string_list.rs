@@ -8,7 +8,7 @@ use nixblitz_core::{
 
 use error_stack::{Result, ResultExt};
 use log::error;
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    base_option::{draw_item, OptionListItem},
+    base_option::{OptionListItem, draw_item},
     text_popup::TextInputPopup,
 };
 

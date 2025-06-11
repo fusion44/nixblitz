@@ -1,6 +1,6 @@
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use error_stack::{Result, ResultExt};
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
     errors::CliError,
 };
 
-use super::{theme::menu, Component};
+use super::{Component, theme::menu};
 
 const MARGIN: u16 = 2;
 

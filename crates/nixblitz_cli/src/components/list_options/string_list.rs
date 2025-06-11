@@ -1,3 +1,4 @@
+use error_stack::{Result, ResultExt};
 use nixblitz_core::{
     app_option_data::{
         option_data::{GetOptionId, OptionDataChangeNotification},
@@ -5,19 +6,18 @@ use nixblitz_core::{
     },
     strings::OPTION_TITLES,
 };
-use error_stack::{Result, ResultExt};
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     action::Action,
     app_contexts::{RenderContext, UpdateContext},
-    components::{theme::list::SelectableListItem, Component},
+    components::{Component, theme::list::SelectableListItem},
     errors::CliError,
 };
 
 use super::{
-    base_option::{draw_item, OptionListItem},
+    base_option::{OptionListItem, draw_item},
     string_list_popup::StringListPopup,
 };
 
