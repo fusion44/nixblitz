@@ -13,7 +13,12 @@ use nixblitz_core::{
 
 use crate::{
     backend::{get_app_options_wrapper, get_supported_apps_wrapper},
-    components::option_editors::*,
+    classes::{buttons, typography::headings},
+    components::{
+        button::Button,
+        install::{SystemCheckDisplay, Welcome},
+        option_editors::*,
+    },
     installer_engine_connection::EngineConnection,
 };
 use futures::{SinkExt, StreamExt, channel::mpsc, future};
@@ -32,25 +37,69 @@ pub fn Install() -> Element {
         spawn_connection_task(install_state, command_sender);
     });
 
+    let state_lock = install_state.read();
+    let maybe_state = state_lock.read().expect("BUG: state lock poisoned");
+
     rsx! {
-        h1 { "NixBlitz Norupo UI" }
-        button {
-            onclick: move |_| {
-                tracing::debug!("'Perform System Check' button clicked.");
-                if let Some(sender) = command_sender.read().as_ref() {
-                    let _ = sender.unbounded_send(ClientCommand::PerformSystemCheck);
+        div { class: "flex flex-col items-center justify-center text-center space-y-8 w-full",
+            h1 { class: "{headings::H1} text-slate-100", "NixBlitz Installer" }
+
+            match &*maybe_state {
+                None => {
+                    rsx! {
+                        p { class: "text-lg text-gray-500 mb-8", "Waiting for connection..." }
+                        div { class: "mt-8 w-full min-h-[350px] flex items-center justify-center",
+                            div { class: "flex flex-col items-center text-gray-500",
+                                div { class: "w-10 h-10 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin" }
+                                p { class: "mt-4 text-lg", "Connecting to Installer Engine..." }
+                            }
+                        }
+                    }
                 }
-            },
-            "Perform System Check"
-        }
-        div {
-            h3 { "Current Engine State:" }
-            pre {
-                {
-                    let state_lock = install_state.read();
-                    let data = state_lock.read().expect("BUG: state lock poisoned");
-                    format!("{:#?}", *data)
+                Some(InstallState::Idle) => {
+                    rsx! {
+                        Welcome {
+                            on_click: move |_| {
+                                tracing::debug!("Clicked 'Next' button on welcome screen.");
+                                if let Some(sender) = command_sender.read().as_ref() {
+                                    let _ = sender.unbounded_send(ClientCommand::PerformSystemCheck);
+                                }
+                            },
+                        }
+                    }
                 }
+                Some(InstallState::PerformingCheck) => {
+                    rsx! {
+                        Welcome {
+                            loading: true,
+                            on_click: move |_| {
+                                tracing::debug!("Clicked 'Next' button on welcome screen.");
+                                if let Some(sender) = command_sender.read().as_ref() {
+                                    let _ = sender.unbounded_send(ClientCommand::PerformSystemCheck);
+                                }
+                            },
+                        }
+                    }
+                }
+                Some(InstallState::SystemCheckCompleted(result)) => {
+                    rsx! {
+                        SystemCheckDisplay { result: result.clone() }
+                    }
+                }
+                Some(_) => {
+                    rsx! {
+                        h3 { class: "text-xl font-bold mb-2", "State not implemented" }
+                    }
+                }
+            }
+
+            Button {
+                on_click: move |evt| {
+                    if let Some(sender) = command_sender.read().as_ref() {
+                        let _ = sender.unbounded_send(ClientCommand::DevReset);
+                    }
+                },
+                "Reset State"
             }
         }
     }
