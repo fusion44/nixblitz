@@ -4054,6 +4054,8 @@ dependencies = [
  "tower-http 0.6.6",
  "tracing",
  "tracing-subscriber",
+ "vergen",
+ "vergen-git2",
 ]
 
 [[package]]

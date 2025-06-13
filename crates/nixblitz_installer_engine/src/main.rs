@@ -19,6 +19,12 @@ use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::{Mutex, broadcast};
 use tower_http::cors::{Any, CorsLayer};
 
+const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+const GIT_SHA: &str = match option_env!("VERGEN_GIT_SHA") {
+    Some(sha) => sha,
+    None => "sha-unknown",
+};
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -28,6 +34,8 @@ async fn main() {
         )
         .init();
     tracing::debug!("Starting installer engine...");
+    tracing::info!("Version: {PKG_VERSION}");
+    tracing::info!("Git SHA: {GIT_SHA}");
 
     let shared_engine: SharedInstallEngine = Arc::new(Mutex::new(InstallEngine::new()));
     let cors = CorsLayer::new().allow_origin(Any {});

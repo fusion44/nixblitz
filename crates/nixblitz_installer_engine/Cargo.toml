@@ -3,6 +3,8 @@ name = "nixblitz_installer_engine"
 version = "0.1.0"
 edition = "2024"
 
+build = "build.rs"
+
 [dependencies]
 axum = { version = "0.8.4", features = ["ws"] }
 error-stack = "0.5.0"
@@ -17,3 +19,7 @@ tokio-stream = "0.1.17"
 tower-http = { version = "0.6.6", features = ["cors"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+
+[build-dependencies]
+vergen = { version = "9.0.6", features = ["build"] }
+vergen-git2 = { version = "1.0.7", features = ["build"] }
