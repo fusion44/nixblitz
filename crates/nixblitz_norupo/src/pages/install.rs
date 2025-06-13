@@ -203,10 +203,11 @@ pub fn Install() -> Element {
                         Installing { steps: install_steps, logs: install_logs, succeeded: true }
                     }
                 }
-                Some(_) => {
+                Some(state) => {
                     tracing::debug!("InstallState::Unknown");
+                    let state_str = format!("State not implemented {:?}", state);
                     rsx! {
-                        h3 { class: "text-xl font-bold mb-2", "State not implemented" }
+                        h3 { class: "text-xl font-bold mb-2", "{state_str}" }
                     }
                 }
             }
