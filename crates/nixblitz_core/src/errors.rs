@@ -117,3 +117,15 @@ pub enum SystemErrors {
     #[error("Unable to retrieve system info: {:?} ", .0)]
     GatherSystemInfoError(String),
 }
+
+#[derive(Debug, Error)]
+pub enum InstallError {
+    #[error("{}", .0)]
+    IoError(String),
+    #[error("Error while installing the system: {}", .0)]
+    InstallExecutionFailed(String),
+    #[error("Error while running command: {}\nError: {}", .0,.1 )]
+    CommandError(String, String),
+    #[error("Lock operation error: {}", .0)]
+    LockError(String),
+}
