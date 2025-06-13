@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 use dioxus::prelude::*;
 use dioxus_logger::tracing;
 use nixblitz_core::{
-    InstallState,
+    InstallState, InstallStep,
     app_option_data::{
         option_data::{GetOptionId, OptionData},
         *,
@@ -29,14 +29,20 @@ use nixblitz_core::{ClientCommand, ServerEvent};
 
 type InstallStateSignal = Signal<Arc<RwLock<Option<InstallState>>>>;
 type ClientCommandSignal = Signal<Option<UnboundedSender<ClientCommand>>>;
+type InstallStepsSignal = Signal<Vec<InstallStep>>;
+type InstallLogsSignal = Signal<Vec<String>>;
 
 #[component]
 pub fn Install() -> Element {
     let mut install_state: InstallStateSignal = use_signal(|| Arc::new(RwLock::new(None)));
     let mut command_sender: ClientCommandSignal = use_signal(|| None);
+    // FYI: Vec::new acts as a function pointter, so we can skip giving a
+    //      full closure to use_signal like above
+    let mut install_steps: InstallStepsSignal = use_signal(Vec::new);
+    let mut install_logs: InstallLogsSignal = use_signal(Vec::new);
 
     use_effect(move || {
-        spawn_connection_task(install_state, command_sender);
+        spawn_connection_task(install_state, install_steps, install_logs, command_sender);
     });
 
     let state_lock = install_state.read();
@@ -136,18 +142,25 @@ pub fn Install() -> Element {
                         }
                     }
                 }
-                Some(InstallState::Installing(message)) => {
+                Some(InstallState::Installing(_)) => {
                     rsx! {
-                        Installing { message }
+                        Installing { steps: install_steps, logs: install_logs, succeeded: false }
+                    }
+                }
+                Some(InstallState::InstallSucceeded) => {
+                    rsx! {
+                        Installing { steps: install_steps, logs: install_logs, succeeded: true }
                     }
                 }
                 Some(_) => {
+                    tracing::debug!("InstallState::Unknown");
                     rsx! {
                         h3 { class: "text-xl font-bold mb-2", "State not implemented" }
                     }
                 }
             }
 
+            div { class: "w-full border-t border-zinc-700" }
             Button {
                 on_click: move |evt| {
                     if let Some(sender) = command_sender.read().as_ref() {
@@ -156,12 +169,15 @@ pub fn Install() -> Element {
                 },
                 "Reset State"
             }
+            p { class: "text-lg text-gray-500 mb-8", "Installer socket: {url}" }
         }
     }
 }
 
 fn spawn_connection_task(
     mut install_state: InstallStateSignal,
+    mut install_steps: InstallStepsSignal,
+    mut install_logs: InstallLogsSignal,
     mut command_sender: ClientCommandSignal,
 ) {
     spawn(async move {
@@ -186,12 +202,35 @@ fn spawn_connection_task(
                 match ws_reader.next().await {
                     Some(Ok(Message::Text(text))) => {
                         if let Ok(event) = serde_json::from_str::<ServerEvent>(&text) {
-                            tracing::debug!(?event, "Received event from server");
-                            if let ServerEvent::StateChanged(new_state) = event {
-                                let mut state_lock = install_state.write();
-                                let mut data =
-                                    state_lock.write().expect("BUG: state lock poisoned");
-                                *data = Some(new_state);
+                            // tracing::debug!(?event, "Received event from server");
+
+                            match event {
+                                ServerEvent::StateChanged(new_state) => {
+                                    if let InstallState::Installing(steps) = &new_state {
+                                        *install_steps.write() = steps.clone();
+                                        *install_logs.write() = Vec::new(); // Clear old logs
+                                    }
+
+                                    let mut state_lock = install_state.write();
+                                    let mut data =
+                                        state_lock.write().expect("BUG: state lock poisoned");
+                                    *data = Some(new_state);
+                                }
+                                ServerEvent::InstallStepUpdate(updated_step) => {
+                                    if let Some(step) = install_steps
+                                        .write()
+                                        .iter_mut()
+                                        .find(|s| s.id == updated_step.id)
+                                    {
+                                        *step = updated_step;
+                                    }
+                                }
+                                ServerEvent::InstallLog(log_line) => {
+                                    install_logs.write().push(log_line);
+                                }
+                                _ => {
+                                    tracing::debug!("Unhandled event: {:?}", event);
+                                }
                             }
                         }
                     }
