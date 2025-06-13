@@ -32,6 +32,40 @@ type ClientCommandSignal = Signal<Option<UnboundedSender<ClientCommand>>>;
 type InstallStepsSignal = Signal<Vec<InstallStep>>;
 type InstallLogsSignal = Signal<Vec<String>>;
 
+#[cfg(not(feature = "server"))]
+fn get_ws_url() -> String {
+    #[cfg(debug_assertions)]
+    {
+        const DEV_WS_URL: &str = "ws://127.0.0.1:3000/ws";
+        let url = std::env::var("NIXBLITZ_INSTALLER_WS_OVERRIDE")
+            .unwrap_or_else(|_| DEV_WS_URL.to_string());
+        tracing::info!("Using development WebSocket URL: {}", &url);
+        return url;
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        use web_sys::window;
+
+        let window = window().expect("Must be in a browser environment");
+        let location = window.location();
+        let protocol = location.protocol().expect("Failed to get protocol");
+        let host = location.host().expect("Failed to get host");
+
+        let ws_protocol = if protocol == "https:" { "wss:" } else { "ws:" };
+
+        let url = format!("{}//{}/installer/ws", ws_protocol, host);
+        tracing::info!("Using production WebSocket URL: {}", &url);
+        url
+    }
+}
+
+#[cfg(feature = "server")]
+fn get_ws_url() -> String {
+    tracing::info!("Using empty WebSocket URL on server");
+    String::new()
+}
+
 #[component]
 pub fn Install() -> Element {
     let mut install_state: InstallStateSignal = use_signal(|| Arc::new(RwLock::new(None)));
@@ -40,9 +74,26 @@ pub fn Install() -> Element {
     //      full closure to use_signal like above
     let mut install_steps: InstallStepsSignal = use_signal(Vec::new);
     let mut install_logs: InstallLogsSignal = use_signal(Vec::new);
+    let mut url: Signal<String> = use_signal(String::new);
 
     use_effect(move || {
-        spawn_connection_task(install_state, install_steps, install_logs, command_sender);
+        url.set(get_ws_url());
+    });
+
+    use_effect(move || {
+        let url_for_task = url();
+        if !url_for_task.is_empty() {
+            tracing::debug!("Effect is running. Connecting to: {}", &url_for_task);
+            spawn_connection_task(
+                install_state,
+                install_steps,
+                install_logs,
+                command_sender,
+                url_for_task,
+            );
+        } else {
+            tracing::debug!("Effect is running. No URL to connect to.");
+        }
     });
 
     let state_lock = install_state.read();
@@ -179,14 +230,15 @@ fn spawn_connection_task(
     mut install_steps: InstallStepsSignal,
     mut install_logs: InstallLogsSignal,
     mut command_sender: ClientCommandSignal,
+    url: String,
 ) {
     spawn(async move {
-        tracing::debug!("Establishing WebSocket connection.");
-
         let (tx, mut rx) = mpsc::unbounded::<ClientCommand>();
         command_sender.set(Some(tx));
 
-        let ws = match WebSocket::open("ws://127.0.0.1:3000/ws") {
+        tracing::debug!("Establishing WebSocket connection to {}", url.clone());
+
+        let ws = match WebSocket::open(&url) {
             Ok(ws) => ws,
             Err(e) => {
                 tracing::error!("Failed to open WebSocket object: {}", e);
