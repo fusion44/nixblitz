@@ -133,6 +133,7 @@ in {
       services.${name} = {
         wantedBy = ["multi-user.target"];
         description = "${name} server daemon";
+        path = [pkgs.util-linux];
         environment = {
           IP = cfg.server.host;
           PORT = toString cfg.server.port;
