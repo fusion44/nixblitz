@@ -114,6 +114,9 @@ in {
     nixblitz-install-engine = {
       enable = true;
       dataDir = initConfigPath;
+      server = {
+        logLevel = "DEBUG";
+      };
       nginx = {
         enable = true;
         openFirewall = true;
