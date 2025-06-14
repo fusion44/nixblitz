@@ -21,7 +21,7 @@ format:
 
 update-default-nix:
   nu ./scripts/update-default-nix.nu
-  git diff crates/nixblitz_cli/default.nix
+  git diff crates/nixblitz_cli/default.nix crates/nixblitz_norupo/default.nix
 
 update-flake-locks mode="nixblitz":
   #!/usr/bin/env nu

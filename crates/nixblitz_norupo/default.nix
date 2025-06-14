@@ -3,14 +3,18 @@
   rustPlatform,
   basePath ? "",
 }: let
-  # for local development
-  src = ./..;
+  manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
+  commitSha = "7f30615497ddad479969f13fe2d52654fdae9236";
+  shortSha = builtins.substring 0 7 commitSha;
 
-  # src = pkgs.fetchgit {
-  #   url = "https://forge.f44.fyi/f44/nixblitz";
-  #   rev = "6243d7d0bd94279418f852d03aac29bf7641bb82";
-  #   sha256 = "sha256-C5MgUaetAyhDjcDcmqczN7Pg7tdz2kcs7ZjmpVg0JOI=";
-  # };
+  # for local development
+  # src = ./..;
+
+  src = pkgs.fetchgit {
+    url = "https://forge.f44.fyi/f44/nixblitz";
+    rev = commitSha;
+    sha256 = "sha256-/1Gwjjun/4L09zPchqTWSojWm40B+9B8d3xcHF7XoUQ=";
+  };
 
   # src = fetchFromGitHub {
   #   owner = "fusion44";
@@ -19,14 +23,23 @@
   #   sha256 = "sha256-ag6wM9C+lj/m6zeEp0W0inRWMgAm5dgbejsqKK9OXVE=";
   # };
 
-  rustWorkspacePath = src; # + "/crates";
+  crateSource = src + "/crates";
+  vergenGitSha = commitSha;
+  vergenGitDescribe = "${shortSha}-nix";
+  vergenGitDirty = "false";
+
+  vergenSourceDateEpoch = "0";
 in
   rustPlatform.buildRustPackage {
     pname = "nixblitz-norupo";
-    version = "0.1.0";
+    inherit (manifest) version;
+    src = crateSource;
+    cargoLock.lockFile = crateSource + "/Cargo.lock";
 
-    src = rustWorkspacePath;
-    cargoLock.lockFile = "${rustWorkspacePath}/Cargo.lock";
+    VERGEN_GIT_SHA = vergenGitSha;
+    VERGEN_GIT_DESCRIBE = vergenGitDescribe;
+    VERGEN_GIT_DIRTY = vergenGitDirty;
+    SOURCE_DATE_EPOCH = vergenSourceDateEpoch;
 
     nativeBuildInputs = with pkgs; [
       rustPlatform.cargoSetupHook
@@ -102,4 +115,12 @@ in
 
       runHook postInstall
     '';
+
+    meta = {
+      description = manifest.description or "A web UI for the NixBlitz project.";
+      homepage = manifest.homepage or "https://github.com/fusion44/nixblitz";
+      license = pkgs.lib.licenses.mit;
+      maintainers = ["fusion44"];
+      mainProgram = "nixblitz_norupo";
+    };
   }

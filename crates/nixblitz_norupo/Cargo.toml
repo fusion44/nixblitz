@@ -1,5 +1,6 @@
 [package]
 name = "nixblitz_norupo"
+description = "A web UI for the NixBlitz project."
 version = "0.1.0"
 authors = ["fusion44 <git.bleep096@passmail.net>"]
 edition = "2024"
