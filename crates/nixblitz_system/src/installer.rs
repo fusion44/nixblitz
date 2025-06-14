@@ -67,9 +67,10 @@ pub fn get_disk_info() -> Result<Vec<DiskInfo>, CommandError> {
 
     let output = Command::new("lsblk").args(args).output().map_err(|e| {
         CommandError::SpawnFailed(format!(
-            "Failed to execute lsblk command: {} {}",
+            "Failed to execute lsblk command: {} {}\n{}",
             cmd,
-            args.join(" ")
+            args.join(" "),
+            e
         ))
     })?;
 

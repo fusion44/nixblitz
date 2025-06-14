@@ -14,7 +14,9 @@ use futures::{
     SinkExt, StreamExt,
     stream::{SplitSink, SplitStream},
 };
+use log::{debug, error, info, warn};
 use nixblitz_core::{ClientCommand, ServerEvent};
+use std::io::Write;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::{Mutex, broadcast};
 use tower_http::cors::{Any, CorsLayer};
@@ -25,17 +27,36 @@ const GIT_SHA: &str = match option_env!("VERGEN_GIT_SHA") {
     None => "sha-unknown",
 };
 
+fn init_logging() {
+    match std::env::var("RUST_LOG_STYLE") {
+        Ok(s) if s == "SYSTEMD" => env_logger::builder()
+            .format(|buf, record| {
+                writeln!(
+                    buf,
+                    "<{}>{}: {}",
+                    match record.level() {
+                        log::Level::Error => 3,
+                        log::Level::Warn => 4,
+                        log::Level::Info => 6,
+                        log::Level::Debug => 7,
+                        log::Level::Trace => 7,
+                    },
+                    record.target(),
+                    record.args()
+                )
+            })
+            .init(),
+        _ => env_logger::init(),
+    };
+}
+
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "nixblitz_installer_engine=debug,tower_http=info".into()),
-        )
-        .init();
-    tracing::debug!("Starting installer engine...");
-    tracing::info!("Version: {PKG_VERSION}");
-    tracing::info!("Git SHA: {GIT_SHA}");
+    init_logging();
+
+    debug!("Starting installer engine...");
+    info!("Version: {PKG_VERSION}");
+    info!("Git SHA: {GIT_SHA}");
 
     let shared_engine: SharedInstallEngine = Arc::new(Mutex::new(InstallEngine::new()));
     let cors = CorsLayer::new().allow_origin(Any {});
@@ -46,7 +67,7 @@ async fn main() {
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    tracing::debug!("Server listening on {}", addr);
+    debug!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app.into_make_service())
@@ -62,7 +83,7 @@ async fn websocket_handler(
 }
 
 async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
-    tracing::debug!("New WebSocket client connected.");
+    debug!("New WebSocket client connected.");
 
     let (mut ws_sender, ws_receiver) = socket.split();
 
@@ -71,14 +92,14 @@ async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
         let engine_guard = engine.lock().await;
         let current_state = engine_guard.state.clone();
 
-        tracing::debug!(?current_state, "Sending initial state to new client");
+        debug!("Sending initial state to new client {:?}", current_state);
 
         let event = ServerEvent::StateChanged(current_state);
         let payload =
             serde_json::to_string(&event).expect("Failed to serialize initial state event.");
 
         if ws_sender.send(Message::Text(payload.into())).await.is_err() {
-            tracing::warn!("Client disconnected before initial state could be sent.");
+            warn!("Client disconnected before initial state could be sent.");
             return;
         }
     }
@@ -89,11 +110,11 @@ async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
     let incoming_task = tokio::spawn(handle_incoming_messages(ws_receiver, engine.clone()));
 
     tokio::select! {
-        _ = outgoing_task => tracing::debug!("Outgoing task finished."),
-        _ = incoming_task => tracing::debug!("Incoming task finished."),
+        _ = outgoing_task => debug!("Outgoing task finished."),
+        _ = incoming_task => debug!("Incoming task finished."),
     }
 
-    tracing::info!("WebSocket client disconnected.");
+    info!("WebSocket client disconnected.");
 }
 
 async fn handle_outgoing_messages(
@@ -104,7 +125,7 @@ async fn handle_outgoing_messages(
         let payload = serde_json::to_string(&event).expect("Failed to serialize server event.");
 
         if sender.send(Message::Text(payload.into())).await.is_err() {
-            tracing::debug!("Client disconnected. Closing outgoing message loop.");
+            debug!("Client disconnected. Closing outgoing message loop.");
             break;
         }
     }
@@ -118,11 +139,11 @@ async fn handle_incoming_messages(
         if let Message::Text(text) = message {
             match serde_json::from_str::<ClientCommand>(&text) {
                 Ok(command) => {
-                    tracing::debug!(?command, "Received command from client");
+                    debug!("Received command from client {:?}", command);
                     engine.lock().await.handle_command(command).await;
                 }
                 Err(e) => {
-                    tracing::error!("Failed to deserialize client message: {}", e);
+                    error!("Failed to deserialize client message: {}", e);
                 }
             }
         }

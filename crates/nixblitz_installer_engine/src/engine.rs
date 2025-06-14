@@ -1,3 +1,4 @@
+use log::{debug, error};
 use nixblitz_core::*;
 use nixblitz_core::{InstallStep, StepStatus};
 use nixblitz_system::installer::{
@@ -38,7 +39,7 @@ impl InstallEngine {
         let work_dir = match work_dir {
             Ok(v) => v,
             Err(_) => {
-                tracing::error!(
+                error!(
                     "Error getting work_dir. Is {} set? Exiting...",
                     NIXBLITZ_WORK_DIR_ENV
                 );
@@ -116,7 +117,10 @@ impl InstallEngine {
     async fn update_config_finished(&mut self) {
         match get_disk_info() {
             Ok(disks) => self.state = InstallState::SelectInstallDisk(disks),
-            Err(e) => self.state = InstallState::InstallFailed(e.to_string()),
+            Err(e) => {
+                error!("Failed to get disk info: {}", e);
+                self.state = InstallState::InstallFailed(e.to_string())
+            }
         };
 
         self.broadcast_state();
@@ -417,7 +421,7 @@ async fn fake_install_process(sender: broadcast::Sender<ServerEvent>) {
     }
 
     // 5. If we finished the loop without failing, the installation was a success!
-    tracing::debug!("Fake installation process completed successfully.");
+    debug!("Fake installation process completed successfully.");
     let _ = sender.send(ServerEvent::StateChanged(InstallState::InstallSucceeded));
 }
 

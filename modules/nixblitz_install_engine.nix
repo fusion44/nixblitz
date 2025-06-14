@@ -137,6 +137,8 @@ in {
           IP = cfg.server.host;
           PORT = toString cfg.server.port;
           NIXBLITZ_WORK_DIR = cfg.dataDir;
+          RUST_LOG_STYLE = "SYSTEMD";
+          RUST_LOG = cfg.server.logLevel;
         };
         serviceConfig = {
           ExecStart = "${cfg.package}/bin/nixblitz_installer_engine";
