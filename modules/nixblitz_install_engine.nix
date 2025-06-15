@@ -133,7 +133,7 @@ in {
       services.${name} = {
         wantedBy = ["multi-user.target"];
         description = "${name} server daemon";
-        path = [pkgs.util-linux];
+        path = [pkgs.sudo pkgs.util-linux pkgs.disko];
         environment = {
           IP = cfg.server.host;
           PORT = toString cfg.server.port;

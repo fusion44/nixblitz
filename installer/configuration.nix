@@ -116,6 +116,8 @@ in {
       dataDir = initConfigPath;
       server = {
         logLevel = "DEBUG";
+        user = "root";
+        group = "root";
       };
       nginx = {
         enable = true;

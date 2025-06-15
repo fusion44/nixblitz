@@ -36,7 +36,9 @@ impl std::fmt::Display for DiskoInstallStep {
 }
 
 // The install steps that are performed by the Disko installer
-#[derive(Hash, Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, VariantArray)]
+#[derive(
+    Hash, Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, VariantArray,
+)]
 pub enum DiskoInstallStepName {
     Deps,
     Build,

@@ -18,13 +18,14 @@ use crate::{
 };
 use error_stack::{Report, Result, ResultExt};
 use include_dir::{Dir, include_dir};
-use log::{debug, error, info};
+use log::{debug, error, info, trace};
 use nixblitz_core::{
     errors::{GitError, PasswordError, ProjectError},
     system_platform::SystemPlatform,
 };
 use raw_cpuid::CpuId;
 use sha_crypt::{Sha512Params, sha512_simple};
+use std::io::ErrorKind;
 
 // default password: "nixblitz"
 pub(crate) static INITIAL_PASSWORD: &str = "$6$rounds=10000$moY2rIPxoNODYRxz$1DESwWYweHNkoB6zBxI3DUJwUfvA6UkZYskLOHQ9ulxItgg/hP5CRn2Fr4iQGO7FE16YpJAPMulrAuYJnRC9B.";
@@ -706,13 +707,67 @@ pub fn get_system_platform() -> SystemPlatform {
     }
 }
 
+/// Checks for the availability of required system commands.
+///
+/// This function iterates through a list of required command-line tools
+/// and verifies that they can be found in the system's `PATH`.
+///
+/// # Arguments
+///
+/// * `dependencies` - A slice of string slices, where each element is the name
+///   of a command to check (e.g., `&["sudo", "disko-install"]`).
+///
+/// # Returns
+///
+/// * `Ok(())` - If all required commands are found.
+/// * `Err(Vec<String>)` - If one or more commands are missing. The vector
+///   contains a list of the names of the missing commands.
+///
+pub fn check_system_dependencies(dependencies: &[&str]) -> std::result::Result<(), Vec<String>> {
+    let mut missing_dependencies = Vec::new();
+
+    debug!("Checking for required system dependencies...");
+
+    for &command_name in dependencies {
+        trace!("- Checking for '{}'...", command_name);
+        match Command::new(command_name).output() {
+            Ok(_) => {
+                debug!("  '{}' found.", command_name);
+            }
+            Err(e) => {
+                if e.kind() == ErrorKind::NotFound {
+                    debug!("  '{}' NOT found.", command_name);
+                    missing_dependencies.push(command_name.to_string());
+                } else {
+                    debug!(
+                        "  Error checking for '{}': {}. Assuming it's not available.",
+                        command_name, e
+                    );
+                    missing_dependencies.push(command_name.to_string());
+                }
+            }
+        }
+    }
+
+    if missing_dependencies.is_empty() {
+        trace!("All dependencies are available.");
+        Ok(())
+    } else {
+        trace!("Error: The following required system dependencies are missing:");
+        for dep in &missing_dependencies {
+            trace!("- {}", dep);
+        }
+        Err(missing_dependencies)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs::{self, File, create_dir, create_dir_all};
 
     use crate::utils::{
-        check_password_validity_confirm, create_file, safety_checks, trim_lines_left,
-        unix_hash_password, update_file,
+        check_password_validity_confirm, check_system_dependencies, create_file, safety_checks,
+        trim_lines_left, unix_hash_password, update_file,
     };
     use nixblitz_core::errors::ProjectError;
     use sha_crypt::sha512_check;
@@ -920,5 +975,44 @@ mod tests {
         let expected_output = "line 1    \nline 2 \nline 3  ";
         let result = trim_lines_left("         line 1    \nline 2 \n    line 3  ");
         assert_eq!(result, expected_output);
+    }
+
+    #[test]
+    fn test_all_dependencies_exist() {
+        // Use commands that are virtually guaranteed to exist on a Unix-like system.
+        let deps = &["echo", "ls", "sh"];
+        let result = check_system_dependencies(deps);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_some_dependencies_missing() {
+        // Use a mix of a real command and one that should not exist.
+        let deps = &["ls", "a_very_unlikely_command_to_exist_12345"];
+        let result = check_system_dependencies(deps);
+        assert!(result.is_err());
+        let missing = result.unwrap_err();
+        assert_eq!(missing.len(), 1);
+        assert_eq!(missing[0], "a_very_unlikely_command_to_exist_12345");
+    }
+
+    #[test]
+    fn test_all_dependencies_missing() {
+        // Use commands that are highly unlikely to exist.
+        let deps = &["another_fake_command_abc", "and_one_more_xyz"];
+        let result = check_system_dependencies(deps);
+        assert!(result.is_err());
+        let missing = result.unwrap_err();
+        assert_eq!(missing.len(), 2);
+        assert!(missing.contains(&"another_fake_command_abc".to_string()));
+        assert!(missing.contains(&"and_one_more_xyz".to_string()));
+    }
+
+    #[test]
+    fn test_empty_dependency_list() {
+        // An empty list should always succeed.
+        let deps = &[];
+        let result = check_system_dependencies(deps);
+        assert!(result.is_ok());
     }
 }
