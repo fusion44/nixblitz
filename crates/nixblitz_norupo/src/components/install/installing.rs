@@ -1,12 +1,12 @@
 use dioxus::prelude::*;
 use dioxus_logger::tracing;
-use nixblitz_core::{InstallStep, StepStatus};
+use nixblitz_core::{DiskoInstallStep, DiskoStepStatus};
 
 use crate::{classes::typography, components::InstallStepRow};
 
 #[component]
 pub fn Installing(
-    steps: Signal<Vec<InstallStep>>,
+    steps: Signal<Vec<DiskoInstallStep>>,
     logs: Signal<Vec<String>>,
     succeeded: bool,
 ) -> Element {
@@ -23,7 +23,7 @@ pub fn Installing(
 
             div { class: "flex flex-col items-start space-y-4 w-full",
                 for step in steps.read().iter() {
-                    InstallStepRow { key: "{step.id}", step: step.clone() }
+                    InstallStepRow { key: "{step.name}", step: step.clone() }
                 }
             }
 

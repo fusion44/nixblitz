@@ -4088,6 +4088,8 @@ dependencies = [
  "nixblitz_system",
  "serde",
  "serde_json",
+ "strum",
+ "strum_macros",
  "tokio",
  "tokio-stream",
  "tower-http 0.6.6",

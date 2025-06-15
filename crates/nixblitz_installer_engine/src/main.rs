@@ -1,6 +1,6 @@
 mod engine;
 
-use crate::engine::{InstallEngine, SharedInstallEngine};
+use crate::engine::InstallEngine;
 use axum::{
     Router,
     extract::{
@@ -18,8 +18,10 @@ use log::{debug, error, info, warn};
 use nixblitz_core::{ClientCommand, ServerEvent};
 use std::io::Write;
 use std::{net::SocketAddr, sync::Arc};
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
+
+type SharedInstallEngine = Arc<InstallEngine>;
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 const GIT_SHA: &str = match option_env!("VERGEN_GIT_SHA") {
@@ -58,7 +60,7 @@ async fn main() {
     info!("Version: {PKG_VERSION}");
     info!("Git SHA: {GIT_SHA}");
 
-    let shared_engine: SharedInstallEngine = Arc::new(Mutex::new(InstallEngine::new()));
+    let shared_engine: SharedInstallEngine = Arc::new(InstallEngine::new());
     let cors = CorsLayer::new().allow_origin(Any {});
 
     let app = Router::new()
@@ -84,15 +86,13 @@ async fn websocket_handler(
 
 async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
     debug!("New WebSocket client connected.");
-
     let (mut ws_sender, ws_receiver) = socket.split();
 
     {
-        // send the current state to the new client
-        let engine_guard = engine.lock().await;
-        let current_state = engine_guard.state.clone();
+        let state_guard = engine.state.lock().await;
+        let current_state = state_guard.install_state.clone();
 
-        debug!("Sending initial state to new client {:?}", current_state);
+        debug!("Sending initial state to new client: {:?}", current_state);
 
         let event = ServerEvent::StateChanged(current_state);
         let payload =
@@ -104,8 +104,7 @@ async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
         }
     }
 
-    let broadcast_rx = engine.lock().await.event_sender.subscribe();
-
+    let broadcast_rx = engine.event_sender.subscribe();
     let outgoing_task = tokio::spawn(handle_outgoing_messages(ws_sender, broadcast_rx));
     let incoming_task = tokio::spawn(handle_incoming_messages(ws_receiver, engine.clone()));
 
@@ -121,12 +120,25 @@ async fn handle_outgoing_messages(
     mut sender: SplitSink<WebSocket, Message>,
     mut broadcast_rx: broadcast::Receiver<ServerEvent>,
 ) {
-    while let Ok(event) = broadcast_rx.recv().await {
-        let payload = serde_json::to_string(&event).expect("Failed to serialize server event.");
+    loop {
+        match broadcast_rx.recv().await {
+            Ok(event) => {
+                let payload =
+                    serde_json::to_string(&event).expect("Failed to serialize server event.");
 
-        if sender.send(Message::Text(payload.into())).await.is_err() {
-            debug!("Client disconnected. Closing outgoing message loop.");
-            break;
+                if sender.send(Message::Text(payload.into())).await.is_err() {
+                    debug!("Client disconnected. Closing outgoing message loop.");
+                    break;
+                }
+            }
+            Err(broadcast::error::RecvError::Lagged(n)) => {
+                warn!("Client event stream lagged, skipped {} messages.", n);
+                continue;
+            }
+            Err(broadcast::error::RecvError::Closed) => {
+                debug!("Broadcast channel closed. Closing outgoing message loop.");
+                break;
+            }
         }
     }
 }
@@ -139,8 +151,8 @@ async fn handle_incoming_messages(
         if let Message::Text(text) = message {
             match serde_json::from_str::<ClientCommand>(&text) {
                 Ok(command) => {
-                    debug!("Received command from client {:?}", command);
-                    engine.lock().await.handle_command(command).await;
+                    debug!("Received command from client: {:?}", command);
+                    engine.handle_command(command).await;
                 }
                 Err(e) => {
                     error!("Failed to deserialize client message: {}", e);

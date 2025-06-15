@@ -1,35 +1,44 @@
-use log::{debug, error};
+use log::{debug, error, info};
 use nixblitz_core::*;
-use nixblitz_core::{InstallStep, StepStatus};
+use nixblitz_core::{DiskoInstallStep, DiskoStepStatus};
 use nixblitz_system::installer::{
     get_disk_info, get_process_list, get_system_info, perform_system_check,
 };
 use nixblitz_system::project::Project;
 use std::env;
-use std::process::{Stdio, exit};
+use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
+use strum::VariantArray;
 use tokio::sync::{Mutex, broadcast};
 use tokio::time::sleep;
 
-/// The state of the installation process.
+pub struct EngineState {
+    /// The actual state of the installation process.
+    pub install_state: InstallState,
+
+    /// The disk to install on
+    pub selected_disk: String,
+
+    /// The steps to perform during the installation
+    pub disko_install_steps: Vec<DiskoInstallStep>,
+
+    /// The current log entries
+    pub logs: Vec<String>,
+}
+
 pub struct InstallEngine {
-    /// The single source of truth for the state of the installation.
-    pub state: InstallState,
+    /// The central state of the installation process.
+    pub state: SharedInstallState,
 
     /// The broadcast channel for sending events to clients.
     pub event_sender: broadcast::Sender<ServerEvent>,
 
     /// The project to operate on
     pub work_dir: String,
-
-    /// The disk to install on
-    pub selected_disk: String,
 }
 
-pub type SharedInstallEngine = Arc<Mutex<InstallEngine>>;
+pub type SharedInstallState = Arc<Mutex<EngineState>>;
 
 impl InstallEngine {
     /// Creates a new InstallEngine instance.
@@ -47,17 +56,23 @@ impl InstallEngine {
             }
         };
 
+        let initial_state = EngineState {
+            install_state: InstallState::Idle,
+            selected_disk: "".to_string(),
+            disko_install_steps: initialize_disko_install_steps(),
+            logs: vec![],
+        };
+
         Self {
-            state: InstallState::Idle,
+            state: Arc::new(Mutex::new(initial_state)),
             event_sender: tx,
             work_dir,
-            selected_disk: "".to_string(),
         }
     }
 
     /// The central command processor. It takes a command from a client,
     /// modifies the state, and broadcasts events.
-    pub async fn handle_command(&mut self, command: ClientCommand) {
+    pub async fn handle_command(&self, command: ClientCommand) {
         match command {
             // These commands are in the protocol and must be done after the other
             ClientCommand::PerformSystemCheck => self.perform_system_check().await,
@@ -74,100 +89,101 @@ impl InstallEngine {
     }
 
     /// Broadcasts the current state.
-    fn broadcast_state(&self) {
-        let event = ServerEvent::StateChanged(self.state.clone());
+    fn broadcast_state(&self, state: &InstallState) {
+        let event = ServerEvent::StateChanged(state.clone());
         // We don't care if there are no listeners, so we ignore the error.
         let _ = self.event_sender.send(event);
     }
 
-    // Helper to broadcast events
-    async fn broadcast_event(&self, event: ServerEvent) {
-        let _ = self.event_sender.send(event);
-    }
+    async fn perform_system_check(&self) {
+        let mut state = self.state.lock().await;
+        state.install_state = InstallState::PerformingCheck;
+        self.broadcast_state(&state.install_state);
+        // get_system_info() is a blocking call, so we need to wait a bit to
+        // let the state be broadcasted
+        drop(state);
 
-    async fn perform_system_check(&mut self) {
-        self.state = InstallState::PerformingCheck;
-        self.broadcast_state();
-        // get_system_info() is a blocking call, so we need to wait a bit to let the state be
-        // broadcasted
         let _ = sleep(Duration::from_millis(40)).await;
 
+        // TODO: This blocks the thread, so we need to do it in a separate task
         let summary = get_system_info();
         let check_result = perform_system_check(&summary);
 
-        self.state = InstallState::SystemCheckCompleted(check_result);
-        self.broadcast_state();
+        let mut state = self.state.lock().await;
+        state.install_state = InstallState::SystemCheckCompleted(check_result);
+        self.broadcast_state(&state.install_state);
+        info!("System check completed.");
     }
 
-    async fn get_system_summary(&mut self) {
+    async fn get_system_summary(&self) {
         let evt = ServerEvent::SystemSummaryUpdated(get_system_info());
         let _ = self.event_sender.send(evt);
     }
 
-    async fn get_process_list(&mut self) {
+    async fn get_process_list(&self) {
         let evt = ServerEvent::ProcessListUpdated(get_process_list());
         let _ = self.event_sender.send(evt);
     }
 
-    async fn update_config(&mut self) {
-        self.state = InstallState::UpdateConfig;
-        self.broadcast_state();
+    async fn update_config(&self) {
+        let mut state = self.state.lock().await;
+        state.install_state = InstallState::UpdateConfig;
+        self.broadcast_state(&state.install_state);
     }
 
-    async fn update_config_finished(&mut self) {
+    async fn update_config_finished(&self) {
+        let mut state = self.state.lock().await;
         match get_disk_info() {
-            Ok(disks) => self.state = InstallState::SelectInstallDisk(disks),
+            Ok(disks) => state.install_state = InstallState::SelectInstallDisk(disks),
             Err(e) => {
                 error!("Failed to get disk info: {}", e);
-                self.state = InstallState::InstallFailed(e.to_string())
+                state.install_state = InstallState::InstallFailed(e.to_string())
             }
         };
 
-        self.broadcast_state();
+        self.broadcast_state(&state.install_state);
     }
 
-    async fn install_disk_selected(&mut self, disk: String) {
-        match &self.state {
+    async fn install_disk_selected(&self, disk: String) {
+        let mut state = self.state.lock().await;
+
+        match &state.install_state {
             InstallState::SelectInstallDisk(disk_infos) => {
                 let p = Project::load(self.work_dir.clone().into()).unwrap();
                 let apps = p.get_enabled_apps();
                 let disk_info = disk_infos.iter().find(|d| d.path == disk);
                 match disk_info {
                     Some(_) => {
-                        self.selected_disk = disk.clone();
-                        self.state =
+                        state.selected_disk = disk.clone();
+                        state.install_state =
                             InstallState::PreInstallConfirm(PreInstallConfirmData { apps, disk });
-                        self.broadcast_state();
                     }
                     None => {
-                        self.state = InstallState::SelectDiskError("Disk Not Found".to_owned());
+                        state.install_state =
+                            InstallState::SelectDiskError("Disk Not Found".to_owned());
                     }
                 }
             }
             _ => {
-                self.state = InstallState::SelectDiskError("Selected Disk Not found".to_owned());
+                state.install_state =
+                    InstallState::SelectDiskError("Selected Disk Not found".to_owned());
             }
         };
 
-        self.broadcast_state();
+        self.broadcast_state(&state.install_state);
     }
 
-    async fn start_installation(&mut self) {
-        let steps = vec![
-            create_step("deps", StepStatus::Waiting),
-            create_step("build", StepStatus::Waiting),
-            create_step("disk", StepStatus::Waiting),
-            create_step("mount", StepStatus::Waiting),
-            create_step("copy", StepStatus::Waiting),
-            create_step("bootloader", StepStatus::Waiting),
-        ];
+    async fn start_installation(&self) {
+        let state_clone = self.state.clone();
+        let sender_clone = self.event_sender.clone();
 
-        self.state = InstallState::Installing(steps);
-        self.broadcast_state();
+        {
+            let mut state = state_clone.lock().await;
+            state.install_state = InstallState::Installing(state.disko_install_steps.clone());
+            self.broadcast_state(&state.install_state);
+        }
 
-        let event_sender = self.event_sender.clone();
-
-        tokio::spawn(fake_install_process(event_sender));
+        tokio::spawn(async move { fake_install_process(state_clone, sender_clone).await });
     }
 
     // async fn start_installation(&mut self) {
@@ -341,107 +357,130 @@ impl InstallEngine {
     //     });
     // }
 
-    async fn dev_reset(&mut self) {
-        self.state = InstallState::Idle;
-        self.broadcast_state();
+    async fn dev_reset(&self) {
+        let mut state = self.state.lock().await;
+        state.install_state = InstallState::Idle;
+        state.disko_install_steps = initialize_disko_install_steps();
+        state.logs = vec![];
+        self.broadcast_state(&state.install_state);
     }
 }
 
-/// A helper function to create an `InstallStep` object, reducing boilerplate.
-fn create_step(id: &str, status: StepStatus) -> InstallStep {
-    let name = match id {
-        "deps" => "Fetching Dependencies",
-        "build" => "Building NixOS System",
-        "disk" => "Partitioning & Formatting Disk",
-        "mount" => "Mounting Filesystems",
-        "copy" => "Copying System to Disk",
-        "bootloader" => "Installing Bootloader",
-        _ => "Unknown Step",
-    }
-    .to_string();
+fn add_and_send_install_log(
+    state: &mut EngineState,
+    sender: &broadcast::Sender<ServerEvent>,
+    log: String,
+) {
+    state.logs.push(log.clone());
+    let _ = sender.send(ServerEvent::InstallLog(log));
+}
 
-    InstallStep {
-        id: id.to_string(),
-        name,
-        status,
+fn update_and_send_status(
+    state: &mut EngineState,
+    sender: &broadcast::Sender<ServerEvent>,
+    step_name: &DiskoInstallStepName,
+    status: DiskoStepStatus,
+) {
+    if let Some(step) = state
+        .disko_install_steps
+        .iter_mut()
+        .find(|s| s.name == *step_name)
+    {
+        step.status = status;
+        let _ = sender.send(ServerEvent::InstallStepUpdate(step.clone()));
     }
 }
 
 /// This function simulates the entire installation process, sending events
 /// to the provided sender to update clients.
-async fn fake_install_process(sender: broadcast::Sender<ServerEvent>) {
-    // --- Configuration for the simulation ---
-    // Set this to `true` to test your UI's failure state.
+async fn fake_install_process(
+    state_arc: SharedInstallState,
+    sender: broadcast::Sender<ServerEvent>,
+) {
     let simulate_failure = false;
-    // The ID of the step where the failure should occur.
-    let failure_step_id = "disk";
-    // -----------------------------------------
+    let failure_step_id = DiskoInstallStepName::Disk;
 
-    let step_ids = ["deps", "build", "disk", "mount", "copy", "bootloader"];
+    for step_name in DiskoInstallStepName::VARIANTS {
+        {
+            let mut state_guard = state_arc.lock().await;
+            update_and_send_status(
+                &mut state_guard,
+                &sender,
+                step_name,
+                DiskoStepStatus::InProgress,
+            );
+            add_and_send_install_log(
+                &mut state_guard,
+                &sender,
+                format!("Starting step: {}", step_name),
+            );
+        }
 
-    for step_id in step_ids {
-        // 1. Mark the current step as InProgress
-        let _ = sender.send(ServerEvent::InstallStepUpdate(create_step(
-            step_id,
-            StepStatus::InProgress,
-        )));
-        let _ = sender.send(ServerEvent::InstallLog(format!(
-            "Starting step: {}",
-            create_step(step_id, StepStatus::Waiting).name
-        )));
-
-        // 2. Simulate work with a sleep
-        let sleep_duration_secs = match step_id {
-            "build" => 4, // Make build and copy take longer
-            "copy" => 3,
+        let sleep_duration_secs = match step_name {
+            DiskoInstallStepName::Build => 4, // Make build and copy take longer
+            DiskoInstallStepName::Copy => 3,
             _ => 1,
         };
         tokio::time::sleep(Duration::from_secs(sleep_duration_secs)).await;
 
-        let _ = sender.send(ServerEvent::InstallLog("...".to_string()));
-
-        // 3. Check if we should simulate a failure at this step
-        if simulate_failure && step_id == failure_step_id {
-            let reason = "Failed to format partition (simulated error).".to_string();
-            let _ = sender.send(ServerEvent::InstallStepUpdate(create_step(
-                step_id,
-                StepStatus::Failed(reason.clone()),
-            )));
-            let _ = sender.send(ServerEvent::StateChanged(InstallState::InstallFailed(
-                reason,
-            )));
-            return; // End the simulation here
+        {
+            let mut state_guard = state_arc.lock().await;
+            add_and_send_install_log(&mut state_guard, &sender, "...".to_string());
         }
 
-        // 4. Mark the current step as Done
-        let _ = sender.send(ServerEvent::InstallStepUpdate(create_step(
-            step_id,
-            StepStatus::Done,
-        )));
+        if simulate_failure && *step_name == failure_step_id {
+            let reason = "Failed to format partition (simulated error).".to_string();
+
+            let mut state_guard = state_arc.lock().await;
+            update_and_send_status(
+                &mut state_guard,
+                &sender,
+                step_name,
+                DiskoStepStatus::Failed(reason.clone()),
+            );
+
+            return;
+        }
+
+        let mut state_guard = state_arc.lock().await;
+        update_and_send_status(&mut state_guard, &sender, step_name, DiskoStepStatus::Done);
     }
 
-    // 5. If we finished the loop without failing, the installation was a success!
-    debug!("Fake installation process completed successfully.");
-    let _ = sender.send(ServerEvent::StateChanged(InstallState::InstallSucceeded));
+    {
+        let mut state_guard = state_arc.lock().await;
+        let final_steps = state_guard.disko_install_steps.clone();
+        state_guard.install_state = InstallState::InstallSucceeded(final_steps);
+        debug!("Fake installation process completed successfully.");
+        let final_event = ServerEvent::StateChanged(state_guard.install_state.clone());
+        let _ = sender.send(final_event);
+    }
 }
 
-// Helper function to reduce boilerplate
-async fn update_step_status(sender: &broadcast::Sender<ServerEvent>, id: &str, status: StepStatus) {
-    // This mapping could be more robust, but it's fine for now
-    let name = match id {
-        "deps" => "Fetching Dependencies",
-        "build" => "Building NixOS System",
-        "disk" => "Partitioning & Formatting Disk",
-        "mount" => "Mounting Filesystems",
-        "copy" => "Copying System to Disk",
-        "bootloader" => "Installing Bootloader",
-        _ => "Unknown Step",
-    };
-
-    let step_update = InstallStep {
-        id: id.to_string(),
-        name: name.to_string(),
-        status,
-    };
-    let _ = sender.send(ServerEvent::InstallStepUpdate(step_update));
+fn initialize_disko_install_steps() -> Vec<DiskoInstallStep> {
+    vec![
+        DiskoInstallStep {
+            name: DiskoInstallStepName::Deps,
+            status: DiskoStepStatus::Waiting,
+        },
+        DiskoInstallStep {
+            name: DiskoInstallStepName::Build,
+            status: DiskoStepStatus::Waiting,
+        },
+        DiskoInstallStep {
+            name: DiskoInstallStepName::Disk,
+            status: DiskoStepStatus::Waiting,
+        },
+        DiskoInstallStep {
+            name: DiskoInstallStepName::Mount,
+            status: DiskoStepStatus::Waiting,
+        },
+        DiskoInstallStep {
+            name: DiskoInstallStepName::Copy,
+            status: DiskoStepStatus::Waiting,
+        },
+        DiskoInstallStep {
+            name: DiskoInstallStepName::Bootloader,
+            status: DiskoStepStatus::Waiting,
+        },
+    ]
 }

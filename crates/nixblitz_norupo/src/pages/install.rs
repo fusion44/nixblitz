@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 use dioxus::prelude::*;
 use dioxus_logger::tracing;
 use nixblitz_core::{
-    InstallState, InstallStep,
+    DiskoInstallStep, InstallState,
     app_option_data::{
         option_data::{GetOptionId, OptionData},
         *,
@@ -15,7 +15,7 @@ use crate::{
     backend::{get_app_options_wrapper, get_supported_apps_wrapper},
     classes::{buttons, typography::headings},
     components::{
-        InstallDiskSelection, Installing, PreInstallConfirm,
+        InstallDiskSelection, InstallSuccess, Installing, PreInstallConfirm,
         button::Button,
         install::{SystemCheckDisplay, Welcome},
         option_editors::*,
@@ -29,7 +29,7 @@ use nixblitz_core::{ClientCommand, ServerEvent};
 
 type InstallStateSignal = Signal<Arc<RwLock<Option<InstallState>>>>;
 type ClientCommandSignal = Signal<Option<UnboundedSender<ClientCommand>>>;
-type InstallStepsSignal = Signal<Vec<InstallStep>>;
+type InstallStepsSignal = Signal<Vec<DiskoInstallStep>>;
 type InstallLogsSignal = Signal<Vec<String>>;
 
 #[cfg(not(feature = "server"))]
@@ -72,8 +72,8 @@ pub fn Install() -> Element {
     let mut command_sender: ClientCommandSignal = use_signal(|| None);
     // FYI: Vec::new acts as a function pointter, so we can skip giving a
     //      full closure to use_signal like above
-    let mut install_steps: InstallStepsSignal = use_signal(Vec::new);
-    let mut install_logs: InstallLogsSignal = use_signal(Vec::new);
+    let install_steps: InstallStepsSignal = use_signal(Vec::new);
+    let install_logs: InstallLogsSignal = use_signal(Vec::new);
     let mut url: Signal<String> = use_signal(String::new);
 
     use_effect(move || {
@@ -198,9 +198,21 @@ pub fn Install() -> Element {
                         Installing { steps: install_steps, logs: install_logs, succeeded: false }
                     }
                 }
-                Some(InstallState::InstallSucceeded) => {
+                Some(InstallState::InstallSucceeded(final_steps)) => {
                     rsx! {
-                        Installing { steps: install_steps, logs: install_logs, succeeded: true }
+                        InstallSuccess {
+                            steps: final_steps.clone(),
+                            on_reboot: move |_| {
+                                if let Some(sender) = command_sender.read().as_ref() {
+                                    tracing::info!("Sending Reboot command...");
+                                }
+                            },
+                            on_shutdown: move |_| {
+                                if let Some(sender) = command_sender.read().as_ref() {
+                                    tracing::info!("Sending Shutdown command...");
+                                }
+                            },
+                        }
                     }
                 }
                 Some(state) => {
@@ -264,7 +276,7 @@ fn spawn_connection_task(
                                         *install_logs.write() = Vec::new(); // Clear old logs
                                     }
 
-                                    let mut state_lock = install_state.write();
+                                    let state_lock = install_state.write();
                                     let mut data =
                                         state_lock.write().expect("BUG: state lock poisoned");
                                     *data = Some(new_state);
@@ -273,7 +285,7 @@ fn spawn_connection_task(
                                     if let Some(step) = install_steps
                                         .write()
                                         .iter_mut()
-                                        .find(|s| s.id == updated_step.id)
+                                        .find(|s| s.name == updated_step.name)
                                     {
                                         *step = updated_step;
                                     }
