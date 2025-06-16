@@ -68,6 +68,7 @@ in {
     systemPackages = with pkgs; [
       bat
       fzf
+      tree
       just
       disko
       bottom

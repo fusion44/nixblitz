@@ -21,7 +21,7 @@ format:
 
 update-default-nix:
   nu ./scripts/update-default-nix.nu
-  git diff crates/nixblitz_cli/default.nix crates/nixblitz_norupo/default.nix
+  git add crates/nixblitz_cli/default.nix crates/nixblitz_norupo/default.nix
 
 update-flake-locks mode="nixblitz":
   #!/usr/bin/env nu
@@ -78,11 +78,11 @@ run-cli *args='':
 
 # serve the installer engine
 run-installer-engine:
-  cd {{rust_src}}; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "trace"; cargo run -p nixblitz_installer_engine
+  cd {{rust_src}}; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "debug"; cargo run -p nixblitz_installer_engine
 
 # serve the norupo Web UI
 run-norupo:
-  cd {{rust_src}}/nixblitz_norupo; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "trace"; dx serve --platform web
+  cd {{rust_src}}/nixblitz_norupo; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "debug"; dx serve --platform web
 
 # shorthand for rsync this source directory to a remote node.
 rsync target:
@@ -175,12 +175,8 @@ run-installer-vm target='default':
     (qemu-system-x86_64 -enable-kvm -m 16384 -smp 4
       -netdev user,id=mynet0,hostfwd=tcp::10022-:22,hostfwd=tcp::8080-:80
       -device virtio-net-pci,netdev=mynet0
-      -drive file=fake1.qcow2,if=none,id=virtio0,format=qcow2
-      -drive file=fake2.qcow2,if=none,id=virtio1,format=qcow2
-      -drive file=nixblitz-disk.qcow2,if=none,id=virtio2,format=qcow2
+      -drive file=nixblitz-disk.qcow2,if=none,id=virtio0,format=qcow2
       -device virtio-blk-pci,drive=virtio0
-      -device virtio-blk-pci,drive=virtio1
-      -device virtio-blk-pci,drive=virtio2
       -cdrom $iso_name)
   } else if ("{{target}}" == "dual") {
     print "Running installer with a local disk and usb attached disk"
