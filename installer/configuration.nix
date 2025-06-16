@@ -115,6 +115,7 @@ in {
     nixblitz-install-engine = {
       enable = true;
       dataDir = initConfigPath;
+      demo = false;
       server = {
         logLevel = "DEBUG";
         user = "root";

@@ -46,6 +46,7 @@ pub enum DiskoInstallStepName {
     Mount,
     Copy,
     Bootloader,
+    PostInstall,
 }
 
 impl Display for DiskoInstallStepName {
@@ -63,6 +64,7 @@ impl DiskoInstallStepName {
             DiskoInstallStepName::Mount => "Mounting Filesystems",
             DiskoInstallStepName::Copy => "Copying System to Disk",
             DiskoInstallStepName::Bootloader => "Installing Bootloader",
+            DiskoInstallStepName::PostInstall => "Post Install Steps",
         }
     }
 }

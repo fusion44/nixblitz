@@ -1,7 +1,13 @@
-use std::process::Command;
+use std::{
+    path::Path,
+    process::{Command, Stdio},
+};
 
+use error_stack::{Report, Result};
 use log::{debug, info, trace, warn};
-use nixblitz_core::{CheckResult, CommandError, DiskInfo, ProcessList, SystemSummary};
+use nixblitz_core::{
+    CheckResult, CommandError, DiskInfo, InstallError, ProcessList, SystemSummary,
+};
 use sysinfo::System;
 
 /// Perform the system check and return the results.
@@ -169,4 +175,107 @@ pub fn get_disk_info() -> Result<Vec<DiskInfo>, CommandError> {
 
     trace!("Found {} usable disks", disks.len());
     Ok(disks)
+}
+
+/// Attempts to sync the configuration from the work directory to the selected disk
+pub fn sync_config(work_dir: &Path, selected_disk: &str) -> Result<(), InstallError> {
+    let post = if selected_disk.starts_with("/dev/nvme") {
+        // nvme0n1
+        // ├─nvme0n1p1
+        // ├─nvme0n1p2
+        "p3"
+    } else {
+        // sda
+        // └─sda1
+        "3"
+    };
+    let disk = format!("{}{}", selected_disk, post).to_owned();
+    let mkdir_args = &["mkdir", "-p", "/mnt/data/config"];
+    let mount_args = &["mount", &disk, "/mnt/data/config"];
+    let rsync_args = &[
+        "rsync",
+        "-av",
+        "--delete",
+        &work_dir.to_string_lossy(),
+        "/mnt/data/config",
+    ];
+    let chown_args = &["chown", "-R", "1000:100", "/mnt/data/config"];
+
+    let status = Command::new("sudo")
+        .args(mkdir_args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| {
+            InstallError::CommandError(
+                format!("Failed to run command: sudo {:?}", mkdir_args),
+                e.to_string(),
+            )
+        })?;
+
+    if !status.success() {
+        return Err(Report::new(InstallError::CommandError(
+            "Make data directory failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    let status = Command::new("sudo")
+        .args(mount_args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| {
+            InstallError::CommandError(
+                format!("Failed to run command: sudo {:?}", mount_args),
+                e.to_string(),
+            )
+        })?;
+
+    if !status.success() {
+        return Err(Report::new(InstallError::CommandError(
+            "Mount failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    let status = Command::new("sudo")
+        .args(rsync_args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| {
+            InstallError::CommandError(
+                format!("Failed to run command: sudo {:?}", rsync_args),
+                e.to_string(),
+            )
+        })?;
+
+    if !status.success() {
+        return Err(Report::new(InstallError::CommandError(
+            "Sync failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    let status = Command::new("sudo")
+        .args(chown_args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| {
+            InstallError::CommandError(
+                format!("Failed to run command: sudo {:?}", chown_args),
+                e.to_string(),
+            )
+        })?;
+
+    if !status.success() {
+        return Err(Report::new(InstallError::CommandError(
+            "Chown failed.".to_string(),
+            status.to_string(),
+        )));
+    }
+
+    Ok(())
 }

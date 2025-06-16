@@ -7,14 +7,14 @@ use nixblitz_system::installer::{
 use nixblitz_system::project::Project;
 use nixblitz_system::utils::check_system_dependencies;
 use std::env;
-use std::process::{Stdio, exit};
+use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 use strum::VariantArray;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
 use tokio::sync::{Mutex, broadcast};
 use tokio::time::sleep;
+
+use crate::core::{copy_config, install_system, update_and_send_disko_status};
 
 pub struct EngineState {
     /// The actual state of the installation process.
@@ -242,21 +242,6 @@ fn add_and_send_install_log(
     let _ = sender.send(ServerEvent::InstallLog(log));
 }
 
-fn update_and_send_status(
-    state: &mut EngineState,
-    sender: &broadcast::Sender<ServerEvent>,
-    step_name: &DiskoInstallStepName,
-    status: DiskoStepStatus,
-) {
-    if let Some(step) = state
-        .disko_install_steps
-        .iter_mut()
-        .find(|s| s.name == *step_name)
-    {
-        step.status = status;
-        let _ = sender.send(ServerEvent::InstallStepUpdate(step.clone()));
-    }
-}
 async fn real_install_process(
     state_arc: SharedInstallState,
     sender: broadcast::Sender<ServerEvent>,
@@ -268,7 +253,7 @@ async fn real_install_process(
 ) {
     info!("Starting real_install_process");
 
-    let res = check_system_dependencies(&["sudo", "disko-install"]);
+    let res = check_system_dependencies(&["sudo", "disko-install", "rsync"]);
     if let Err(missing) = res {
         let error_msg = format!("Missing system dependencies: {}", missing.join(", "));
         error!("{}", error_msg);
@@ -278,145 +263,66 @@ async fn real_install_process(
         return;
     }
 
-    let flake_target = format!("{}/src#{}", work_dir, nixos_config_name);
-
-    let args = &[
-        "disko-install",
-        "--flake",
-        &flake_target,
-        "--disk",
-        "main",
+    let res = install_system(
+        state_arc.clone(),
+        sender.clone(),
+        &work_dir,
+        &nixos_config_name,
         &disk,
-    ];
-    let cmd_str = format!("sudo {}", args.join(" "));
-    info!("Running command: '{}'", cmd_str);
+    )
+    .await;
 
-    let mut child = match Command::new("sudo")
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
-        Ok(child) => child,
-        Err(e) => {
-            let mut state = state_arc.lock().await;
-            let error_msg = format!("Failed to spawn command: '{}'\nError:\n{}", cmd_str, e);
-            error!("{}", error_msg);
-            state.install_state = InstallState::InstallFailed(error_msg);
-            let _ = sender.send(ServerEvent::StateChanged(state.install_state.clone()));
-            return;
-        }
-    };
-
-    let stdout = child.stdout.take().expect("Failed to capture stdout");
-    let stderr = child.stderr.take().expect("Failed to capture stderr");
-
-    let mut stdout_reader = BufReader::new(stdout).lines();
-    let mut stderr_reader = BufReader::new(stderr).lines();
-
-    let mut current_step_name = DiskoInstallStepName::Deps;
-
-    loop {
-        tokio::select! {
-            result = stdout_reader.next_line() => {
-                match result {
-                    Ok(Some(line)) => {
-                        info!("[STDOUT]: {}", line);
-                        let _ = sender.send(ServerEvent::InstallLog(line.clone()));
-                        current_step_name = parse_log_and_update_state(&state_arc, &sender, &line, current_step_name).await;
-                    },
-                    _ => break,
-                }
-            },
-            result = stderr_reader.next_line() => {
-                match result {
-                    Ok(Some(line)) => {
-                        info!("[STDERR]: {}", line);
-                        let _ = sender.send(ServerEvent::InstallLog(format!("[STDERR] {}", line)));
-                        current_step_name = parse_log_and_update_state(&state_arc, &sender, &line, current_step_name).await;
-                    },
-                    _ => break,
-                }
-            },
-        }
+    if res.is_err() {
+        // The function does notify the client about the error, so we don't need to do it here.
+        error!("{}", res.unwrap_err());
+        return;
     }
 
-    let status = match child.wait().await {
-        Ok(status) => status,
+    {
+        let mut state = state_arc.lock().await;
+        update_and_send_disko_status(
+            &mut state,
+            &sender,
+            &DiskoInstallStepName::PostInstall,
+            DiskoStepStatus::InProgress,
+        );
+    }
+
+    let res = copy_config(&nixos_config_name, &disk).await;
+    match res {
+        Ok(_) => {} // Do nothing
         Err(e) => {
+            error!("{}", e);
             let mut state = state_arc.lock().await;
-            let error_msg = format!("Failed to wait for installer command: {}", e);
-            error!("{}", error_msg);
-            state.install_state = InstallState::InstallFailed(error_msg);
-            let _ = sender.send(ServerEvent::StateChanged(state.install_state.clone()));
-            return;
+            update_and_send_disko_status(
+                &mut state,
+                &sender,
+                &DiskoInstallStepName::PostInstall,
+                DiskoStepStatus::Failed(e.to_string()),
+            );
         }
     };
 
-    let mut state = state_arc.lock().await;
-    if status.success() {
-        info!("Installation succeeded.");
-        update_and_send_status(
+    {
+        let mut state = state_arc.lock().await;
+        update_and_send_disko_status(
             &mut state,
             &sender,
-            &current_step_name,
+            &DiskoInstallStepName::PostInstall,
             DiskoStepStatus::Done,
         );
-        let final_steps = state.disko_install_steps.clone();
-        state.install_state = InstallState::InstallSucceeded(final_steps);
-    } else {
-        let reason = format!("Installation failed with exit code: {}", status);
-        error!("{}", reason);
-        update_and_send_status(
-            &mut state,
-            &sender,
-            &current_step_name,
-            DiskoStepStatus::Failed(reason.clone()),
-        );
-        state.install_state = InstallState::InstallFailed(reason);
     }
-    let _ = sender.send(ServerEvent::StateChanged(state.install_state.clone()));
-}
-/// A helper to parse a log line and update the state if a landmark is found.
-async fn parse_log_and_update_state(
-    state_arc: &SharedInstallState,
-    sender: &broadcast::Sender<ServerEvent>,
-    line: &str,
-    current_step: DiskoInstallStepName,
-) -> DiskoInstallStepName {
-    let mut next_step = None;
 
-    if line.contains("unpacking 'github:") && current_step < DiskoInstallStepName::Deps {
-        next_step = Some(DiskoInstallStepName::Deps);
-    } else if line.contains("derivations will be built")
-        && current_step < DiskoInstallStepName::Build
     {
-        next_step = Some(DiskoInstallStepName::Build);
-    } else if line.contains("sgdisk") && current_step < DiskoInstallStepName::Disk {
-        next_step = Some(DiskoInstallStepName::Disk);
-    } else if line.contains("mount /dev/disk") && current_step < DiskoInstallStepName::Mount {
-        next_step = Some(DiskoInstallStepName::Mount);
-    } else if line.contains("Copying store paths") && current_step < DiskoInstallStepName::Copy {
-        next_step = Some(DiskoInstallStepName::Copy);
-    } else if line.contains("installing the boot loader")
-        && current_step < DiskoInstallStepName::Bootloader
-    {
-        next_step = Some(DiskoInstallStepName::Bootloader);
+        let mut state_guard = state_arc.lock().await;
+        let final_steps = state_guard.disko_install_steps.clone();
+        state_guard.install_state = InstallState::InstallSucceeded(final_steps);
+        debug!("Installation process completed successfully.");
+        let final_event = ServerEvent::StateChanged(state_guard.install_state.clone());
+        let _ = sender.send(final_event);
     }
-
-    if let Some(step_name) = next_step {
-        let mut state = state_arc.lock().await;
-        // Mark the previous step as Done
-        if current_step != step_name {
-            update_and_send_status(&mut state, sender, &current_step, DiskoStepStatus::Done);
-        }
-        // Mark the new step as InProgress
-        update_and_send_status(&mut state, sender, &step_name, DiskoStepStatus::InProgress);
-        return step_name;
-    }
-
-    current_step // No change, return the current step
 }
+
 /// This function simulates the entire installation process, sending events
 /// to the provided sender to update clients.
 async fn fake_install_process(
@@ -429,7 +335,7 @@ async fn fake_install_process(
     for step_name in DiskoInstallStepName::VARIANTS {
         {
             let mut state_guard = state_arc.lock().await;
-            update_and_send_status(
+            update_and_send_disko_status(
                 &mut state_guard,
                 &sender,
                 step_name,
@@ -458,7 +364,7 @@ async fn fake_install_process(
             let reason = "Failed to format partition (simulated error).".to_string();
 
             let mut state_guard = state_arc.lock().await;
-            update_and_send_status(
+            update_and_send_disko_status(
                 &mut state_guard,
                 &sender,
                 step_name,
@@ -469,7 +375,29 @@ async fn fake_install_process(
         }
 
         let mut state_guard = state_arc.lock().await;
-        update_and_send_status(&mut state_guard, &sender, step_name, DiskoStepStatus::Done);
+        update_and_send_disko_status(&mut state_guard, &sender, step_name, DiskoStepStatus::Done);
+    }
+
+    {
+        let mut state_guard = state_arc.lock().await;
+        update_and_send_disko_status(
+            &mut state_guard,
+            &sender,
+            &DiskoInstallStepName::PostInstall,
+            DiskoStepStatus::InProgress,
+        );
+    }
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    {
+        let mut state_guard = state_arc.lock().await;
+        update_and_send_disko_status(
+            &mut state_guard,
+            &sender,
+            &DiskoInstallStepName::PostInstall,
+            DiskoStepStatus::Done,
+        );
     }
 
     {
@@ -506,6 +434,10 @@ fn initialize_disko_install_steps() -> Vec<DiskoInstallStep> {
         },
         DiskoInstallStep {
             name: DiskoInstallStepName::Bootloader,
+            status: DiskoStepStatus::Waiting,
+        },
+        DiskoInstallStep {
+            name: DiskoInstallStepName::PostInstall,
             status: DiskoStepStatus::Waiting,
         },
     ]

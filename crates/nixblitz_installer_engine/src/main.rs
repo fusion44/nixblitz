@@ -1,3 +1,4 @@
+mod core;
 mod engine;
 
 use crate::engine::InstallEngine;
