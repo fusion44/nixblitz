@@ -15,8 +15,8 @@ use futures::{
     stream::{SplitSink, SplitStream},
 };
 use log::{debug, error, info, warn};
-use nixblitz_core::{ClientCommand, ServerEvent};
-use std::io::Write;
+use nixblitz_core::{ClientCommand, NIXBLITZ_DEMO, ServerEvent};
+use std::{env, io::Write};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
@@ -52,15 +52,24 @@ fn init_logging() {
     };
 }
 
+fn is_demo() -> bool {
+    match env::var(NIXBLITZ_DEMO) {
+        Ok(v) => v == "1",
+        Err(_) => false,
+    }
+}
+
 #[tokio::main]
 async fn main() {
     init_logging();
+    let is_demo = is_demo();
 
-    debug!("Starting installer engine...");
+    info!("Starting installer engine...");
     info!("Version: {PKG_VERSION}");
     info!("Git SHA: {GIT_SHA}");
+    info!("Mode: {}", if is_demo { "DEMO" } else { "LIVE" });
 
-    let shared_engine: SharedInstallEngine = Arc::new(InstallEngine::new());
+    let shared_engine: SharedInstallEngine = Arc::new(InstallEngine::new(is_demo));
     let cors = CorsLayer::new().allow_origin(Any {});
 
     let app = Router::new()
@@ -69,7 +78,7 @@ async fn main() {
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    debug!("Server listening on {}", addr);
+    info!("Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app.into_make_service())

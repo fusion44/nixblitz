@@ -43,6 +43,12 @@ in {
         description = "The config that will be edited by default";
       };
 
+      demo = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether to use the demo config. This will fake the installation process.";
+      };
+
       server = {
         port = mkOption {
           type = types.port;
@@ -140,6 +146,10 @@ in {
           NIXBLITZ_WORK_DIR = cfg.dataDir;
           RUST_LOG_STYLE = "SYSTEMD";
           RUST_LOG = cfg.server.logLevel;
+          NIXBLITZ_DEMO =
+            if cfg.demo
+            then "1"
+            else "0";
         };
         serviceConfig = {
           ExecStart = "${cfg.package}/bin/nixblitz_installer_engine";

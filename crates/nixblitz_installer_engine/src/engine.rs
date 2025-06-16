@@ -39,13 +39,16 @@ pub struct InstallEngine {
 
     /// The project to operate on
     pub work_dir: String,
+
+    /// Whether to use the demo config. This will fake the installation process.
+    pub is_demo: bool,
 }
 
 pub type SharedInstallState = Arc<Mutex<EngineState>>;
 
 impl InstallEngine {
     /// Creates a new InstallEngine instance.
-    pub fn new() -> Self {
+    pub fn new(is_demo: bool) -> Self {
         let (tx, _rx) = broadcast::channel(100);
         let work_dir = env::var(NIXBLITZ_WORK_DIR_ENV);
         let work_dir = match work_dir {
@@ -70,6 +73,7 @@ impl InstallEngine {
             state: Arc::new(Mutex::new(initial_state)),
             event_sender: tx,
             work_dir,
+            is_demo,
         }
     }
 
@@ -176,47 +180,48 @@ impl InstallEngine {
         self.broadcast_state(&state.install_state);
     }
 
-    // async fn start_installation(&self) {
-    //     let state_clone = self.state.clone();
-    //     let sender_clone = self.event_sender.clone();
-    //
-    //     {
-    //         let mut state = state_clone.lock().await;
-    //         state.install_state = InstallState::Installing(state.disko_install_steps.clone());
-    //         self.broadcast_state(&state.install_state);
-    //     }
-    //
-    //     tokio::spawn(async move { fake_install_process(state_clone, sender_clone).await });
-    // }
-
     async fn start_installation(&self) {
         let state_arc = self.state.clone();
         let sender_clone = self.event_sender.clone();
 
-        let (work_dir, nixos_config_name, disk) = {
-            let mut state = state_arc.lock().await;
+        if self.is_demo {
+            let state_clone = self.state.clone();
+            let sender_clone = self.event_sender.clone();
 
-            if !matches!(state.install_state, InstallState::PreInstallConfirm(_)) {
-                let _ = self.event_sender.send(ServerEvent::Error(
-                    "Not in correct state to start installation.".to_string(),
-                ));
-                return;
+            {
+                let mut state = state_clone.lock().await;
+                state.install_state = InstallState::Installing(state.disko_install_steps.clone());
+                self.broadcast_state(&state.install_state);
             }
 
-            state.install_state = InstallState::Installing(state.disko_install_steps.clone());
-            self.broadcast_state(&state.install_state);
+            tokio::spawn(async move { fake_install_process(state_clone, sender_clone).await });
+        } else {
+            let (work_dir, nixos_config_name, disk) = {
+                let mut state = state_arc.lock().await;
 
-            // TODO: The nixos_config_name should not be hardcoded
-            (
-                self.work_dir.clone(),
-                "nixblitzx86vm".to_string(),
-                state.selected_disk.clone(),
-            )
-        };
+                if !matches!(state.install_state, InstallState::PreInstallConfirm(_)) {
+                    let _ = self.event_sender.send(ServerEvent::Error(
+                        "Not in correct state to start installation.".to_string(),
+                    ));
+                    return;
+                }
 
-        tokio::spawn(async move {
-            real_install_process(state_arc, sender_clone, work_dir, nixos_config_name, disk).await;
-        });
+                state.install_state = InstallState::Installing(state.disko_install_steps.clone());
+                self.broadcast_state(&state.install_state);
+
+                // TODO: The nixos_config_name should not be hardcoded
+                (
+                    self.work_dir.clone(),
+                    "nixblitzx86vm".to_string(),
+                    state.selected_disk.clone(),
+                )
+            };
+
+            tokio::spawn(async move {
+                real_install_process(state_arc, sender_clone, work_dir, nixos_config_name, disk)
+                    .await;
+            });
+        }
     }
 
     async fn dev_reset(&self) {
