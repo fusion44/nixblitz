@@ -1,9 +1,10 @@
 use crate::engine::{EngineState, SharedInstallState};
-use error_stack::Report;
-use log::info;
+use error_stack::{FutureExt, Report, Result, ResultExt};
+use log::{debug, info};
 use nixblitz_core::{
     DiskoInstallStepName, DiskoStepStatus, InstallError, InstallState, ServerEvent,
 };
+use nixblitz_system::utils::exec_simple_command;
 use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -168,10 +169,7 @@ async fn parse_log_and_update_state(
     current_step
 }
 
-pub async fn copy_config(
-    work_dir: &String,
-    disk: &String,
-) -> error_stack::Result<(), InstallError> {
+pub async fn copy_config(work_dir: &str, disk: &str) -> error_stack::Result<(), InstallError> {
     let post = if disk.starts_with("/dev/nvme") {
         // nvme0n1
         // ├─nvme0n1p1
@@ -186,7 +184,7 @@ pub async fn copy_config(
     let disk = format!("{}{}", disk, post).to_owned();
     let mkdir_args = vec!["mkdir", "-p", "/mnt/data/config"];
     let mount_args = vec!["mount", &disk, "/mnt/data/config"];
-    let rsync_args = vec!["rsync", "-av", "--delete", &work_dir, "/mnt/data/config"];
+    let rsync_args = vec!["rsync", "-av", "--delete", work_dir, "/mnt/data/config"];
     let chown_args = vec!["chown", "-R", "1000:100", "/mnt/data/config"];
 
     info!("──────────────────────────────────────────────────────────────");
@@ -201,26 +199,11 @@ pub async fn copy_config(
     let commands = vec![mkdir_args, mount_args, rsync_args, chown_args];
 
     for command in commands {
-        let cmd_str = format!("sudo {}", command.join(" "));
-        let status = Command::new("sudo")
-            .args(command)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
+        let result = exec_simple_command("sudo", command.as_slice())
             .await
-            .map_err(|e| {
-                InstallError::CommandError(
-                    format!("Failed to run command: sudo {:?}", cmd_str),
-                    e.to_string(),
-                )
-            })?;
+            .change_context(InstallError::CopyConfigError)?;
 
-        if status.success() {
-            info!("Command '{}' succeeded.", cmd_str);
-        } else {
-            let msg = format!("Copying failed with exit code: {}", status);
-            return Err(Report::new(InstallError::CommandError(cmd_str, msg)));
-        }
+        debug!("{:?}", result);
     }
 
     Ok(())

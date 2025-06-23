@@ -139,7 +139,7 @@ in {
       services.${name} = {
         wantedBy = ["multi-user.target"];
         description = "${name} server daemon";
-        path = [pkgs.sudo pkgs.util-linux pkgs.disko];
+        path = with pkgs; [rsync disko git sudo util-linux];
         environment = {
           IP = cfg.server.host;
           PORT = toString cfg.server.port;

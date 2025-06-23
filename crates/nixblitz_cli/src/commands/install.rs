@@ -2,7 +2,7 @@ use error_stack::{Report, Result, ResultExt};
 use inquire::{Confirm, Select};
 use log::{debug, error, info, warn};
 use nixblitz_core::system_platform::SystemPlatform;
-use nixblitz_system::utils::{commit_config, get_system_platform};
+use nixblitz_system::utils::{commit_config_old, get_system_platform};
 use serde_json;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
@@ -739,7 +739,7 @@ pub fn install_wizard(work_dir: &Path) -> Result<(), CliError> {
     let work_dir_str = work_dir.to_str();
     match work_dir_str {
         Some(work_dir_str) => {
-            let res = commit_config(work_dir_str, "system installed");
+            let res = commit_config_old(work_dir_str, "system installed");
             match res {
                 Ok(()) => {
                     println!("\n✅ System config committed successfully");

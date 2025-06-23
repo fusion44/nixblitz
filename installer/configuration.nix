@@ -152,9 +152,10 @@ in {
       enable = true;
       config = {
         core.editor = "nvim";
-        user.name = "nixblitz";
+        user.name = "NixBlitz Installer";
         user.email = "nixblitz";
         init.defaultBranch = "main";
+        safe.directory = "*";
       };
     };
   };

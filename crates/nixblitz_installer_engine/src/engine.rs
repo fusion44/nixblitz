@@ -1,11 +1,14 @@
 use log::{debug, error, info};
+use nixblitz_core::nix_base::NixBaseConfigOption;
+use nixblitz_core::option_data::{OptionDataChangeNotification, ToOptionId};
+use nixblitz_core::text_edit_data::TextOptionChangeData;
 use nixblitz_core::*;
 use nixblitz_core::{DiskoInstallStep, DiskoStepStatus};
 use nixblitz_system::installer::{
     get_disk_info, get_process_list, get_system_info, perform_system_check,
 };
 use nixblitz_system::project::Project;
-use nixblitz_system::utils::check_system_dependencies;
+use nixblitz_system::utils::{check_system_dependencies, commit_config};
 use std::env;
 use std::process::exit;
 use std::sync::Arc;
@@ -253,7 +256,15 @@ async fn real_install_process(
 ) {
     info!("Starting real_install_process");
 
-    let res = check_system_dependencies(&["sudo", "disko-install", "rsync"]);
+    let res = check_system_dependencies(&[
+        "chown",
+        "disko-install",
+        "git",
+        "mkdir",
+        "mount",
+        "rsync",
+        "sudo",
+    ]);
     if let Err(missing) = res {
         let error_msg = format!("Missing system dependencies: {}", missing.join(", "));
         error!("{}", error_msg);
@@ -286,13 +297,52 @@ async fn real_install_process(
             &DiskoInstallStepName::PostInstall,
             DiskoStepStatus::InProgress,
         );
+        add_and_send_install_log(
+            &mut state,
+            &sender,
+            "Git committing system config...".to_string(),
+        );
     }
 
-    let res = copy_config(&nixos_config_name, &disk).await;
+    {
+        let mut p = Project::load(work_dir.clone().into()).unwrap();
+        let change_notification =
+            OptionDataChangeNotification::TextEdit(TextOptionChangeData::new(
+                NixBaseConfigOption::DiskoDevice.to_option_id(),
+                disk.clone(),
+            ));
+        p.on_option_changed(change_notification).unwrap();
+    }
+
+    let res = commit_config(work_dir.as_str(), "init system").await;
     match res {
         Ok(_) => {} // Do nothing
         Err(e) => {
-            error!("{}", e);
+            let err_str = format!("{:?}", e);
+            error!("{}", err_str.clone());
+            let mut state = state_arc.lock().await;
+            update_and_send_disko_status(
+                &mut state,
+                &sender,
+                &DiskoInstallStepName::PostInstall,
+                DiskoStepStatus::Failed(err_str.clone()),
+            );
+            add_and_send_install_log(&mut state, &sender, err_str);
+            return;
+        }
+    };
+
+    {
+        let mut state = state_arc.lock().await;
+        add_and_send_install_log(&mut state, &sender, "Copying system config...".to_string());
+    }
+
+    let res = copy_config(&work_dir, &disk).await;
+    match res {
+        Ok(_) => {} // Do nothing
+        Err(e) => {
+            let err_str = format!("{:?}", e);
+            error!("{}", err_str.clone());
             let mut state = state_arc.lock().await;
             update_and_send_disko_status(
                 &mut state,
@@ -300,6 +350,8 @@ async fn real_install_process(
                 &DiskoInstallStepName::PostInstall,
                 DiskoStepStatus::Failed(e.to_string()),
             );
+            add_and_send_install_log(&mut state, &sender, err_str);
+            return;
         }
     };
 

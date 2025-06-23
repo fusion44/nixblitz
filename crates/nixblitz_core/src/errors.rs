@@ -1,3 +1,5 @@
+use std::process::ExitStatus;
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -15,27 +17,13 @@ pub enum CommandError {
     /// Failed to acquire stdout/stderr pipes.
     #[error("Failed to get command pipe: {}", .0)]
     PipeError(String),
-}
-
-/// Represents errors that can occur when interacting with the git repository.
-#[derive(Debug, Error)]
-pub enum GitError {
-    #[error("Unable to initialize git repository in directory: {}", .0)]
-    InitError(String),
-    #[error("Unable to add file to git repository in directory: {}", .0)]
-    AddFileError(String),
-    #[error("Unable to commit changes to git repository in directory: {}", .0)]
-    CommitError(String),
-    #[error("Unable to push changes to git repository in directory: {}", .0)]
-    PushError(String),
-    #[error("Unable to pull changes from git repository in directory: {}", .0)]
-    PullError(String),
-    #[error("Unable to checkout a branch from git repository in directory: {}", .0)]
-    CheckoutError(String),
-    #[error("Unable to fetch changes from git repository in directory: {}", .0)]
-    FetchError(String),
-    #[error("The given workpath is invalid: {}", .0)]
-    InvalidPath(String),
+    /// Error for when a command spawns successfully but exits with a non-zero
+    /// status code, indicating that it failed during execution.
+    #[error("Command '{command}' failed with status {status}")]
+    ExecutionFailed { command: String, status: ExitStatus },
+    /// A git error occurred. Use attached_printable to add other information.
+    #[error("A git error occurred while running '{}'", .0)]
+    GitError(String),
 }
 
 #[derive(Debug, Error)]
@@ -128,4 +116,6 @@ pub enum InstallError {
     CommandError(String, String),
     #[error("Lock operation error: {}", .0)]
     LockError(String),
+    #[error("Error while copying the config")]
+    CopyConfigError,
 }

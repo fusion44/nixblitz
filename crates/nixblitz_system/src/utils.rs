@@ -3,7 +3,7 @@ use std::{
     fs::{self, File},
     io::{Read, Write},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{Command, Output, Stdio},
 };
 
 use crate::{
@@ -20,7 +20,8 @@ use error_stack::{Report, Result, ResultExt};
 use include_dir::{Dir, include_dir};
 use log::{debug, error, info, trace};
 use nixblitz_core::{
-    errors::{GitError, PasswordError, ProjectError},
+    CommandError,
+    errors::{PasswordError, ProjectError},
     system_platform::SystemPlatform,
 };
 use raw_cpuid::CpuId;
@@ -203,7 +204,81 @@ pub fn init_default_project(work_dir: &Path, force: Option<bool>) -> Result<(), 
     render_template_files(work_dir, templ_files, force)
 }
 
-pub fn commit_config<'a, P: Into<&'a str>>(work_dir: P, message: &str) -> Result<(), GitError> {
+/// Executes a command asynchronously and returns its `Output`.
+///
+/// This function spawns a new process with the given command and arguments,
+/// waits for it to complete, and collects its output. If the command runs and
+/// exits successfully (with a zero exit code), it returns the `Output` struct.
+///
+/// # Arguments
+///
+/// * `cmd` - The command to execute (e.g., "git", "echo", "cargo").
+/// * `args` - A slice of string slices, representing the arguments to the command.
+///
+/// # Returns
+///
+/// A `Result` which is:
+/// - `Ok(Output)`: If the command executes and exits with a `0` status code.
+///   The `Output` struct contains the process's exit status, stdout, and stderr.
+/// - `Err(Report<CommandError>)`: If the command fails for any reason.
+///
+/// # Errors
+///
+/// This function will return an `Err` wrapping a `CommandError` variant:
+/// - `CommandError::SpawnFailed`: If the command process could not be spawned.
+/// - `CommandError::ExecutionFailed`: If the command was spawned successfully but
+///   exited with a non-zero status code. The error will contain the command,
+///   exit status, and captured output for debugging.
+pub async fn exec_simple_command(cmd: &str, args: &[&str]) -> Result<Output, CommandError> {
+    let command_str = format!("{} {}", cmd, args.join(" "));
+    let output = tokio::process::Command::new(cmd)
+        .args(args)
+        .output()
+        .await
+        .map_err(|e| {
+            // If `output()` fails then the command could not be spawned.
+            Report::new(CommandError::SpawnFailed(command_str.clone()))
+                .attach_printable(format!("OS error: {}", e))
+        })?;
+
+    if !output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+        return Err(Report::new(CommandError::ExecutionFailed {
+            command: command_str,
+            status: output.status,
+        })
+        .attach_printable(stdout)
+        .attach_printable(stderr));
+    }
+
+    Ok(output)
+}
+
+pub async fn commit_config<'a, P: Into<&'a str>>(
+    work_dir: P,
+    message: &str,
+) -> Result<(), CommandError> {
+    info!("Committing config changes with message: {}", message);
+    let work_dir = work_dir.into();
+    let args = &["-C", work_dir, "commit", "-a", "-m", message];
+    info!("Committing with args: {:?}", args);
+
+    exec_simple_command("git", args)
+        .await
+        .change_context(CommandError::GitError(format!(
+            "git -C {} commit -a -m {}",
+            work_dir, message
+        )))?;
+
+    Ok(())
+}
+
+pub fn commit_config_old<'a, P: Into<&'a str>>(
+    work_dir: P,
+    message: &str,
+) -> Result<(), CommandError> {
     info!("Committing config changes with message: {}", message);
     let work_dir = work_dir.into();
     let args = &["-C", work_dir, "commit", "-a", "-m", message];
@@ -214,10 +289,15 @@ pub fn commit_config<'a, P: Into<&'a str>>(work_dir: P, message: &str) -> Result
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .status()
-        .change_context(GitError::CommitError(work_dir.to_string()))?;
+        .map_err(|e| {
+            let cmd = format!("git -C {} commit -a -m {}", work_dir, message);
+            Report::new(CommandError::GitError(cmd)).attach_printable(e)
+        })?;
 
     if !status.success() {
-        return Err(Report::new(GitError::CommitError(work_dir.to_string())).attach_printable(""));
+        let cmd = format!("git -C {} commit -a -m {}", work_dir, message);
+        return Err(Report::new(CommandError::GitError(cmd.to_string()))
+            .attach_printable(format!("Exited with status: {}", status)));
     }
 
     Ok(())
@@ -278,7 +358,7 @@ pub async fn apply_changes(work_dir: &Path) -> Result<(), ProjectError> {
     let work_dir_str = work_dir.to_str();
     match work_dir_str {
         Some(work_dir_str) => {
-            let res = commit_config(work_dir_str, "update config");
+            let res = commit_config_old(work_dir_str, "update config");
             match res {
                 Ok(()) => {
                     info!("\n✅ System config update committed successfully");
@@ -766,10 +846,10 @@ mod tests {
     use std::fs::{self, File, create_dir, create_dir_all};
 
     use crate::utils::{
-        check_password_validity_confirm, check_system_dependencies, create_file, safety_checks,
-        trim_lines_left, unix_hash_password, update_file,
+        check_password_validity_confirm, check_system_dependencies, create_file,
+        exec_simple_command, safety_checks, trim_lines_left, unix_hash_password, update_file,
     };
-    use nixblitz_core::errors::ProjectError;
+    use nixblitz_core::{CommandError, errors::ProjectError};
     use sha_crypt::sha512_check;
 
     #[test]
@@ -1014,5 +1094,82 @@ mod tests {
         let deps = &[];
         let result = check_system_dependencies(deps);
         assert!(result.is_ok());
+    }
+
+    /// Tests that a simple, successful command works as expected.
+    #[tokio::test]
+    async fn test_exec_success() {
+        let result = exec_simple_command("echo", &["hello", "rust"]).await;
+
+        // Ensure the command succeeded
+        assert!(result.is_ok(), "Command should have succeeded");
+        let output = result.unwrap();
+
+        // Check the status code and output
+        assert!(output.status.success());
+        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "hello rust");
+        assert_eq!(String::from_utf8_lossy(&output.stderr).trim(), "");
+    }
+
+    /// Tests that a non-existent command correctly returns a `SpawnFailed` error.
+    #[tokio::test]
+    async fn test_exec_spawn_failed() {
+        let result = exec_simple_command("this_command_should_not_exist_12345", &[]).await;
+
+        // Ensure the command failed
+        assert!(result.is_err(), "Command should have failed to spawn");
+        let error = result.unwrap_err();
+
+        // Check that the error is the correct variant
+        let cause = error.downcast_ref::<CommandError>();
+        assert!(
+            matches!(cause, Some(CommandError::SpawnFailed(_))),
+            "Error should be SpawnFailed"
+        );
+    }
+
+    /// Tests that a command that runs but exits with a non-zero status
+    /// correctly returns an `ExecutionFailed` error.
+    #[tokio::test]
+    async fn test_exec_execution_failed() {
+        // The `false` command is standard on Unix-like systems and always exits with status 1.
+        let result = exec_simple_command("false", &[]).await;
+
+        // Ensure the command failed
+        assert!(result.is_err(), "Command should have failed execution");
+        let error = result.unwrap_err();
+
+        // Check that the error is the correct variant and contains the right details
+        let cause = error.downcast_ref::<CommandError>();
+        match cause {
+            Some(CommandError::ExecutionFailed { status, .. }) => {
+                assert_eq!(status.code(), Some(1), "Exit code should be 1");
+            }
+            _ => panic!("Error should be ExecutionFailed"),
+        }
+    }
+
+    /// Tests a failing command that also produces output on stderr.
+    #[tokio::test]
+    async fn test_exec_execution_failed_with_stderr() {
+        // We use `sh -c` to run a shell command that prints to stderr and exits.
+        // This is a portable way to test this behavior on Unix-like systems.
+        let cmd = "sh";
+        let args = &["-c", "echo 'an error occurred' >&2; exit 42"];
+
+        let result = exec_simple_command(cmd, args).await;
+
+        // Ensure the command failed
+        assert!(result.is_err(), "Command should have failed");
+        let error = result.unwrap_err();
+
+        // Check that the error is the correct variant and contains the captured stderr.
+        let cause = error.downcast_ref::<CommandError>();
+        match cause {
+            Some(CommandError::ExecutionFailed { status, .. }) => {
+                assert_eq!(status.code(), Some(42), "Exit code should be 42");
+            }
+            _ => panic!("Error should be ExecutionFailed"),
+        }
     }
 }
