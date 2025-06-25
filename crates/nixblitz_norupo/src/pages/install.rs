@@ -204,12 +204,10 @@ pub fn Install() -> Element {
                             steps: final_steps.clone(),
                             on_reboot: move |_| {
                                 if let Some(sender) = command_sender.read().as_ref() {
-                                    tracing::info!("Sending Reboot command...");
-                                }
-                            },
-                            on_shutdown: move |_| {
-                                if let Some(sender) = command_sender.read().as_ref() {
-                                    tracing::info!("Sending Shutdown command...");
+                                    tracing::info!("Sending Reboot command via WebSocket");
+                                    if let Err(e) = sender.unbounded_send(ClientCommand::Reboot) {
+                                        tracing::error!("Failed to send Reboot command: {:?}", e);
+                                    }
                                 }
                             },
                         }

@@ -841,6 +841,57 @@ pub fn check_system_dependencies(dependencies: &[&str]) -> std::result::Result<(
     }
 }
 
+/// Attempts to reboot the system
+pub fn reboot_system() -> Result<(), CommandError> {
+    println!(
+        "\n\n--------------------------------------------------------------------------------"
+    );
+    println!("Rebooting system...");
+    println!("--------------------------------------------------------------------------------");
+
+    let args = &["systemctl", "reboot"];
+    let status = Command::new("sudo").args(args).status().map_err(|e| {
+        error!("Failed to reboot system: {}", e);
+        Report::new(CommandError::SpawnFailed(format!("sudo {:?}", args)))
+            .attach_printable(format!("OS error: {}", e))
+    })?;
+
+    if !status.success() {
+        error!("Failed to reboot system. Status: {}", status);
+        return Err(Report::new(CommandError::ExecutionFailed {
+            command: format!("sudo {:?}", args),
+            status,
+        }));
+    }
+
+    Ok(())
+}
+
+/// Attempts to poweroff the system
+pub fn poweroff_system() -> Result<(), CommandError> {
+    println!(
+        "\n\n--------------------------------------------------------------------------------"
+    );
+    println!("Powering off system...");
+    println!("--------------------------------------------------------------------------------");
+    let args = &["systemctl", "poweroff"];
+    let status = Command::new("sudo").args(args).status().map_err(|e| {
+        error!("Failed to poweroff system: {}", e);
+        Report::new(CommandError::SpawnFailed(format!("sudo {:?}", args)))
+            .attach_printable(format!("OS error: {}", e))
+    })?;
+
+    if !status.success() {
+        error!("Failed to poweroff system. Status: {}", status);
+        return Err(Report::new(CommandError::ExecutionFailed {
+            command: format!("sudo {:?}", args),
+            status,
+        }));
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs::{self, File, create_dir, create_dir_all};

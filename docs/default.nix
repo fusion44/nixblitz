@@ -7,7 +7,7 @@ pkgs.buildNpmPackage {
   pname = "nixblitz-docs";
   version = "0.1.0";
   src = ./.;
-  npmDepsHash = "sha256-RdLK1jyafBJ3oB0WpjtqcjDAX/NqnIoMaWoy+UozjQM=";
+  npmDepsHash = "sha256-+k1Eix8B7k0eD/GqQwgD1+P8ldYgM0WAjyXFi2gubHU=";
 
   installPhase = ''
     runHook preInstall

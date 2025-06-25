@@ -2,7 +2,9 @@ use error_stack::{Report, Result, ResultExt};
 use inquire::{Confirm, Select};
 use log::{debug, error, info, warn};
 use nixblitz_core::system_platform::SystemPlatform;
-use nixblitz_system::utils::{commit_config_old, get_system_platform};
+use nixblitz_system::utils::{
+    commit_config_old, get_system_platform, poweroff_system, reboot_system,
+};
 use serde_json;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
@@ -846,11 +848,15 @@ fn show_post_install_choice() -> Result<(), CliError> {
     match PostInstallOption::from_str(post_install_choice) {
         Ok(PostInstallOption::Reboot) => {
             info!("User selected to reboot the system");
-            reboot_system()?;
+            reboot_system()
+                .change_context(CliError::CommandError("reboot".to_string(), "".to_string()))?;
         }
         Ok(PostInstallOption::PowerOff) => {
             info!("User selected to poweroff the system");
-            poweroff_system()?;
+            poweroff_system().change_context(CliError::CommandError(
+                "shutdown".to_string(),
+                "".to_string(),
+            ))?;
         }
         Ok(PostInstallOption::ViewLogs) => {
             info!("User selected to view logs");
@@ -881,61 +887,6 @@ fn show_log() -> Result<(), CliError> {
         error!("Failed to reboot system. Status: {}", status);
         return Err(Report::new(CliError::CommandError(
             "Reboot failed.".to_string(),
-            status.to_string(),
-        )));
-    }
-
-    Ok(())
-}
-
-/// Attempts to reboot the system
-fn reboot_system() -> Result<(), CliError> {
-    println!(
-        "\n\n--------------------------------------------------------------------------------"
-    );
-    println!("Rebooting system...");
-    println!("--------------------------------------------------------------------------------");
-
-    let args = &["systemctl", "reboot"];
-    let status = Command::new("sudo").args(args).status().map_err(|e| {
-        error!("Failed to reboot system: {}", e);
-        CliError::CommandError(
-            format!("Failed to run command: sudo {:?}", args),
-            e.to_string(),
-        )
-    })?;
-
-    if !status.success() {
-        error!("Failed to reboot system. Status: {}", status);
-        return Err(Report::new(CliError::CommandError(
-            "Reboot failed.".to_string(),
-            status.to_string(),
-        )));
-    }
-
-    Ok(())
-}
-
-/// Attempts to poweroff the system
-fn poweroff_system() -> Result<(), CliError> {
-    println!(
-        "\n\n--------------------------------------------------------------------------------"
-    );
-    println!("Powering off system...");
-    println!("--------------------------------------------------------------------------------");
-    let args = &["systemctl", "poweroff"];
-    let status = Command::new("sudo").args(args).status().map_err(|e| {
-        error!("Failed to poweroff system: {}", e);
-        CliError::CommandError(
-            format!("Failed to run command: sudo {:?}", args),
-            e.to_string(),
-        )
-    })?;
-
-    if !status.success() {
-        error!("Failed to poweroff system. Status: {}", status);
-        return Err(Report::new(CliError::CommandError(
-            "Poweroff failed.".to_string(),
             status.to_string(),
         )));
     }

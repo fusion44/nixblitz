@@ -8,11 +8,7 @@ use crate::{
 };
 
 #[component]
-pub fn InstallSuccess(
-    steps: Vec<DiskoInstallStep>,
-    on_reboot: EventHandler<()>,
-    on_shutdown: EventHandler<()>,
-) -> Element {
+pub fn InstallSuccess(steps: Vec<DiskoInstallStep>, on_reboot: EventHandler<()>) -> Element {
     let steps = steps.iter().map(|step| {
         rsx! {
             InstallStepRow { key: "{step.name}", step: step.clone() }
@@ -33,10 +29,9 @@ pub fn InstallSuccess(
 
             div { class: "flex flex-col items-start space-y-4 w-full", {steps} }
 
-            div { class: "pt-6 border-t border-zinc-700 flex justify-center items-center space-x-4",
-                Button { on_click: move |_| on_shutdown.call(()), "Shutdown" }
-                Button { on_click: move |_| on_reboot.call(()), "Reboot Now" }
-            }
+            div { class: "pt-6 border-t border-zinc-700 flex justify-center items-center space-x-4" }
+
+            Button { on_click: move |_| on_reboot.call(()), "Reboot Now" }
         }
     }
 }

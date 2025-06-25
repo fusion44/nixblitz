@@ -95,6 +95,7 @@ pub enum ClientCommand {
     InstallDiskSelected(String),
     StartInstallation,
     DevReset,
+    Reboot,
 }
 
 // Events from the server to all clients

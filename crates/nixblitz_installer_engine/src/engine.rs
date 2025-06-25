@@ -8,7 +8,7 @@ use nixblitz_system::installer::{
     get_disk_info, get_process_list, get_system_info, perform_system_check,
 };
 use nixblitz_system::project::Project;
-use nixblitz_system::utils::{check_system_dependencies, commit_config};
+use nixblitz_system::utils::{check_system_dependencies, commit_config, reboot_system};
 use std::env;
 use std::process::exit;
 use std::sync::Arc;
@@ -101,7 +101,23 @@ impl InstallEngine {
             // These commands are out of protocol
             ClientCommand::GetSystemSummary => self.get_system_summary().await,
             ClientCommand::GetProcessList => self.get_process_list().await,
+            ClientCommand::Reboot => self.reboot_system_command().await,
             ClientCommand::DevReset => self.dev_reset().await,
+        }
+    }
+
+    async fn reboot_system_command(&self) {
+        if self.is_demo {
+            info!("Reboot command received in demo mode. Would trigger system reboot...");
+            return;
+        }
+
+        info!("Reboot command received. Triggering system reboot...");
+        if let Err(e) = reboot_system() {
+            error!("Failed to reboot system: {:?}", e);
+            let _ = self
+                .event_sender
+                .send(ServerEvent::Error(format!("Failed to reboot: {:?}", e)));
         }
     }
 

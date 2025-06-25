@@ -39,7 +39,7 @@ graph TD
 
 ## Architecture Diagram
 
-Click here to view the [interactive diagram](/diagrams/architecture.html) in a new window.
+Click here to view the [interactive diagram](pathname:///diagrams/architecture.html) in a new window.
 
 ## Component Details
 
