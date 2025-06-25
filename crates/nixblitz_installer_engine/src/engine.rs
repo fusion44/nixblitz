@@ -80,13 +80,20 @@ impl InstallEngine {
         }
     }
 
+    /// Updates the installation state and broadcasts the change to all listeners
+    async fn update_state(&self, new_state: InstallState) {
+        let mut state = self.state.lock().await;
+        state.install_state = new_state;
+        self.broadcast_state(&state.install_state);
+    }
+
     /// The central command processor. It takes a command from a client,
     /// modifies the state, and broadcasts events.
     pub async fn handle_command(&self, command: ClientCommand) {
         match command {
             // These commands are in the protocol and must be done after the other
             ClientCommand::PerformSystemCheck => self.perform_system_check().await,
-            ClientCommand::UpdateConfig => self.update_config().await,
+            ClientCommand::UpdateConfig => self.update_state(InstallState::UpdateConfig).await,
             ClientCommand::UpdateConfigFinished => self.update_config_finished().await,
             ClientCommand::InstallDiskSelected(disk) => self.install_disk_selected(disk).await,
             ClientCommand::StartInstallation => self.start_installation().await,
@@ -106,22 +113,17 @@ impl InstallEngine {
     }
 
     async fn perform_system_check(&self) {
-        let mut state = self.state.lock().await;
-        state.install_state = InstallState::PerformingCheck;
-        self.broadcast_state(&state.install_state);
-        // get_system_info() is a blocking call, so we need to wait a bit to
-        // let the state be broadcasted
-        drop(state);
+        self.update_state(InstallState::PerformingCheck).await;
 
+        // Pause to allow state broadcast before blocking call
         let _ = sleep(Duration::from_millis(40)).await;
 
         // TODO: This blocks the thread, so we need to do it in a separate task
         let summary = get_system_info();
         let check_result = perform_system_check(&summary);
 
-        let mut state = self.state.lock().await;
-        state.install_state = InstallState::SystemCheckCompleted(check_result);
-        self.broadcast_state(&state.install_state);
+        self.update_state(InstallState::SystemCheckCompleted(check_result))
+            .await;
         info!("System check completed.");
     }
 
@@ -135,52 +137,54 @@ impl InstallEngine {
         let _ = self.event_sender.send(evt);
     }
 
-    async fn update_config(&self) {
-        let mut state = self.state.lock().await;
-        state.install_state = InstallState::UpdateConfig;
-        self.broadcast_state(&state.install_state);
-    }
-
     async fn update_config_finished(&self) {
-        let mut state = self.state.lock().await;
         match get_disk_info() {
-            Ok(disks) => state.install_state = InstallState::SelectInstallDisk(disks),
+            Ok(disks) => {
+                self.update_state(InstallState::SelectInstallDisk(disks))
+                    .await
+            }
             Err(e) => {
                 error!("Failed to get disk info: {}", e);
-                state.install_state = InstallState::InstallFailed(e.to_string())
+                self.update_state(InstallState::InstallFailed(e.to_string()))
+                    .await;
             }
         };
-
-        self.broadcast_state(&state.install_state);
     }
 
     async fn install_disk_selected(&self, disk: String) {
-        let mut state = self.state.lock().await;
-
-        match &state.install_state {
-            InstallState::SelectInstallDisk(disk_infos) => {
-                let p = Project::load(self.work_dir.clone().into()).unwrap();
-                let apps = p.get_enabled_apps();
-                let disk_info = disk_infos.iter().find(|d| d.path == disk);
-                match disk_info {
-                    Some(_) => {
-                        state.selected_disk = disk.clone();
-                        state.install_state =
-                            InstallState::PreInstallConfirm(PreInstallConfirmData { apps, disk });
-                    }
-                    None => {
-                        state.install_state =
-                            InstallState::SelectDiskError("Disk Not Found".to_owned());
-                    }
-                }
-            }
-            _ => {
-                state.install_state =
-                    InstallState::SelectDiskError("Selected Disk Not found".to_owned());
-            }
+        let current_state = {
+            let state = self.state.lock().await;
+            state.install_state.clone()
         };
 
-        self.broadcast_state(&state.install_state);
+        if let InstallState::SelectInstallDisk(disk_infos) = current_state {
+            if disk_infos.iter().any(|d| d.path == disk) {
+                let confirm_data = {
+                    let p = Project::load(self.work_dir.clone().into()).unwrap();
+                    let apps = p.get_enabled_apps();
+                    PreInstallConfirmData {
+                        apps,
+                        disk: disk.clone(),
+                    }
+                };
+
+                {
+                    let mut state = self.state.lock().await;
+                    state.selected_disk = disk;
+                }
+
+                self.update_state(InstallState::PreInstallConfirm(confirm_data))
+                    .await;
+            } else {
+                self.update_state(InstallState::SelectDiskError("Disk Not Found".to_owned()))
+                    .await;
+            }
+        } else {
+            self.update_state(InstallState::SelectDiskError(
+                "Invalid state for disk selection".to_owned(),
+            ))
+            .await;
+        }
     }
 
     async fn start_installation(&self) {
@@ -189,13 +193,12 @@ impl InstallEngine {
 
         if self.is_demo {
             let state_clone = self.state.clone();
-            let sender_clone = self.event_sender.clone();
+            let steps = {
+                let state = state_clone.lock().await;
+                state.disko_install_steps.clone()
+            };
 
-            {
-                let mut state = state_clone.lock().await;
-                state.install_state = InstallState::Installing(state.disko_install_steps.clone());
-                self.broadcast_state(&state.install_state);
-            }
+            self.update_state(InstallState::Installing(steps)).await;
 
             tokio::spawn(async move { fake_install_process(state_clone, sender_clone).await });
         } else {
@@ -466,7 +469,7 @@ fn initialize_disko_install_steps() -> Vec<DiskoInstallStep> {
     vec![
         DiskoInstallStep {
             name: DiskoInstallStepName::Deps,
-            status: DiskoStepStatus::Waiting,
+            status: DiskoStepStatus::InProgress,
         },
         DiskoInstallStep {
             name: DiskoInstallStepName::Build,
