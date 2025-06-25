@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NixBlitz Architecture Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+        
+        #container {
+            width: 100%;
+            height: 100vh;
+            overflow: auto;
+            position: relative;
+        }
+        
+        .mermaid {
+            transform-origin: 0 0;
+            cursor: grab;
+        }
+        
+        .mermaid:active {
+            cursor: grabbing;
+        }
+        
+        #controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(30, 30, 30, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            background-color: #4a5568;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background-color: #2d3748;
+        }
+        
+        .title {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(30, 30, 30, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+        }
+        
+        #scale-info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(30, 30, 30, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">
+        <h1>NixBlitz Architecture Diagram</h1>
+    </div>
+    
+    <div id="controls">
+        <button onclick="zoomIn()">Zoom In (+)</button>
+        <button onclick="zoomOut()">Zoom Out (-)</button>
+        <button onclick="resetZoom()">Reset (R)</button>
+        <button onclick="fitToScreen()">Fit to Screen (F)</button>
+    </div>
+    
+    <div id="scale-info"></div>
+    
+    <div id="container">
+        <div class="mermaid">
+            graph TD
+                %% Define main ordering with invisible edges
+                CLI ~~~ NC
+                NC ~~~ IE
+                IE ~~~ EV[Events]
+                
+                subgraph CLI Interface
+                    CLI[nixblitz_cli] --> |Parses| CMD[Commands]
+                    CMD --> TUI[TUI Mode]
+                    CMD --> INIT[Init Command]
+                    CMD --> INST[Install Command]
+                    CMD --> SET[Set Command]
+                    CMD --> APPLY[Apply Command]
+                    CMD --> DOC[Doctor Command]
+                    
+                    TUI --> |Uses| COMP[UI Components]
+                    COMP --> AppList[App List]
+                    COMP --> AppOpts[App Options]
+                    COMP --> Theme[Theming]
+                    
+                    TUI --> |Contains| PAGES[Pages]
+                    PAGES --> ActionsPage[Actions]
+                    PAGES --> AppsPage[Apps]
+                    PAGES --> SettingsPage[Settings]
+                    PAGES --> HelpPage[Help]
+                end
+
+                subgraph WebUI Interface
+                    NO[Norupo] --> |Uses| WCLI[CLI Integration]
+                    NO --> |Provides| WIFACE[Web Interface]
+                    WIFACE --> DashP[Dashboard Page]
+                    WIFACE --> AppsP[Apps Config]
+                    WIFACE --> SysP[System Settings]
+                    WIFACE --> API[API Endpoints]
+                    
+                    NO --> |Uses| NC
+                    NO --> |Uses| NS
+                end
+
+                subgraph Core Components
+                    NC[nixblitz_core] --> |Provides| D[Definitions & Types]
+                    D --> |Contains| AD[App Definitions]
+                    D --> |Contains| SI[System Info]
+                    D --> |Contains| E[Error Types]
+                end
+
+                subgraph Event System
+                    IE --> |Broadcasts| EV
+                    EV --> |Updates| CL[Clients]
+                    EV --> |Logs| LOG[Installation Logs]
+                end
+
+                subgraph Installer Engine
+                    IE[InstallEngine] --> |Manages| S[State Management]
+                    S --> |Contains| IS[InstallState]
+                    S --> |Contains| DS[Disko Steps]
+                    
+                    IE --> |Handles| CC[Client Commands]
+                    CC --> |Triggers| SC[System Check]
+                    CC --> |Triggers| UC[Update Config]
+                    CC --> |Triggers| DS2[Disk Selection]
+                    CC --> |Triggers| SI2[Start Installation]
+                    
+                    SI2 --> |Spawns| IP[Installation Process]
+                    IP --> |Real Install| RIP[Real Install Process]
+                    IP --> |Demo Install| FIP[Fake Install Process]
+                end
+
+                subgraph Installation Steps
+                    RIP --> |1| DEPS[Check Dependencies]
+                    DEPS --> |2| BUILD[Build System]
+                    BUILD --> |3| DISK[Disk Setup]
+                    DISK --> |4| MOUNT[Mount Filesystems]
+                    MOUNT --> |5| COPY[Copy System]
+                    COPY --> |6| BOOT[Install Bootloader]
+                    BOOT --> |7| POST[Post Install Tasks]
+                end
+
+                subgraph System Interface
+                    NS[nixblitz_system] --> |Provides| SU[System Utils]
+                    SU --> |Executes| CMDS[System Commands]
+                    SU --> |Manages| PROJ[Project Config]
+                    
+                    NS --> |Handles| DI[Disk Info]
+                    NS --> |Performs| PSC[Platform-Specific Checks]
+                end
+
+                %% Cross-component relationships
+                CLI --> NC
+                CLI --> NS
+                INST --> IE
+                TUI --> IE
+                NC --> IE
+                NS --> IE
+                
+                %% UI state flow
+                TUI --> |Updates| S
+                S --> |Updates| TUI
+                
+                %% Click actions for components
+                click CLI "https://github.com/fusion44/nixblitz/tree/main/crates/nixblitz_cli" "Go to CLI source"
+                click NC "https://github.com/fusion44/nixblitz/tree/main/crates/nixblitz_core" "Go to Core source"
+                click IE "https://github.com/fusion44/nixblitz/tree/main/crates/nixblitz_installer_engine" "Go to Installer Engine source"
+                click NS "https://github.com/fusion44/nixblitz/tree/main/crates/nixblitz_system" "Go to System source"
+                click NO "https://github.com/fusion44/nixblitz/tree/main/crates/nixblitz_norupo" "Go to Norupo (WebUI) source"
+        </div>
+    </div>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#2d3436',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#7b8a8b',
+                lineColor: '#808080',
+                secondaryColor: '#515151',
+                tertiaryColor: '#40514f'
+            }
+        });
+
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let lastX = 0;
+        let lastY = 0;
+        
+        const container = document.getElementById('container');
+        const mermaidDiv = document.querySelector('.mermaid');
+        const scaleInfo = document.getElementById('scale-info');
+        
+        function updateTransform() {
+            mermaidDiv.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            scaleInfo.textContent = `Zoom: ${Math.round(scale * 100)}%`;
+        }
+        
+        function zoomIn() {
+            scale *= 1.2;
+            updateTransform();
+        }
+        
+        function zoomOut() {
+            scale /= 1.2;
+            updateTransform();
+        }
+        
+        function resetZoom() {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        }
+        
+        function fitToScreen() {
+            const containerRect = container.getBoundingClientRect();
+            const mermaidRect = mermaidDiv.getBoundingClientRect();
+            
+            const scaleX = containerRect.width / (mermaidRect.width / scale);
+            const scaleY = containerRect.height / (mermaidRect.height / scale);
+            scale = Math.min(scaleX, scaleY) * 0.9; // 90% of the container
+            
+            translateX = (containerRect.width - (mermaidRect.width * scale)) / 2;
+            translateY = (containerRect.height - (mermaidRect.height * scale)) / 2;
+            
+            updateTransform();
+        }
+        
+        container.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            mermaidDiv.style.cursor = 'grabbing';
+        });
+        
+        container.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - lastX;
+            const dy = e.clientY - lastY;
+            
+            translateX += dx;
+            translateY += dy;
+            
+            lastX = e.clientX;
+            lastY = e.clientY;
+            
+            updateTransform();
+        });
+        
+        container.addEventListener('mouseup', () => {
+            isDragging = false;
+            mermaidDiv.style.cursor = 'grab';
+        });
+        
+        container.addEventListener('mouseleave', () => {
+            isDragging = false;
+            mermaidDiv.style.cursor = 'grab';
+        });
+        
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            const rect = mermaidDiv.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const delta = -Math.sign(e.deltaY);
+            const factor = 1.1;
+            
+            const newScale = delta > 0 ? scale * factor : scale / factor;
+            
+            // Adjust the translation to zoom into/out of the mouse position
+            translateX = x - (x - translateX) * (newScale / scale);
+            translateY = y - (y - translateY) * (newScale / scale);
+            
+            scale = newScale;
+            updateTransform();
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '+' || e.key === '=') zoomIn();
+            if (e.key === '-' || e.key === '_') zoomOut();
+            if (e.key === 'r' || e.key === 'R') resetZoom();
+            if (e.key === 'f' || e.key === 'F') fitToScreen();
+        });
+        
+        // Initial fit to screen
+        window.addEventListener('load', () => {
+            setTimeout(fitToScreen, 1000); // Longer delay to ensure the diagram is rendered
+        });
+    </script>
+</body>
+</html>
