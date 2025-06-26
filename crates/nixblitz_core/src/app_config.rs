@@ -5,7 +5,7 @@ use crate::{
 use error_stack::Result;
 use std::{fmt::Debug, path::Path};
 
-pub trait AppConfig: Debug {
+pub trait AppConfig: Debug + Send {
     fn app_option_changed(
         &mut self,
         option: &OptionDataChangeNotification,

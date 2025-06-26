@@ -23,7 +23,7 @@ use super::{
 
 #[derive(Debug)]
 pub struct PortOptionComponent<'a> {
-    data: PortOptionData,
+    data: Box<PortOptionData>,
     title: &'a str,
     subtitle: String,
     selected: bool,
@@ -33,7 +33,7 @@ pub struct PortOptionComponent<'a> {
 }
 
 impl PortOptionComponent<'_> {
-    pub fn new(data: &PortOptionData, selected: bool) -> Result<Self, CliError> {
+    pub fn new(data: &Box<PortOptionData>, selected: bool) -> Result<Self, CliError> {
         let subtitle = data.value().to_string();
         let title = OPTION_TITLES
             .get(data.id())
@@ -68,7 +68,7 @@ impl PortOptionComponent<'_> {
         self.subtitle = self.data.value().to_string();
     }
 
-    pub fn set_data(&mut self, data: &PortOptionData) {
+    pub fn set_data(&mut self, data: &Box<PortOptionData>) {
         self.data = data.clone();
     }
 }

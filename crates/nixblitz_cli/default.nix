@@ -50,6 +50,7 @@ in
 
       cargo install --root $out --path nixblitz_cli
       cargo install --root $out --path nixblitz_installer_engine
+      cargo install --root $out --path nixblitz_system_engine
 
       runHook postInstall
     '';

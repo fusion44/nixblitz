@@ -1,4 +1,7 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use error_stack::{Result, ResultExt};
 use log::{debug, error, info};
@@ -27,25 +30,25 @@ pub struct Project {
     work_dir: PathBuf,
 
     /// The currently selected app
-    selected_app: Box<Rc<RefCell<dyn AppConfig>>>,
+    selected_app: Box<Arc<Mutex<dyn AppConfig>>>,
 
     /// The nix base config
-    nix_base: Rc<RefCell<NixBaseConfig>>,
+    nix_base: Arc<Mutex<NixBaseConfig>>,
 
     /// The bitcoin daemon service
-    bitcoin: Rc<RefCell<BitcoinDaemonService>>,
+    bitcoin: Arc<Mutex<BitcoinDaemonService>>,
 
     /// The Core Lightning service
-    cln: Rc<RefCell<CoreLightningService>>,
+    cln: Arc<Mutex<CoreLightningService>>,
 
     /// The lightning network daemon service
-    lnd: Rc<RefCell<LightningNetworkDaemonService>>,
+    lnd: Arc<Mutex<LightningNetworkDaemonService>>,
 
     /// Blitz API service
-    blitz_api: Rc<RefCell<BlitzApiService>>,
+    blitz_api: Arc<Mutex<BlitzApiService>>,
 
     /// Blitz Web UI service
-    blitz_webui: Rc<RefCell<BlitzWebUiService>>,
+    blitz_webui: Arc<Mutex<BlitzWebUiService>>,
 }
 
 impl Project {
@@ -100,7 +103,7 @@ impl Project {
                 "Trying to load {}",
                 nix_base_config::JSON_FILE_NAME
             ))?;
-        let nix_base = Rc::new(RefCell::new(nix_base));
+        let nix_base = Arc::new(Mutex::new(nix_base));
 
         let bitcoind_path = work_dir.join(bitcoind::JSON_FILE_NAME);
         let bitcoind_json =
@@ -108,21 +111,21 @@ impl Project {
         let bitcoin = BitcoinDaemonService::from_json(&bitcoind_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", bitcoind::JSON_FILE_NAME))?;
-        let bitcoin = Rc::new(RefCell::new(bitcoin));
+        let bitcoin = Arc::new(Mutex::new(bitcoin));
 
         let cln_path = work_dir.join(cln::JSON_FILE_NAME);
         let cln_json = load_json_file(&cln_path).change_context(ProjectError::ProjectLoadError)?;
         let cln = CoreLightningService::from_json(&cln_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", cln::JSON_FILE_NAME))?;
-        let cln = Rc::new(RefCell::new(cln));
+        let cln = Arc::new(Mutex::new(cln));
 
         let lnd_path = work_dir.join(lnd::JSON_FILE_NAME);
         let lnd_json = load_json_file(&lnd_path).change_context(ProjectError::ProjectLoadError)?;
         let lnd = LightningNetworkDaemonService::from_json(&lnd_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", lnd::JSON_FILE_NAME))?;
-        let lnd = Rc::new(RefCell::new(lnd));
+        let lnd = Arc::new(Mutex::new(lnd));
 
         let blitz_api_path = work_dir.join(blitz_api::JSON_FILE_NAME);
         let blitz_api_json =
@@ -130,7 +133,7 @@ impl Project {
         let blitz_api = BlitzApiService::from_json(&blitz_api_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", blitz_api::JSON_FILE_NAME))?;
-        let blitz_api = Rc::new(RefCell::new(blitz_api));
+        let blitz_api = Arc::new(Mutex::new(blitz_api));
 
         let blitz_webui_path = work_dir.join(blitz_webui::JSON_FILE_NAME);
         let blitz_webui_json =
@@ -138,7 +141,7 @@ impl Project {
         let blitz_webui = BlitzWebUiService::from_json(&blitz_webui_json)
             .change_context(ProjectError::ProjectLoadError)
             .attach_printable(format!("Trying to load {}", blitz_webui::JSON_FILE_NAME))?;
-        let blitz_webui = Rc::new(RefCell::new(blitz_webui));
+        let blitz_webui = Arc::new(Mutex::new(blitz_webui));
 
         info!("Loaded project from work_dir: {work_dir:?}");
         Ok(Self {
@@ -169,9 +172,9 @@ impl Project {
     ///
     /// This function will return an error if the options cannot be retrieved
     /// for the specified application.
-    pub fn get_app_options(&mut self) -> Result<Rc<Vec<OptionData>>, ProjectError> {
-        Ok(Rc::new(
-            self.selected_app.clone().borrow_mut().get_options(),
+    pub fn get_app_options(&mut self) -> Result<Arc<Vec<OptionData>>, ProjectError> {
+        Ok(Arc::new(
+            self.selected_app.clone().lock().unwrap().get_options(),
         ))
     }
 
@@ -200,9 +203,10 @@ impl Project {
         &mut self,
         option: OptionDataChangeNotification,
     ) -> Result<bool, ProjectError> {
-        let res = self.selected_app.borrow_mut().app_option_changed(&option)?;
+        let mut app = self.selected_app.lock().unwrap();
+        let res = app.app_option_changed(&option)?;
         if res {
-            self.selected_app.borrow_mut().save(&self.work_dir)?;
+            app.save(&self.work_dir)?;
         };
 
         Ok(res)
@@ -225,25 +229,44 @@ impl Project {
     ///
     /// This function will return an error if any of the components fail to save
     /// their state to the working directory.
-    pub fn set_changes_applied(&mut self) -> Result<(), ProjectError> {
+    pub async fn set_changes_applied(&mut self) -> Result<(), ProjectError> {
         debug!("Setting changes applied in project.");
-        self.nix_base.borrow_mut().set_applied();
-        self.nix_base.borrow_mut().save(&self.work_dir)?;
 
-        self.bitcoin.borrow_mut().set_applied();
-        self.bitcoin.borrow_mut().save(&self.work_dir)?;
+        {
+            let mut nix_base_guard = self.nix_base.lock().unwrap();
+            nix_base_guard.set_applied();
+            nix_base_guard.save(&self.work_dir)?;
+        }
 
-        self.cln.borrow_mut().set_applied();
-        self.cln.borrow_mut().save(&self.work_dir)?;
+        {
+            let mut bitcoin_guard = self.bitcoin.lock().unwrap();
+            bitcoin_guard.set_applied();
+            bitcoin_guard.save(&self.work_dir)?;
+        }
 
-        self.lnd.borrow_mut().set_applied();
-        self.lnd.borrow_mut().save(&self.work_dir)?;
+        {
+            let mut cln_guard = self.cln.lock().unwrap();
+            cln_guard.set_applied();
+            cln_guard.save(&self.work_dir)?;
+        }
 
-        self.blitz_api.borrow_mut().set_applied();
-        self.blitz_api.borrow_mut().save(&self.work_dir)?;
+        {
+            let mut lnd_guard = self.lnd.lock().unwrap();
+            lnd_guard.set_applied();
+            lnd_guard.save(&self.work_dir)?;
+        }
 
-        self.blitz_webui.borrow_mut().set_applied();
-        self.blitz_webui.borrow_mut().save(&self.work_dir)?;
+        {
+            let mut blitz_api_guard = self.blitz_api.lock().unwrap();
+            blitz_api_guard.set_applied();
+            blitz_api_guard.save(&self.work_dir)?;
+        }
+
+        {
+            let mut blitz_webui_guard = self.blitz_webui.lock().unwrap();
+            blitz_webui_guard.set_applied();
+            blitz_webui_guard.save(&self.work_dir)?;
+        }
 
         Ok(())
     }
@@ -254,8 +277,9 @@ impl Project {
     }
 
     /// Returns the currently selected application.
-    pub fn get_platform(&self) -> Option<SystemPlatform> {
-        match SystemPlatform::from_short_str_option(self.nix_base.borrow().platform.value()) {
+    pub async fn get_platform(&self) -> Option<SystemPlatform> {
+        match SystemPlatform::from_short_str_option(self.nix_base.lock().unwrap().platform.value())
+        {
             Ok(v) => Some(v),
             Err(e) => {
                 error!("{e}");
@@ -264,22 +288,22 @@ impl Project {
         }
     }
 
-    pub fn get_enabled_apps(&self) -> Vec<String> {
+    pub async fn get_enabled_apps(&self) -> Vec<String> {
         let mut apps = vec![];
         apps.push("NixOS".to_string());
-        if self.bitcoin.borrow().enable.value() {
+        if self.bitcoin.lock().unwrap().enable.value() {
             apps.push("Bitcoin".to_string());
         }
-        if self.cln.borrow().enable.value() {
+        if self.cln.lock().unwrap().enable.value() {
             apps.push("Core Lightning".to_string());
         }
-        if self.lnd.borrow().enable.value() {
+        if self.lnd.lock().unwrap().enable.value() {
             apps.push("LND".to_string());
         }
-        if self.blitz_api.borrow().enable.value() {
+        if self.blitz_api.lock().unwrap().enable.value() {
             apps.push("Blitz API".to_string());
         }
-        if self.blitz_webui.borrow().enable.value() {
+        if self.blitz_webui.lock().unwrap().enable.value() {
             apps.push("Raspiblitz WebUi".to_string());
         }
 

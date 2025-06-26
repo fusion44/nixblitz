@@ -337,10 +337,10 @@ async fn real_install_process(
                 NixBaseConfigOption::DiskoDevice.to_option_id(),
                 disk.clone(),
             ));
-        p.on_option_changed(change_notification).await.unwrap();
+        p.on_option_changed(change_notification);
     }
 
-    let res = commit_config(work_dir.as_str(), "init system").await;
+    let res = commit_config(work_dir.as_str(), "install system").await;
     match res {
         Ok(_) => {} // Do nothing
         Err(e) => {

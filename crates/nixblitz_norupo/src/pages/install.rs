@@ -15,13 +15,11 @@ use crate::{
     backend::{get_app_options_wrapper, get_supported_apps_wrapper},
     classes::{buttons, typography::headings},
     components::{
-        InstallDiskSelection, InstallSuccess, Installing, PreInstallConfirm,
-        button::Button,
+        Button, Configurator, InstallDiskSelection, InstallSuccess, Installing, PreInstallConfirm,
         install::{SystemCheckDisplay, Welcome},
         option_editors::*,
     },
     installer_engine_connection::EngineConnection,
-    pages::Config,
 };
 use futures::{SinkExt, StreamExt, channel::mpsc, future};
 use gloo_net::websocket::{Message, futures::WebSocket};
@@ -156,7 +154,7 @@ pub fn Install() -> Element {
                         div {
                             "By default, no services will be enabled. Make sure to enable the services you want to use. You can also change the options for the services you enabled. Once you are done, click 'Continue' to continue with the installation."
                         }
-                        Config {}
+                        Configurator {}
                         Button {
                             on_click: move |evt| {
                                 if let Some(sender) = command_sender.read().as_ref() {
@@ -174,7 +172,8 @@ pub fn Install() -> Element {
                             on_select: move |disk| {
                                 tracing::info!("Selected disk: {}", disk);
                                 if let Some(sender) = command_sender.read().as_ref() {
-                                    let _ = sender.unbounded_send(InstallClientCommand::InstallDiskSelected(disk));
+                                    let _ = sender
+                                        .unbounded_send(InstallClientCommand::InstallDiskSelected(disk));
                                 }
                             },
                         }

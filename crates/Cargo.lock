@@ -4146,6 +4146,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "nixblitz_system_engine"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.4",
+ "env_logger",
+ "error-stack",
+ "futures",
+ "log",
+ "nixblitz_core",
+ "nixblitz_system",
+ "serde",
+ "serde_json",
+ "strum",
+ "strum_macros",
+ "tokio",
+ "tokio-stream",
+ "tower-http 0.6.6",
+ "vergen",
+ "vergen-git2",
+]
+
+[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

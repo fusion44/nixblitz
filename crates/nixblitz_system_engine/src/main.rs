@@ -1,7 +1,7 @@
 mod core;
 mod engine;
 
-use crate::engine::InstallEngine;
+use crate::engine::SystemEngine;
 use axum::{
     Router,
     extract::{
@@ -16,18 +16,19 @@ use futures::{
     stream::{SplitSink, SplitStream},
 };
 use log::{debug, error, info, warn};
-use nixblitz_core::{InstallClientCommand, InstallServerEvent, NIXBLITZ_DEMO};
+use nixblitz_core::{NIXBLITZ_DEMO, SystemClientCommand, SystemServerEvent};
 use nixblitz_system::utils::get_env_var;
 use std::{
     env,
     io::Write,
     net::{IpAddr, Ipv4Addr},
+    str::FromStr,
 };
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
 
-type SharedInstallEngine = Arc<InstallEngine>;
+type SharedSystemEngine = Arc<SystemEngine>;
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 const GIT_SHA: &str = match option_env!("VERGEN_GIT_SHA") {
@@ -70,12 +71,12 @@ async fn main() {
     init_logging();
     let is_demo = is_demo();
 
-    info!("Starting installer engine...");
+    info!("Starting system engine...");
     info!("Version: {PKG_VERSION}");
     info!("Git SHA: {GIT_SHA}");
     info!("Mode: {}", if is_demo { "DEMO" } else { "LIVE" });
 
-    let shared_engine: SharedInstallEngine = Arc::new(InstallEngine::new(is_demo));
+    let shared_engine: SharedSystemEngine = Arc::new(SystemEngine::new(is_demo));
     let cors = CorsLayer::new().allow_origin(Any {});
 
     let app = Router::new()
@@ -96,22 +97,22 @@ async fn main() {
 
 async fn websocket_handler(
     ws: WebSocketUpgrade,
-    State(engine): State<SharedInstallEngine>,
+    State(engine): State<SharedSystemEngine>,
 ) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, engine))
 }
 
-async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
+async fn handle_socket(socket: WebSocket, engine: SharedSystemEngine) {
     debug!("New WebSocket client connected.");
     let (mut ws_sender, ws_receiver) = socket.split();
 
     {
         let state_guard = engine.state.lock().await;
-        let current_state = state_guard.install_state.clone();
+        let current_state = state_guard.state.clone();
 
         debug!("Sending initial state to new client: {:?}", current_state);
 
-        let event = InstallServerEvent::StateChanged(current_state);
+        let event = SystemServerEvent::StateChanged(current_state);
         let payload =
             serde_json::to_string(&event).expect("Failed to serialize initial state event.");
 
@@ -135,7 +136,7 @@ async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
 
 async fn handle_outgoing_messages(
     mut sender: SplitSink<WebSocket, Message>,
-    mut broadcast_rx: broadcast::Receiver<InstallServerEvent>,
+    mut broadcast_rx: broadcast::Receiver<SystemServerEvent>,
 ) {
     loop {
         match broadcast_rx.recv().await {
@@ -162,11 +163,11 @@ async fn handle_outgoing_messages(
 
 async fn handle_incoming_messages(
     mut receiver: SplitStream<WebSocket>,
-    engine: SharedInstallEngine,
+    engine: SharedSystemEngine,
 ) {
     while let Some(Ok(message)) = receiver.next().await {
         if let Message::Text(text) = message {
-            match serde_json::from_str::<InstallClientCommand>(&text) {
+            match serde_json::from_str::<SystemClientCommand>(&text) {
                 Ok(command) => {
                     debug!("Received command from client: {:?}", command);
                     engine.handle_command(command).await;

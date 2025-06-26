@@ -119,3 +119,15 @@ pub enum InstallError {
     #[error("Error while copying the config")]
     CopyConfigError,
 }
+
+#[derive(Debug, Error)]
+pub enum SystemError {
+    #[error("{}", .0)]
+    IoError(String),
+    #[error("Error while updating the system: {}", .0)]
+    UpdateError(String),
+    #[error("Error while running command: {}\nError: {}", .0,.1 )]
+    CommandError(String, String),
+    #[error("Lock operation error: {}", .0)]
+    LockError(String),
+}

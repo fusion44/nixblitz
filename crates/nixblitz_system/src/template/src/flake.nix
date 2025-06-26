@@ -45,6 +45,7 @@
       nixblitz.nixosModules.nixblitz-cli
       nixblitz.nixosModules.nixblitz-docs
       nixblitz.nixosModules.nixblitz-norupo
+      nixblitz.nixosModules.nixblitz-system-engine
     ];
   in {
     nixosConfigurations = {

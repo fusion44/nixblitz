@@ -57,11 +57,11 @@ async fn get_app_options(app: String) -> Result<Vec<OptionData>, ServerFnError> 
         errors::ProjectError,
     };
     use nixblitz_system::project::Project;
-    use std::{env, path::PathBuf, rc::Rc};
+    use std::{env, path::PathBuf, sync::Arc};
 
     let mut p = get_project()?;
     p.set_selected_app(SupportedApps::from(app.as_str()).unwrap());
-    let o: Result<Rc<Vec<OptionData>>, Report<ProjectError>> = p.get_app_options();
+    let o: Result<Arc<Vec<OptionData>>, Report<ProjectError>> = p.get_app_options();
     match o {
         Ok(o) => Ok(o.to_vec()),
         Err(e) => Err(ServerFnError::ServerError(e.to_string())),

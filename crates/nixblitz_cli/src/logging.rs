@@ -46,11 +46,14 @@ pub fn init_logging(cli: &Cli) {
         .or_else(|| std::env::var(LOG_FILE_ENV).ok().map(PathBuf::from))
         .unwrap_or_else(get_default_log_file);
 
-    // Create parent directories if they don't exist
-    if let Some(parent) = log_file.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent)
-                .unwrap_or_else(|_| panic!("Failed to create log directory: {:?}", parent));
+    let mut log_to_file = false;
+    if !log_file.as_os_str().is_empty() {
+        log_to_file = true;
+        if let Some(parent) = log_file.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent)
+                    .unwrap_or_else(|_| panic!("Failed to create log directory: {:?}", parent));
+            }
         }
     }
 
@@ -64,9 +67,15 @@ pub fn init_logging(cli: &Cli) {
                 message
             ))
         })
-        .level(log_level)
-        .chain(fern::log_file(&log_file).expect("Failed to open log file for writing"))
-        .apply();
+        .level(log_level);
+
+    let fern_logger = if log_to_file {
+        fern_logger
+            .chain(fern::log_file(&log_file).expect("Failed to open log file for writing"))
+            .apply()
+    } else {
+        fern_logger.apply()
+    };
 
     if let Err(e) = fern_logger {
         eprintln!("Error initializing logger: {}", e);

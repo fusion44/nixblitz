@@ -40,6 +40,7 @@
           })
           nixblitz.nixosModules.nixblitz-cli
           nixblitz.nixosModules.nixblitz-install-engine
+          nixblitz.nixosModules.nixblitz-system-engine
           nixblitz.nixosModules.nixblitz-norupo
           nixblitz.nixosModules.nixblitz-docs
           ./configuration.nix

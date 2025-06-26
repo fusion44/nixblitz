@@ -14,6 +14,7 @@
     cli_name = "nixblitz-cli";
     docs_name = "nixblitz-docs";
     install_engine_name = "nixblitz-install-engine";
+    system_engine_name = "nixblitz-system-engine";
     webapp_name = "nixblitz-norupo";
 
     module = {
@@ -28,6 +29,10 @@
         };
         ${install_engine_name} = {...}: {
           imports = [./modules/nixblitz_install_engine.nix];
+          nixpkgs.overlays = [self.overlays.default];
+        };
+        ${system_engine_name} = {...}: {
+          imports = [./modules/nixblitz_system_engine.nix];
           nixpkgs.overlays = [self.overlays.default];
         };
         ${webapp_name} = {...}: {

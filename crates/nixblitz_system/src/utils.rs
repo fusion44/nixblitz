@@ -1,9 +1,11 @@
 use std::{
+    env,
     fmt::Display,
     fs::{self, File},
     io::{Read, Write},
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
+    str::FromStr,
 };
 
 use crate::{
@@ -307,7 +309,7 @@ pub async fn apply_changes(work_dir: &Path) -> Result<(), ProjectError> {
     info!("Initiating NixOS rebuild...");
     let project = Project::load(work_dir.to_path_buf())?;
 
-    let platform = if let Some(p) = project.get_platform() {
+    let platform = if let Some(p) = project.get_platform().await {
         p
     } else {
         return Err(Report::new(ProjectError::ApplyChangesError())
@@ -336,7 +338,7 @@ pub async fn apply_changes(work_dir: &Path) -> Result<(), ProjectError> {
                                 .attach_printable("Command exited with non-zero status."))?
                         } else {
                             let mut project = Project::load(work_dir.to_path_buf())?;
-                            project.set_changes_applied()?;
+                            project.set_changes_applied().await?;
                         }
                     }
                     ProcessOutput::Error(err_msg) => {
@@ -890,6 +892,28 @@ pub fn poweroff_system() -> Result<(), CommandError> {
     }
 
     Ok(())
+}
+
+/// Tries to get a value from an environment variable and parse it.
+/// Falls back to a provided default value if the variable is not set or fails to parse.
+pub fn get_env_var<T>(key: &str, default: T) -> T
+where
+    T: FromStr + Display,
+    <T as FromStr>::Err: Display,
+{
+    match env::var(key) {
+        Ok(val_str) => val_str.parse::<T>().unwrap_or_else(|e| {
+            error!(
+                "Failed to parse ${}. Got '{}'. Defaulting to '{}': {}",
+                key, val_str, default, e
+            );
+            default
+        }),
+        Err(e) => {
+            debug!("Failed to get ${}. Defaulting to '{}': {}", key, default, e);
+            default
+        }
+    }
 }
 
 #[cfg(test)]

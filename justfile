@@ -80,9 +80,16 @@ run-cli *args='':
 run-installer-engine:
   cd {{rust_src}}; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "debug"; cargo run -p nixblitz_installer_engine
 
+run-system-engine:
+  cd {{rust_src}}; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "debug"; cargo run -p nixblitz_system_engine
+
 # serve the norupo Web UI
 run-norupo:
   cd {{rust_src}}/nixblitz_norupo; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "debug"; dx serve --platform web
+
+# run the tailwind CSS dev server
+run-tailwind:
+  tailwindcss -o ./crates/nixblitz_norupo/assets/tailwind.css --watch
 
 # shorthand for rsync this source directory to a remote node.
 rsync target:
