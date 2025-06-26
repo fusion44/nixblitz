@@ -25,10 +25,10 @@ use crate::{
 };
 use futures::{SinkExt, StreamExt, channel::mpsc, future};
 use gloo_net::websocket::{Message, futures::WebSocket};
-use nixblitz_core::{ClientCommand, ServerEvent};
+use nixblitz_core::{InstallClientCommand, InstallServerEvent};
 
 type InstallStateSignal = Signal<Arc<RwLock<Option<InstallState>>>>;
-type ClientCommandSignal = Signal<Option<UnboundedSender<ClientCommand>>>;
+type ClientCommandSignal = Signal<Option<UnboundedSender<InstallClientCommand>>>;
 type InstallStepsSignal = Signal<Vec<DiskoInstallStep>>;
 type InstallLogsSignal = Signal<Vec<String>>;
 
@@ -121,7 +121,7 @@ pub fn Install() -> Element {
                             on_click: move |_| {
                                 tracing::debug!("Clicked 'Next' button on welcome screen.");
                                 if let Some(sender) = command_sender.read().as_ref() {
-                                    let _ = sender.unbounded_send(ClientCommand::PerformSystemCheck);
+                                    let _ = sender.unbounded_send(InstallClientCommand::PerformSystemCheck);
                                 }
                             },
                         }
@@ -133,7 +133,7 @@ pub fn Install() -> Element {
                             loading: true,
                             on_click: move |_| {
                                 if let Some(sender) = command_sender.read().as_ref() {
-                                    let _ = sender.unbounded_send(ClientCommand::PerformSystemCheck);
+                                    let _ = sender.unbounded_send(InstallClientCommand::PerformSystemCheck);
                                 }
                             },
                         }
@@ -145,7 +145,7 @@ pub fn Install() -> Element {
                             result: result.clone(),
                             on_click: move |_| {
                                 if let Some(sender) = command_sender.read().as_ref() {
-                                    let _ = sender.unbounded_send(ClientCommand::UpdateConfig);
+                                    let _ = sender.unbounded_send(InstallClientCommand::UpdateConfig);
                                 }
                             },
                         }
@@ -160,7 +160,7 @@ pub fn Install() -> Element {
                         Button {
                             on_click: move |evt| {
                                 if let Some(sender) = command_sender.read().as_ref() {
-                                    let _ = sender.unbounded_send(ClientCommand::UpdateConfigFinished);
+                                    let _ = sender.unbounded_send(InstallClientCommand::UpdateConfigFinished);
                                 }
                             },
                             "Continue"
@@ -174,7 +174,7 @@ pub fn Install() -> Element {
                             on_select: move |disk| {
                                 tracing::info!("Selected disk: {}", disk);
                                 if let Some(sender) = command_sender.read().as_ref() {
-                                    let _ = sender.unbounded_send(ClientCommand::InstallDiskSelected(disk));
+                                    let _ = sender.unbounded_send(InstallClientCommand::InstallDiskSelected(disk));
                                 }
                             },
                         }
@@ -187,7 +187,7 @@ pub fn Install() -> Element {
                             data: clone1,
                             on_confirm: move |disk| {
                                 if let Some(sender) = command_sender.read().as_ref() {
-                                    let _ = sender.unbounded_send(ClientCommand::StartInstallation);
+                                    let _ = sender.unbounded_send(InstallClientCommand::StartInstallation);
                                 }
                             },
                         }
@@ -205,7 +205,7 @@ pub fn Install() -> Element {
                             on_reboot: move |_| {
                                 if let Some(sender) = command_sender.read().as_ref() {
                                     tracing::info!("Sending Reboot command via WebSocket");
-                                    if let Err(e) = sender.unbounded_send(ClientCommand::Reboot) {
+                                    if let Err(e) = sender.unbounded_send(InstallClientCommand::Reboot) {
                                         tracing::error!("Failed to send Reboot command: {:?}", e);
                                     }
                                 }
@@ -226,7 +226,7 @@ pub fn Install() -> Element {
             Button {
                 on_click: move |evt| {
                     if let Some(sender) = command_sender.read().as_ref() {
-                        let _ = sender.unbounded_send(ClientCommand::DevReset);
+                        let _ = sender.unbounded_send(InstallClientCommand::DevReset);
                     }
                 },
                 "Reset State"
@@ -244,7 +244,7 @@ fn spawn_connection_task(
     url: String,
 ) {
     spawn(async move {
-        let (tx, mut rx) = mpsc::unbounded::<ClientCommand>();
+        let (tx, mut rx) = mpsc::unbounded::<InstallClientCommand>();
         command_sender.set(Some(tx));
 
         tracing::debug!("Establishing WebSocket connection to {}", url.clone());
@@ -264,11 +264,11 @@ fn spawn_connection_task(
             loop {
                 match ws_reader.next().await {
                     Some(Ok(Message::Text(text))) => {
-                        if let Ok(event) = serde_json::from_str::<ServerEvent>(&text) {
+                        if let Ok(event) = serde_json::from_str::<InstallServerEvent>(&text) {
                             // tracing::debug!(?event, "Received event from server");
 
                             match event {
-                                ServerEvent::StateChanged(new_state) => {
+                                InstallServerEvent::StateChanged(new_state) => {
                                     if let InstallState::Installing(steps) = &new_state {
                                         *install_steps.write() = steps.clone();
                                         *install_logs.write() = Vec::new(); // Clear old logs
@@ -279,7 +279,7 @@ fn spawn_connection_task(
                                         state_lock.write().expect("BUG: state lock poisoned");
                                     *data = Some(new_state);
                                 }
-                                ServerEvent::InstallStepUpdate(updated_step) => {
+                                InstallServerEvent::InstallStepUpdate(updated_step) => {
                                     if let Some(step) = install_steps
                                         .write()
                                         .iter_mut()
@@ -288,7 +288,7 @@ fn spawn_connection_task(
                                         *step = updated_step;
                                     }
                                 }
-                                ServerEvent::InstallLog(log_line) => {
+                                InstallServerEvent::InstallLog(log_line) => {
                                     install_logs.write().push(log_line);
                                 }
                                 _ => {

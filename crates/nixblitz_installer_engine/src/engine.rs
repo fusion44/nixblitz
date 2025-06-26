@@ -38,7 +38,7 @@ pub struct InstallEngine {
     pub state: SharedInstallState,
 
     /// The broadcast channel for sending events to clients.
-    pub event_sender: broadcast::Sender<ServerEvent>,
+    pub event_sender: broadcast::Sender<InstallServerEvent>,
 
     /// The project to operate on
     pub work_dir: String,
@@ -89,20 +89,24 @@ impl InstallEngine {
 
     /// The central command processor. It takes a command from a client,
     /// modifies the state, and broadcasts events.
-    pub async fn handle_command(&self, command: ClientCommand) {
+    pub async fn handle_command(&self, command: InstallClientCommand) {
         match command {
             // These commands are in the protocol and must be done after the other
-            ClientCommand::PerformSystemCheck => self.perform_system_check().await,
-            ClientCommand::UpdateConfig => self.update_state(InstallState::UpdateConfig).await,
-            ClientCommand::UpdateConfigFinished => self.update_config_finished().await,
-            ClientCommand::InstallDiskSelected(disk) => self.install_disk_selected(disk).await,
-            ClientCommand::StartInstallation => self.start_installation().await,
+            InstallClientCommand::PerformSystemCheck => self.perform_system_check().await,
+            InstallClientCommand::UpdateConfig => {
+                self.update_state(InstallState::UpdateConfig).await
+            }
+            InstallClientCommand::UpdateConfigFinished => self.update_config_finished().await,
+            InstallClientCommand::InstallDiskSelected(disk) => {
+                self.install_disk_selected(disk).await
+            }
+            InstallClientCommand::StartInstallation => self.start_installation().await,
 
             // These commands are out of protocol
-            ClientCommand::GetSystemSummary => self.get_system_summary().await,
-            ClientCommand::GetProcessList => self.get_process_list().await,
-            ClientCommand::Reboot => self.reboot_system_command().await,
-            ClientCommand::DevReset => self.dev_reset().await,
+            InstallClientCommand::GetSystemSummary => self.get_system_summary().await,
+            InstallClientCommand::GetProcessList => self.get_process_list().await,
+            InstallClientCommand::Reboot => self.reboot_system_command().await,
+            InstallClientCommand::DevReset => self.dev_reset().await,
         }
     }
 
@@ -115,15 +119,16 @@ impl InstallEngine {
         info!("Reboot command received. Triggering system reboot...");
         if let Err(e) = reboot_system() {
             error!("Failed to reboot system: {:?}", e);
-            let _ = self
-                .event_sender
-                .send(ServerEvent::Error(format!("Failed to reboot: {:?}", e)));
+            let _ = self.event_sender.send(InstallServerEvent::Error(format!(
+                "Failed to reboot: {:?}",
+                e
+            )));
         }
     }
 
     /// Broadcasts the current state.
     fn broadcast_state(&self, state: &InstallState) {
-        let event = ServerEvent::StateChanged(state.clone());
+        let event = InstallServerEvent::StateChanged(state.clone());
         // We don't care if there are no listeners, so we ignore the error.
         let _ = self.event_sender.send(event);
     }
@@ -144,12 +149,12 @@ impl InstallEngine {
     }
 
     async fn get_system_summary(&self) {
-        let evt = ServerEvent::SystemSummaryUpdated(get_system_info());
+        let evt = InstallServerEvent::SystemSummaryUpdated(get_system_info());
         let _ = self.event_sender.send(evt);
     }
 
     async fn get_process_list(&self) {
-        let evt = ServerEvent::ProcessListUpdated(get_process_list());
+        let evt = InstallServerEvent::ProcessListUpdated(get_process_list());
         let _ = self.event_sender.send(evt);
     }
 
@@ -177,7 +182,7 @@ impl InstallEngine {
             if disk_infos.iter().any(|d| d.path == disk) {
                 let confirm_data = {
                     let p = Project::load(self.work_dir.clone().into()).unwrap();
-                    let apps = p.get_enabled_apps();
+                    let apps = p.get_enabled_apps().await;
                     PreInstallConfirmData {
                         apps,
                         disk: disk.clone(),
@@ -222,7 +227,7 @@ impl InstallEngine {
                 let mut state = state_arc.lock().await;
 
                 if !matches!(state.install_state, InstallState::PreInstallConfirm(_)) {
-                    let _ = self.event_sender.send(ServerEvent::Error(
+                    let _ = self.event_sender.send(InstallServerEvent::Error(
                         "Not in correct state to start installation.".to_string(),
                     ));
                     return;
@@ -257,16 +262,16 @@ impl InstallEngine {
 
 fn add_and_send_install_log(
     state: &mut EngineState,
-    sender: &broadcast::Sender<ServerEvent>,
+    sender: &broadcast::Sender<InstallServerEvent>,
     log: String,
 ) {
     state.logs.push(log.clone());
-    let _ = sender.send(ServerEvent::InstallLog(log));
+    let _ = sender.send(InstallServerEvent::InstallLog(log));
 }
 
 async fn real_install_process(
     state_arc: SharedInstallState,
-    sender: broadcast::Sender<ServerEvent>,
+    sender: broadcast::Sender<InstallServerEvent>,
     work_dir: String,
     // The NixOS configuration name from your flake, e.g., "nixblitzvm"
     nixos_config_name: String,
@@ -289,7 +294,9 @@ async fn real_install_process(
         error!("{}", error_msg);
         let mut state = state_arc.lock().await;
         state.install_state = InstallState::InstallFailed(error_msg);
-        let _ = sender.send(ServerEvent::StateChanged(state.install_state.clone()));
+        let _ = sender.send(InstallServerEvent::StateChanged(
+            state.install_state.clone(),
+        ));
         return;
     }
 
@@ -330,7 +337,7 @@ async fn real_install_process(
                 NixBaseConfigOption::DiskoDevice.to_option_id(),
                 disk.clone(),
             ));
-        p.on_option_changed(change_notification).unwrap();
+        p.on_option_changed(change_notification).await.unwrap();
     }
 
     let res = commit_config(work_dir.as_str(), "init system").await;
@@ -389,7 +396,7 @@ async fn real_install_process(
         let final_steps = state_guard.disko_install_steps.clone();
         state_guard.install_state = InstallState::InstallSucceeded(final_steps);
         debug!("Installation process completed successfully.");
-        let final_event = ServerEvent::StateChanged(state_guard.install_state.clone());
+        let final_event = InstallServerEvent::StateChanged(state_guard.install_state.clone());
         let _ = sender.send(final_event);
     }
 }
@@ -398,7 +405,7 @@ async fn real_install_process(
 /// to the provided sender to update clients.
 async fn fake_install_process(
     state_arc: SharedInstallState,
-    sender: broadcast::Sender<ServerEvent>,
+    sender: broadcast::Sender<InstallServerEvent>,
 ) {
     let simulate_failure = false;
     let failure_step_id = DiskoInstallStepName::Disk;
@@ -476,7 +483,7 @@ async fn fake_install_process(
         let final_steps = state_guard.disko_install_steps.clone();
         state_guard.install_state = InstallState::InstallSucceeded(final_steps);
         debug!("Fake installation process completed successfully.");
-        let final_event = ServerEvent::StateChanged(state_guard.install_state.clone());
+        let final_event = InstallServerEvent::StateChanged(state_guard.install_state.clone());
         let _ = sender.send(final_event);
     }
 }

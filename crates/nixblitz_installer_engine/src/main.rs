@@ -16,7 +16,7 @@ use futures::{
     stream::{SplitSink, SplitStream},
 };
 use log::{debug, error, info, warn};
-use nixblitz_core::{ClientCommand, NIXBLITZ_DEMO, ServerEvent};
+use nixblitz_core::{InstallClientCommand, InstallServerEvent, NIXBLITZ_DEMO};
 use std::{env, io::Write};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::broadcast;
@@ -104,7 +104,7 @@ async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
 
         debug!("Sending initial state to new client: {:?}", current_state);
 
-        let event = ServerEvent::StateChanged(current_state);
+        let event = InstallServerEvent::StateChanged(current_state);
         let payload =
             serde_json::to_string(&event).expect("Failed to serialize initial state event.");
 
@@ -128,7 +128,7 @@ async fn handle_socket(socket: WebSocket, engine: SharedInstallEngine) {
 
 async fn handle_outgoing_messages(
     mut sender: SplitSink<WebSocket, Message>,
-    mut broadcast_rx: broadcast::Receiver<ServerEvent>,
+    mut broadcast_rx: broadcast::Receiver<InstallServerEvent>,
 ) {
     loop {
         match broadcast_rx.recv().await {
@@ -159,7 +159,7 @@ async fn handle_incoming_messages(
 ) {
     while let Some(Ok(message)) = receiver.next().await {
         if let Message::Text(text) = message {
-            match serde_json::from_str::<ClientCommand>(&text) {
+            match serde_json::from_str::<InstallClientCommand>(&text) {
                 Ok(command) => {
                     debug!("Received command from client: {:?}", command);
                     engine.handle_command(command).await;

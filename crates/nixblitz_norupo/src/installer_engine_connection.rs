@@ -1,6 +1,6 @@
 use dioxus_signals::{Readable, Signal};
 use futures::channel::mpsc::UnboundedSender;
-use nixblitz_core::{ClientCommand, InstallState};
+use nixblitz_core::{InstallClientCommand, InstallState};
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
@@ -10,7 +10,7 @@ pub struct EngineConnection {
     pub install_state: Signal<Arc<RwLock<Option<InstallState>>>>,
 
     /// A channel to send commands FROM the UI TO the WebSocket task.
-    pub command_sender: Signal<Option<UnboundedSender<ClientCommand>>>,
+    pub command_sender: Signal<Option<UnboundedSender<InstallClientCommand>>>,
 }
 
 impl EngineConnection {
@@ -23,7 +23,7 @@ impl EngineConnection {
     }
 
     /// Sends commands to the engine.
-    pub fn send_command(&self, command: ClientCommand) {
+    pub fn send_command(&self, command: InstallClientCommand) {
         if let Some(sender) = self.command_sender.read().as_ref() {
             if let Err(e) = sender.unbounded_send(command) {
                 println!("Failed to send command: {}", e);

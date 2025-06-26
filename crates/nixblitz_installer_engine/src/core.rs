@@ -2,7 +2,7 @@ use crate::engine::{EngineState, SharedInstallState};
 use error_stack::{FutureExt, Report, Result, ResultExt};
 use log::{debug, info};
 use nixblitz_core::{
-    DiskoInstallStepName, DiskoStepStatus, InstallError, InstallState, ServerEvent,
+    DiskoInstallStepName, DiskoStepStatus, InstallError, InstallServerEvent, InstallState,
 };
 use nixblitz_system::utils::exec_simple_command;
 use std::process::Stdio;
@@ -12,7 +12,7 @@ use tokio::sync::broadcast;
 
 pub async fn install_system(
     state_arc: SharedInstallState,
-    sender: broadcast::Sender<ServerEvent>,
+    sender: broadcast::Sender<InstallServerEvent>,
     work_dir: &String,
     nixos_config_name: &String,
     disk: &str,
@@ -46,7 +46,9 @@ pub async fn install_system(
             let mut state = state_arc.lock().await;
             let error_msg = format!("Failed to spawn command: '{}'\nError:\n{}", cmd_str, e);
             state.install_state = InstallState::InstallFailed(error_msg);
-            let _ = sender.send(ServerEvent::StateChanged(state.install_state.clone()));
+            let _ = sender.send(InstallServerEvent::StateChanged(
+                state.install_state.clone(),
+            ));
 
             return Err(Report::new(InstallError::CommandError(
                 cmd_str,
@@ -69,7 +71,7 @@ pub async fn install_system(
                 match result {
                     Ok(Some(line)) => {
                         info!("[STDOUT]: {}", line);
-                        let _ = sender.send(ServerEvent::InstallLog(line.clone()));
+                        let _ = sender.send(InstallServerEvent::InstallLog(line.clone()));
                         current_step_name = parse_log_and_update_state(&state_arc, &sender, &line, current_step_name).await;
                     },
                     _ => break,
@@ -79,7 +81,7 @@ pub async fn install_system(
                 match result {
                     Ok(Some(line)) => {
                         info!("[STDERR]: {}", line);
-                        let _ = sender.send(ServerEvent::InstallLog(format!("[STDERR] {}", line)));
+                        let _ = sender.send(InstallServerEvent::InstallLog(format!("[STDERR] {}", line)));
                         current_step_name = parse_log_and_update_state(&state_arc, &sender, &line, current_step_name).await;
                     },
                     _ => break,
@@ -94,7 +96,9 @@ pub async fn install_system(
             let mut state = state_arc.lock().await;
             let error_msg = format!("Failed to wait for installer command: {}", e);
             state.install_state = InstallState::InstallFailed(error_msg);
-            let _ = sender.send(ServerEvent::StateChanged(state.install_state.clone()));
+            let _ = sender.send(InstallServerEvent::StateChanged(
+                state.install_state.clone(),
+            ));
             return Err(Report::new(InstallError::CommandError(
                 cmd_str,
                 e.to_string(),
@@ -132,7 +136,7 @@ pub async fn install_system(
 /// A helper to parse a log line and update the state if a landmark is found.
 async fn parse_log_and_update_state(
     state_arc: &SharedInstallState,
-    sender: &broadcast::Sender<ServerEvent>,
+    sender: &broadcast::Sender<InstallServerEvent>,
     line: &str,
     current_step: DiskoInstallStepName,
 ) -> DiskoInstallStepName {
@@ -211,7 +215,7 @@ pub async fn copy_config(work_dir: &str, disk: &str) -> error_stack::Result<(), 
 
 pub fn update_and_send_disko_status(
     state: &mut EngineState,
-    sender: &broadcast::Sender<ServerEvent>,
+    sender: &broadcast::Sender<InstallServerEvent>,
     step_name: &DiskoInstallStepName,
     status: DiskoStepStatus,
 ) {
@@ -221,6 +225,6 @@ pub fn update_and_send_disko_status(
         .find(|s| s.name == *step_name)
     {
         step.status = status;
-        let _ = sender.send(ServerEvent::InstallStepUpdate(step.clone()));
+        let _ = sender.send(InstallServerEvent::InstallStepUpdate(step.clone()));
     }
 }

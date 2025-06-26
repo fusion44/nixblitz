@@ -86,7 +86,7 @@ pub enum InstallState {
 
 // Commands from any client to the server
 #[derive(Serialize, Deserialize, Debug)]
-pub enum ClientCommand {
+pub enum InstallClientCommand {
     PerformSystemCheck,
     GetSystemSummary,
     GetProcessList,
@@ -100,7 +100,7 @@ pub enum ClientCommand {
 
 // Events from the server to all clients
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ServerEvent {
+pub enum InstallServerEvent {
     StateChanged(InstallState),
     SystemSummaryUpdated(SystemSummary),
     ProcessListUpdated(ProcessList),
