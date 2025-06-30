@@ -152,6 +152,9 @@ pub struct NixBaseConfig {
 
     /// The default shell to use for the system
     pub shell: Box<StringListOptionData>,
+
+    /// Whether to enable the system engine
+    pub system_engine: Box<BoolOptionData>,
 }
 
 impl Default for NixBaseConfig {
@@ -160,6 +163,7 @@ impl Default for NixBaseConfig {
         let time_zone = "America/New_York".to_string();
         let default_locale = "en_US.UTF-8".to_string();
         let username = "admin".to_string();
+        let system_engine = false;
         Self {
             allow_unfree: Box::new(BoolOptionData::new(
                 NixBaseConfigOption::AllowUnfree.to_option_id(),
@@ -232,6 +236,10 @@ impl Default for NixBaseConfig {
                     })
                     .collect(),
             )),
+            system_engine: Box::new(BoolOptionData::new(
+                NixBaseConfigOption::SystemEngine.to_option_id(),
+                system_engine,
+            )),
         }
     }
 }
@@ -287,6 +295,7 @@ impl NixBaseConfig {
         hostname_x86: String,
         platform: Box<StringListOptionData>,
         shell: Box<StringListOptionData>,
+        system_engine: Box<BoolOptionData>,
     ) -> Self {
         Self {
             allow_unfree,
@@ -305,6 +314,7 @@ impl NixBaseConfig {
             hostname_x86,
             platform,
             shell,
+            system_engine,
         }
     }
 
@@ -381,6 +391,10 @@ impl NixBaseConfig {
                             .join(" "),
                     ),
                     ("shell", self.shell.value().to_string()),
+                    (
+                        "system_engine_enable",
+                        self.system_engine.value().to_string(),
+                    ),
                 ]);
             } else if file_name == "src/vm/configuration.nix.templ" {
                 data = HashMap::from([("hostname", self.hostname_vm.clone())]);
@@ -563,6 +577,15 @@ impl AppConfig for NixBaseConfig {
                         NixBaseConfigOption::SshAuthKeys.to_string(),
                     )))?;
                 }
+            } else if opt == NixBaseConfigOption::SystemEngine {
+                if let OptionDataChangeNotification::Bool(val) = option {
+                    res = Ok(self.system_engine.value() != val.value);
+                    self.system_engine.set_value(val.value);
+                } else {
+                    Err(Report::new(ProjectError::ChangeOptionValueError(
+                        NixBaseConfigOption::SystemEngine.to_string(),
+                    )))?;
+                }
             } else {
                 Err(
                     Report::new(ProjectError::ChangeOptionValueError(opt.to_string()))
@@ -599,6 +622,7 @@ impl AppConfig for NixBaseConfig {
                 false,
                 self.disko_device.clone(),
             ))),
+            OptionData::Bool(self.system_engine.clone()),
         ]
     }
 
@@ -634,6 +658,7 @@ impl AppConfig for NixBaseConfig {
         self.shell.set_applied();
         self.default_locale.set_applied();
         self.hashed_password.set_applied();
+        self.system_engine.set_applied();
     }
 }
 
@@ -778,6 +803,10 @@ mod tests {
                     .iter()
                     .map(|p| StringListOptionItem::new(p.to_string().into(), p.to_string()))
                     .collect(),
+            )),
+            Box::new(BoolOptionData::new(
+                NixBaseConfigOption::SystemEngine.to_option_id(),
+                false,
             )),
         );
 

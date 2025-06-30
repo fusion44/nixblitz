@@ -21,6 +21,7 @@ pub enum NixBaseConfigOption {
     SystemPlatform,
     SshAuthKeys,
     Shell,
+    SystemEngine,
 }
 
 impl ToOptionId for NixBaseConfigOption {
@@ -43,6 +44,7 @@ impl FromStr for NixBaseConfigOption {
             "platform" => Ok(NixBaseConfigOption::SystemPlatform),
             "ssh_auth_keys" => Ok(NixBaseConfigOption::SshAuthKeys),
             "shell" => Ok(NixBaseConfigOption::Shell),
+            "system_engine" => Ok(NixBaseConfigOption::SystemEngine),
             _ => Err(()),
         }
     }
@@ -60,6 +62,7 @@ impl Display for NixBaseConfigOption {
             NixBaseConfigOption::SystemPlatform => "platform",
             NixBaseConfigOption::SshAuthKeys => "ssh_auth_keys",
             NixBaseConfigOption::Shell => "shell",
+            NixBaseConfigOption::SystemEngine => "system_engine",
         };
         write!(f, "{}", s)
     }

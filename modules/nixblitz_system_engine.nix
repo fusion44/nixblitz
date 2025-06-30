@@ -24,12 +24,6 @@
     if userConfiguredLocation != "/" && !(lib.strings.hasSuffix "/" userConfiguredLocation)
     then userConfiguredLocation
     else null;
-
-  nixblitz-runner = pkgs.writeShellScriptBin "nixblitz-runner" ''
-    #!${pkgs.runtimeShell}
-    export PATH="${pkgs.util-linux}/bin:${pkgs.rsync}/bin:${pkgs.git}/bin:${pkgs.nixblitz-cli}/bin:/run/wrappers/bin"
-    exec "${cfg.package}/bin/nixblitz_system_engine"
-  '';
 in {
   options = {
     services.${name} = {
@@ -161,21 +155,15 @@ in {
         {
           users = ["${cfg.server.user}"];
           noPass = true;
-          # cmd = "${pkgs.nixblitz-cli}/bin/nixblitz";
+          cmd = "${pkgs.nixos-rebuild}/bin/nixos-rebuild";
           # args = ["apply" "--work-dir" "${cfg.dataDir}"];
         }
-        # {
-        #   users = ["${cfg.server.user}"];
-        #   noPass = true;
-        #   cmd = "${pkgs.nixos-rebuild}/bin/nixos-rebuild";
-        #   # args = ["apply" "--work-dir" "${cfg.dataDir}"];
-        # }
-        # {
-        #   users = ["${cfg.server.user}"];
-        #   noPass = true;
-        #   cmd = "${pkgs.git}/bin/git";
-        #   # args = ["apply" "--work-dir" "${cfg.dataDir}"];
-        # }
+        {
+          users = ["${cfg.server.user}"];
+          noPass = true;
+          cmd = "${pkgs.git}/bin/git";
+          # args = ["apply" "--work-dir" "${cfg.dataDir}"];
+        }
       ];
     };
 
@@ -183,7 +171,7 @@ in {
       services.${name} = {
         wantedBy = ["multi-user.target"];
         description = "${name} server daemon";
-        path = [pkgs.nixos-rebuild pkgs.git pkgs.nixblitz-cli];
+        path = [pkgs.nixos-rebuild pkgs.git];
         environment = {
           IP = cfg.server.host;
           PORT = toString cfg.server.port;
@@ -197,8 +185,7 @@ in {
             else "0";
         };
         serviceConfig = {
-          ExecStart = "${nixblitz-runner}/bin/nixblitz-runner";
-          # ExecStart = "${cfg.package}/bin/nixblitz_system_engine";
+          ExecStart = "${cfg.package}/bin/nixblitz_system_engine";
           User = cfg.server.user;
           Group = cfg.server.group;
           Restart = "always";
@@ -206,8 +193,9 @@ in {
           StartLimitBurst = 5;
           StartLimitIntervalSec = "10min";
           ReadWritePaths = [cfg.dataDir];
-          ProtectSystem = "strict";
-          ProtectHome = true;
+          StateDirectory = name;
+          ProtectSystem = true;
+          # ProtectHome = true; # nix needs access to ~/.cache/nix
           PrivateTmp = true;
         };
       };

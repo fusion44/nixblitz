@@ -90,6 +90,10 @@ pub static OPTION_TITLES: Lazy<HashMap<OptionId, &str>> = Lazy::new(|| {
         NixBaseConfigOption::SshAuthKeys.to_option_id(),
         "SSH Auth Keys",
     );
+    map.insert(
+        NixBaseConfigOption::SystemEngine.to_option_id(),
+        "Enable System Engine",
+    );
 
     // BITCOIN CORE
     map.insert(BitcoindConfigOption::Enable.to_option_id(), "Enable");

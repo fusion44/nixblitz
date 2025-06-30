@@ -12,19 +12,6 @@
         # always enabled
         enable = true;
       };
-      nixblitz-system-engine = {
-        # always enabled
-        enable = true;
-        # server = {
-        #   user = "root";
-        #   group = "root";
-        # };
-        nginx = {
-          enable = true;
-          openFirewall = true;
-          location = "/system";
-        };
-      };
       nixblitz-norupo = {
         # always enabled
         enable = true;

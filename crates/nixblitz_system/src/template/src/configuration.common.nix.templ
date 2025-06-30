@@ -117,6 +117,20 @@ in {
   };
 
   services = {
+    nixblitz-system-engine = {
+      enable = {{ system_engine_enable }};
+      server = {
+        # TODO: create a locked down user for this
+        user = "root";
+        group = "root";
+      };
+      nginx = {
+        enable = true;
+        openFirewall = true;
+        location = "/system";
+      };
+    };
+
     openssh = {
       enable = true;
       ports = [22];

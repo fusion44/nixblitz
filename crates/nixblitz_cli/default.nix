@@ -1,14 +1,14 @@
 # default.nix
 {pkgs ? import <nixpkgs> {}}: let
   manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
-  commitSha = "7f30615497ddad479969f13fe2d52654fdae9236";
+  commitSha = "74453992f4578cdcc361177641c8fe975e0017fe";
   shortSha = builtins.substring 0 7 commitSha;
   # src = ../../.;
 
   src = pkgs.fetchgit {
     url = "https://forge.f44.fyi/f44/nixblitz";
     rev = commitSha;
-    sha256 = "sha256-/1Gwjjun/4L09zPchqTWSojWm40B+9B8d3xcHF7XoUQ=";
+    sha256 = "sha256-LWW+eAB3zyzRVyRk0TXhsen4VuSklN3htqCYAc7ffv8=";
   };
 
   # src = pkgs.fetchFromGitHub {
