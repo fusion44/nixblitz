@@ -1,95 +1,91 @@
+use std::path::PathBuf;
+
 use crate::engine::SharedSystemState;
-use error_stack::Report;
+use error_stack::{Report, Result, ResultExt};
 use log::info;
 use nixblitz_core::{SystemError, SystemServerEvent, SystemState};
-use std::process::Stdio;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
-use tokio::sync::broadcast;
+use nixblitz_system::{
+    apply_changes::{ProcessOutput, run_nixos_rebuild_switch_async},
+    project::Project,
+};
+use tokio::sync::{broadcast, mpsc::UnboundedReceiver};
 
 pub(crate) async fn switch_config(
     state_arc: SharedSystemState,
     sender: broadcast::Sender<SystemServerEvent>,
     work_dir: &String,
 ) -> error_stack::Result<(), SystemError> {
-    let args = &["nixblitz", "apply", "--work-dir", work_dir];
-    let cmd_str = format!("doas {}", args.join(" "));
     info!("──────────────────────────────────────────────────────────────");
     info!("🚀 Applying system config in '{}'", work_dir);
-    info!("🔧 Running command via doas:");
-    info!("   doas {}", args.join(" "));
     info!("──────────────────────────────────────────────────────────────");
-
-    let mut child = match Command::new("doas")
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+    match run_nixos_rebuild_switch_async(
+        work_dir.to_string(),
+        &nixblitz_core::SystemPlatform::X86_64Vm,
+    )
+    .await
     {
-        Ok(child) => child,
-        Err(e) => {
-            // TODO: Notify the client about the error
-
-            return Err(Report::new(SystemError::CommandError(
-                cmd_str,
-                e.to_string(),
-            )));
+        Ok(receiver) => {
+            process_output(state_arc.clone(), sender.clone(), receiver, work_dir).await?;
+            Ok(())
         }
-    };
-
-    let stdout = child.stdout.take().expect("Failed to capture stdout");
-    let stderr = child.stderr.take().expect("Failed to capture stderr");
-
-    let mut stdout_reader = BufReader::new(stdout).lines();
-    let mut stderr_reader = BufReader::new(stderr).lines();
-
-    loop {
-        tokio::select! {
-            result = stdout_reader.next_line() => {
-                match result {
-                    Ok(Some(line)) => {
-                        info!("[STDOUT]: {}", line);
-                        let _ = sender.send(SystemServerEvent::UpdateLog(line.clone()));
-                    },
-                    _ => break,
-                }
-            },
-            result = stderr_reader.next_line() => {
-                match result {
-                    Ok(Some(line)) => {
-                        info!("[STDERR]: {}", line);
-                        let _ = sender.send(SystemServerEvent::UpdateLog(format!("[STDERR] {}", line)));
-                    },
-                    _ => break,
-                }
-            },
-        }
+        Err(report) => Err(report.change_context(SystemError::UpdateError(
+            "Failed to apply config.".to_string(),
+        ))),
     }
+}
 
-    let status = match child.wait().await {
-        Ok(status) => status,
-        Err(e) => {
-            let mut state = state_arc.lock().await;
-            state.state = SystemState::Idle;
-            let _ = sender.send(SystemServerEvent::StateChanged(state.state.clone()));
-            return Err(Report::new(SystemError::CommandError(
-                cmd_str,
-                e.to_string(),
-            )));
+async fn process_output(
+    state_arc: SharedSystemState,
+    sender: broadcast::Sender<SystemServerEvent>,
+    mut receiver: UnboundedReceiver<ProcessOutput>,
+    work_dir: &String,
+) -> Result<(), SystemError> {
+    while let Some(output) = receiver.recv().await {
+        match output {
+            ProcessOutput::Stdout(line) => {
+                info!("[STDOUT]: {}", line);
+                let _ = sender.send(SystemServerEvent::UpdateLog(line.clone()));
+            }
+            ProcessOutput::Stderr(line) => {
+                info!("[STDERR]: {}", line);
+                let _ = sender.send(SystemServerEvent::UpdateLog(format!("[STDERR] {}", line)));
+            }
+            ProcessOutput::Completed(status) => {
+                info!("--- Process finished with status: {} ---", status);
+                if !status.success() {
+                    Err(Report::new(SystemError::UpdateError(
+                        "Warning: Command exited with non-zero status.".to_string(),
+                    )))?
+                } else {
+                    let mut project = Project::load(PathBuf::from(work_dir)).change_context(
+                        SystemError::UpdateError("Unable to load project.".to_string()),
+                    )?;
+                    project
+                        .set_changes_applied()
+                        .await
+                        .change_context(SystemError::UpdateError(
+                            "Unable to apply changes to project.".to_string(),
+                        ))?
+                }
+
+                // TODO: handle cases where the application succeeds, but a service fails to start
+                if status.success() {
+                    info!("Switch to new config succeeded.");
+                    let mut state = state_arc.lock().await;
+                    state.state = SystemState::Idle;
+                } else {
+                    let msg = format!("Switch to new config failed with exit code: {}", status);
+                    let mut state = state_arc.lock().await;
+                    state.state = SystemState::Idle;
+                    let _ = sender.send(SystemServerEvent::Error(msg.clone()));
+                    return Err(Report::new(SystemError::UpdateError(msg)));
+                }
+            }
+            ProcessOutput::Error(err_msg) => {
+                info!("RUNTIME ERROR: {}", err_msg);
+                break;
+            }
         }
-    };
-
-    // TODO: handle cases where the application succeeds, but a service fails to start
-    if status.success() {
-        info!("Switch to new config succeeded.");
-        let mut state = state_arc.lock().await;
-        state.state = SystemState::Idle;
-    } else {
-        let msg = format!("Switch to new config failed with exit code: {}", status);
-        let mut state = state_arc.lock().await;
-        state.state = SystemState::Idle;
-        // TODO: Notify the client about the error
-        return Err(Report::new(SystemError::CommandError(cmd_str, msg)));
     }
 
     Ok(())

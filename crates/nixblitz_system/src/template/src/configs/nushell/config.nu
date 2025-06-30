@@ -830,3 +830,17 @@ def reggen [
   ] {
   bitcoin-cli -generate $num_blocks
 }
+
+alias norupojournal = sudo journalctl -u nixblitz-norupo.service
+alias norupojournalf = sudo journalctl -n 50 -fu nixblitz-norupo.service
+alias norupobat = systemctl cat nixblitz-norupo.service
+
+alias installenginejournal = sudo journalctl -u nixblitz-install-engine.service
+alias installenginejournalf = sudo journalctl -n 50 -fu nixblitz-install-engine.service
+alias installengineservicebat = systemctl cat nixblitz-install-engine.service
+
+alias systemenginejournal = sudo journalctl -u nixblitz-system-engine.service
+alias systemenginejournalf = sudo journalctl -n 50 -fu nixblitz-system-engine.service
+alias systemengineservicebat = systemctl cat nixblitz-system-engine.service
+
+alias lg = lazygit
