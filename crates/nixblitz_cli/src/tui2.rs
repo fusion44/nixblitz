@@ -16,39 +16,15 @@ use nixblitz_core::{
     OPTION_TITLES, SupportedApps,
     bool_data::BoolOptionChangeData,
     option_data::{GetOptionId, OptionData, OptionDataChangeNotification, OptionId},
+    string_list_data::StringListOptionItem,
 };
 use nixblitz_system::project::Project;
 
-use crate::errors::CliError;
-
-enum NavDirection {
-    Previous,
-    Next,
-}
-
-pub fn get_focus_border_color(has_focus: bool) -> Color {
-    if has_focus { Color::Green } else { Color::Blue }
-}
-
-pub fn get_selected_char(selected: bool) -> char {
-    if selected { '>' } else { ' ' }
-}
-
-pub fn get_background_color(selected: bool) -> Color {
-    if selected {
-        Color::DarkBlue
-    } else {
-        Color::Reset
-    }
-}
-
-pub fn format_bool_subtitle(value: bool) -> String {
-    if value {
-        return "✓ (true)".to_string();
-    }
-
-    "✗ (false)".to_string()
-}
+use crate::tui2_components::{
+    NavDirection, Popup, get_background_color, get_selected_char, navigate_selection,
+    utils::format_bool_subtitle,
+};
+use crate::{errors::CliError, tui2_components::SelectList};
 
 pub async fn start_tui2(
     _tick_rate: f64,
@@ -137,51 +113,7 @@ struct OptionsListProps {
     app: SupportedApps,
 }
 
-const MAX_HEIGHT: u16 = 20;
-
-struct NavSelectionResult {
-    selected: usize,
-    offset: usize,
-}
-
-impl NavSelectionResult {
-    fn new(selected: usize, offset: usize) -> Self {
-        Self { selected, offset }
-    }
-}
-
-fn navigate_selection(
-    direction: NavDirection,
-    selected: usize,
-    offset: usize,
-    options_len: usize,
-    max_num_items: usize,
-) -> NavSelectionResult {
-    if options_len == 0 {
-        return NavSelectionResult::new(0, 0);
-    }
-
-    match direction {
-        NavDirection::Previous => {
-            if selected == 0 {
-                NavSelectionResult::new(0, 0)
-            } else if offset > 0 && offset == selected {
-                NavSelectionResult::new(selected - 1, offset - 1)
-            } else {
-                NavSelectionResult::new(selected - 1, offset)
-            }
-        }
-        NavDirection::Next => {
-            if selected == options_len - 1 {
-                NavSelectionResult::new(selected, offset)
-            } else if offset + max_num_items - 1 == selected {
-                NavSelectionResult::new(selected + 1, offset + 1)
-            } else {
-                NavSelectionResult::new(selected + 1, offset)
-            }
-        }
-    }
-}
+const MAX_HEIGHT: u16 = 25;
 
 #[component]
 fn OptionList(props: &mut OptionsListProps, mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
@@ -197,40 +129,49 @@ fn OptionList(props: &mut OptionsListProps, mut hooks: Hooks) -> impl Into<AnyEl
     hooks.use_terminal_events({
         let mut option_handler = props.on_edit_option.take();
         let options = options.clone();
-        move |event| match event {
-            TerminalEvent::Key(KeyEvent { code, kind, .. }) if kind != KeyEventKind::Release => {
-                match code {
-                    KeyCode::Char('j') => {
-                        let res = navigate_selection(
-                            NavDirection::Next,
-                            selected.get(),
-                            offset.get(),
-                            num_opts,
-                            max_num_list_items,
-                        );
-                        offset.set(res.offset);
-                        selected.set(res.selected);
-                    }
-                    KeyCode::Char('k') => {
-                        let res = navigate_selection(
-                            NavDirection::Previous,
-                            selected.get(),
-                            offset.get(),
-                            num_opts,
-                            max_num_list_items,
-                        );
-                        offset.set(res.offset);
-                        selected.set(res.selected);
-                    }
-                    KeyCode::Enter => {
-                        let i = selected.get();
-                        let o = options.get(i).unwrap().id();
-                        option_handler(o.clone());
-                    }
-                    _ => {}
-                }
+        let f = props.has_focus;
+        move |event| {
+            if !f {
+                return;
             }
-            _ => {}
+
+            match event {
+                TerminalEvent::Key(KeyEvent { code, kind, .. })
+                    if kind != KeyEventKind::Release =>
+                {
+                    match code {
+                        KeyCode::Char('j') => {
+                            let res = navigate_selection(
+                                NavDirection::Next,
+                                selected.get(),
+                                offset.get(),
+                                num_opts,
+                                max_num_list_items,
+                            );
+                            offset.set(res.offset);
+                            selected.set(res.selected);
+                        }
+                        KeyCode::Char('k') => {
+                            let res = navigate_selection(
+                                NavDirection::Previous,
+                                selected.get(),
+                                offset.get(),
+                                num_opts,
+                                max_num_list_items,
+                            );
+                            offset.set(res.offset);
+                            selected.set(res.selected);
+                        }
+                        KeyCode::Enter => {
+                            let i = selected.get();
+                            let o = options.get(i).unwrap().id();
+                            option_handler(o.clone());
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
         }
     });
 
@@ -305,6 +246,7 @@ fn OptionList(props: &mut OptionsListProps, mut hooks: Hooks) -> impl Into<AnyEl
 enum Focus {
     App,
     Option,
+    Popup,
 }
 
 #[component]
@@ -313,8 +255,9 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let project = hooks.use_context_mut::<Arc<Mutex<Project>>>();
     let mut show_help = hooks.use_state(|| false);
     let mut should_exit = hooks.use_state(|| false);
-    let focus = hooks.use_state(|| Focus::App);
+    let mut focus = hooks.use_state(|| Focus::Option);
     let mut selected_app = hooks.use_state(|| SupportedApps::NixOS);
+    let mut show_popup = hooks.use_state(|| false);
 
     let project_clone = project.clone();
     let mut on_app_selected = move |reverse: bool| {
@@ -333,6 +276,15 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                     KeyCode::Tab => on_app_selected(false),
                     KeyCode::BackTab => on_app_selected(true),
                     KeyCode::Char('q') => should_exit.set(true),
+                    KeyCode::Char('p') => {
+                        let new_val = !show_popup.get();
+                        show_popup.set(new_val);
+                        if new_val {
+                            focus.set(Focus::Popup);
+                        } else {
+                            focus.set(Focus::Option);
+                        };
+                    }
                     KeyCode::Char('?') => {
                         if !show_help.get() {
                             show_help.set(true)
@@ -350,10 +302,36 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     if should_exit.get() {
         system.exit();
     }
+
     let (width, height) = hooks.use_terminal_size();
+    let popup = if show_popup.get() {
+        Some(
+            element! {
+                Popup(
+                    has_focus: focus.get() == Focus::Popup,
+                    title: "Choose wisely".to_string(),
+                    children: vec![
+                        element! {
+                            SelectList(
+                                has_focus: focus.get() == Focus::Popup,
+                                options: (0..25).map(|i| StringListOptionItem::new(i.to_string(), i.to_string())).collect::<Vec<_>>(),
+                            )
+                        }.into_any()
+                    ]
+                )
+            }
+            .into_any(),
+        )
+    } else {
+        None
+    };
     let help = if show_help.get() {
         let w = if width > 100 { 100 } else { width };
-        let h = if height > 20 { 20 } else { height };
+        let h = if height > MAX_HEIGHT {
+            MAX_HEIGHT
+        } else {
+            height
+        };
 
         Some(element! { View(
                 width: w,
@@ -397,6 +375,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                     error!("Error setting option: {:?}", e);
                 }
             }
+            OptionData::StringList(s) => {}
             _ => {}
         }
     };
@@ -412,7 +391,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
         ) {
             AppList(has_focus: focus.get() == Focus::App, app_list: SupportedApps::as_string_list(), selected: selected_app.get().as_index())
             OptionList(has_focus: focus.get() == Focus::Option, on_edit_option, app:selected_app.get())
-            #(help)
+            #(popup)
         }
     }
 }

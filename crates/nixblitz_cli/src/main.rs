@@ -22,6 +22,7 @@ pub mod macros;
 mod pages;
 mod tui;
 mod tui2;
+mod tui2_components;
 mod utils;
 
 #[tokio::main]
