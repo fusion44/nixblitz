@@ -24,7 +24,7 @@ pub fn SelectList(props: &mut SelectListProps, mut hooks: Hooks) -> impl Into<An
 
     let (_, height) = hooks.use_terminal_size();
     let height = height.min(20);
-    let mut selected = hooks.use_state(|| 0);
+    let mut selected_id = hooks.use_state(|| 0);
     let num_opts = props.options.len();
     let max_num_list_items = height as usize;
     let mut offset = hooks.use_state(|| 0);
@@ -40,27 +40,27 @@ pub fn SelectList(props: &mut SelectListProps, mut hooks: Hooks) -> impl Into<An
                             KeyCode::Char('j') | KeyCode::Down => {
                                 let res = navigate_selection(
                                     NavDirection::Next,
-                                    selected.get(),
+                                    selected_id.get(),
                                     offset.get(),
                                     num_opts,
                                     max_num_list_items,
                                 );
                                 offset.set(res.offset);
-                                selected.set(res.selected);
+                                selected_id.set(res.selected);
                             }
                             KeyCode::Char('k') | KeyCode::Up => {
                                 let res = navigate_selection(
                                     NavDirection::Previous,
-                                    selected.get(),
+                                    selected_id.get(),
                                     offset.get(),
                                     num_opts,
                                     max_num_list_items,
                                 );
                                 offset.set(res.offset);
-                                selected.set(res.selected);
+                                selected_id.set(res.selected);
                             }
                             KeyCode::Enter => {
-                                on_selected(selected.get());
+                                on_selected(selected_id.get());
                             }
                             _ => {}
                         }
@@ -70,7 +70,7 @@ pub fn SelectList(props: &mut SelectListProps, mut hooks: Hooks) -> impl Into<An
         });
     }
 
-    let current_selection = selected.get();
+    let current_selection = selected_id.get();
     let items: Vec<_> = props
         .options
         .iter()

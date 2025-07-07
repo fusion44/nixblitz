@@ -53,8 +53,10 @@ pub fn navigate_selection(
 
     match direction {
         NavDirection::Previous => {
-            if selected == 0 {
-                NavSelectionResult::new(options_len - 1, options_len - max_num_items)
+            if selected == 0 && options_len <= max_num_items {
+                NavSelectionResult::new(options_len - 1, 0)
+            } else if selected == 0 && options_len > max_num_items {
+                NavSelectionResult::new(options_len - max_num_items, options_len - max_num_items)
             } else if offset > 0 && offset == selected {
                 NavSelectionResult::new(selected - 1, offset - 1)
             } else {

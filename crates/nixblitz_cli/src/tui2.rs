@@ -16,7 +16,7 @@ use nixblitz_core::{
     OPTION_TITLES, SupportedApps,
     bool_data::BoolOptionChangeData,
     option_data::{GetOptionId, OptionData, OptionDataChangeNotification, OptionId},
-    string_list_data::StringListOptionItem,
+    string_list_data::StringListOptionChangeData,
 };
 use nixblitz_system::project::Project;
 
@@ -249,6 +249,12 @@ enum Focus {
     Popup,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum PopupData {
+    Help(String),
+    Option(OptionData),
+}
+
 #[component]
 fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let mut system = hooks.use_context_mut::<SystemContext>();
@@ -258,6 +264,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let mut focus = hooks.use_state(|| Focus::Option);
     let mut selected_app = hooks.use_state(|| SupportedApps::NixOS);
     let mut show_popup = hooks.use_state(|| false);
+    let mut popup_data: State<Option<PopupData>> = hooks.use_state(|| None);
 
     let project_clone = project.clone();
     let mut on_app_selected = move |reverse: bool| {
@@ -267,6 +274,12 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
         };
         project_clone.lock().unwrap().set_selected_app(next_app);
         selected_app.set(next_app);
+    };
+
+    let on_close_requested = move || {
+        popup_data.set(None);
+        show_popup.set(false);
+        focus.set(Focus::Option);
     };
 
     hooks.use_terminal_events({
@@ -304,49 +317,6 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     }
 
     let (width, height) = hooks.use_terminal_size();
-    let popup = if show_popup.get() {
-        Some(
-            element! {
-                Popup(
-                    has_focus: focus.get() == Focus::Popup,
-                    title: "Choose wisely".to_string(),
-                    children: vec![
-                        element! {
-                            SelectList(
-                                has_focus: focus.get() == Focus::Popup,
-                                options: (0..25).map(|i| StringListOptionItem::new(i.to_string(), i.to_string())).collect::<Vec<_>>(),
-                            )
-                        }.into_any()
-                    ]
-                )
-            }
-            .into_any(),
-        )
-    } else {
-        None
-    };
-    let help = if show_help.get() {
-        let w = if width > 100 { 100 } else { width };
-        let h = if height > MAX_HEIGHT {
-            MAX_HEIGHT
-        } else {
-            height
-        };
-
-        Some(element! { View(
-                width: w,
-                height: h,
-                background_color: Color::Reset,
-                border_style: BorderStyle::Round,
-                position: Position::Absolute,
-            ) {
-                Text(content: "Help")
-            }
-        })
-    } else {
-        None
-    };
-
     let project_clone = project.clone();
     let on_edit_option = move |option_id: OptionId| {
         // dang, craaaaaaaaazyyy
@@ -375,9 +345,31 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                     error!("Error setting option: {:?}", e);
                 }
             }
-            OptionData::StringList(s) => {}
+            OptionData::StringList(_) => {
+                if show_popup.get() {
+                    error!(
+                        "Trying to open a string list popup while another popup is already open"
+                    );
+                    return;
+                }
+
+                popup_data.set(Some(PopupData::Option((*option_data).clone())));
+                show_popup.set(true);
+                focus.set(Focus::Popup);
+            }
             _ => {}
         }
+    };
+
+    let popup = if let Some(data) = popup_data.read().clone() {
+        match data {
+            PopupData::Help(_) => todo!(),
+            PopupData::Option(option_data) => {
+                build_option_popup(project.clone(), option_data, on_close_requested)
+            }
+        }
+    } else {
+        None
     };
 
     element! {
@@ -393,5 +385,61 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
             OptionList(has_focus: focus.get() == Focus::Option, on_edit_option, app:selected_app.get())
             #(popup)
         }
+    }
+}
+
+fn build_option_popup<F>(
+    project: Arc<Mutex<Project>>,
+    data: OptionData,
+    on_close_requested: F,
+) -> Option<AnyElement<'static>>
+where
+    F: FnOnce() + Send + 'static,
+{
+    match data {
+        OptionData::StringList(s) => {
+            let s_for_closure = s.clone();
+            let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
+            let on_selected = move |i: usize| {
+                if let Some(selected) = s_for_closure.options().get(i) {
+                    let mut project = project.lock().unwrap();
+                    let res = project.on_option_changed(OptionDataChangeNotification::StringList(
+                        StringListOptionChangeData::new(
+                            s_for_closure.id().clone(),
+                            selected.value.clone(),
+                        ),
+                    ));
+                    if let Err(e) = res {
+                        error!("Error setting option: {:?}", e);
+                    }
+                } else {
+                    error!("Option index out of bounds");
+                }
+
+                if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                    cb();
+                }
+            };
+
+            Some(
+                element! {
+                    Popup(
+                        has_focus: true,
+                        title: "Choose wisely".to_string(),
+                        children: vec![
+                            element! {
+                                SelectList(
+                                    has_focus: true,
+                                    options: s.options().clone(),
+                                    on_selected,
+                                )
+                            }.into_any()
+                        ]
+                    )
+                }
+                .into_any(),
+            )
+        }
+        _ => None,
     }
 }
