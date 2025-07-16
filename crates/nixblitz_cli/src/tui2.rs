@@ -110,7 +110,7 @@ fn AppList(props: &mut AppListProps) -> impl Into<AnyElement<'static>> {
 struct OptionsListProps {
     has_focus: bool,
     on_edit_option: Handler<'static, OptionId>,
-    app: SupportedApps,
+    options: Arc<Vec<OptionData>>,
 }
 
 const MAX_HEIGHT: u16 = 25;
@@ -119,8 +119,7 @@ const MAX_HEIGHT: u16 = 25;
 fn OptionList(props: &mut OptionsListProps, mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let (_, height) = hooks.use_terminal_size();
     let mut selected = hooks.use_state(|| 0);
-    let project = hooks.use_context_mut::<Arc<Mutex<Project>>>();
-    let options = project.lock().unwrap().get_app_options().unwrap().clone();
+    let options = &props.options;
     let num_opts = options.len();
     let height = height.min(MAX_HEIGHT);
     let max_num_list_items = (height as usize / 2) - 1; // minus one for the borders
@@ -266,6 +265,14 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let mut show_popup = hooks.use_state(|| false);
     let mut popup_data: State<Option<PopupData>> = hooks.use_state(|| None);
 
+    let mut options: State<Arc<Vec<OptionData>>> = hooks.use_state(|| {
+        project
+            .lock()
+            .unwrap()
+            .get_app_options()
+            .unwrap_or_default()
+    });
+
     let project_clone = project.clone();
     let mut on_app_selected = move |reverse: bool| {
         let next_app = match reverse {
@@ -274,12 +281,13 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
         };
         project_clone.lock().unwrap().set_selected_app(next_app);
         selected_app.set(next_app);
-    };
 
-    let on_close_requested = move || {
-        popup_data.set(None);
-        show_popup.set(false);
-        focus.set(Focus::Option);
+        let new_options = project_clone
+            .lock()
+            .unwrap()
+            .get_app_options()
+            .unwrap_or_default();
+        options.set(new_options);
     };
 
     hooks.use_terminal_events({
@@ -319,45 +327,50 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let (width, height) = hooks.use_terminal_size();
     let project_clone = project.clone();
     let on_edit_option = move |option_id: OptionId| {
-        // dang, craaaaaaaaazyyy
-        let binding = project_clone
-            .lock()
-            .unwrap()
-            .get_app_options()
-            .unwrap()
-            .clone();
-        let binding = binding
+        let current_options = options.read().clone();
+        let option_data = current_options
             .iter()
-            .filter(|o| *o.id() == option_id)
-            .collect::<Vec<_>>();
-        let option_data = binding.first().unwrap();
+            .find(|o| *o.id() == option_id)
+            .cloned();
 
-        let project_clone = project_clone.clone();
-        match option_data {
-            OptionData::Bool(b) => {
-                let mut p = project_clone.lock().unwrap();
-                let change_notification = OptionDataChangeNotification::Bool(
-                    BoolOptionChangeData::new(option_id.clone(), !b.value()),
-                );
+        if let Some(option_data) = option_data {
+            let project_clone = project_clone.clone();
 
-                let res = p.on_option_changed(change_notification);
-                if let Err(e) = res {
-                    error!("Error setting option: {:?}", e);
-                }
-            }
-            OptionData::StringList(_) => {
-                if show_popup.get() {
-                    error!(
-                        "Trying to open a string list popup while another popup is already open"
+            match option_data {
+                OptionData::Bool(b) => {
+                    let mut p = project_clone.lock().unwrap();
+                    let change_notification = OptionDataChangeNotification::Bool(
+                        BoolOptionChangeData::new(option_id.clone(), !b.value()),
                     );
-                    return;
-                }
 
-                popup_data.set(Some(PopupData::Option((*option_data).clone())));
-                show_popup.set(true);
-                focus.set(Focus::Popup);
+                    let res = p.on_option_changed(change_notification);
+                    if let Err(e) = res {
+                        error!("Error setting option: {:?}", e);
+                    } else {
+                        let new_options = p.get_app_options().unwrap_or_default();
+                        drop(p);
+                        options.set(new_options);
+                    }
+                }
+                OptionData::StringList(_) => {
+                    if show_popup.get() {
+                        error!(
+                            "Trying to open a string list popup while another popup is already open"
+                        );
+                        return;
+                    }
+
+                    popup_data.set(Some(PopupData::Option(option_data)));
+                    show_popup.set(true);
+                    focus.set(Focus::Popup);
+                }
+                _ => {}
             }
-            _ => {}
+        } else {
+            error!(
+                "Option with id {:?} not found in current options state",
+                option_id
+            );
         }
     };
 
@@ -365,7 +378,19 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
         match data {
             PopupData::Help(_) => todo!(),
             PopupData::Option(option_data) => {
-                build_option_popup(project.clone(), option_data, on_close_requested)
+                let project_for_popup = project.clone();
+                build_option_popup(project.clone(), option_data, move || {
+                    let new_options = project_for_popup
+                        .lock()
+                        .unwrap()
+                        .get_app_options()
+                        .unwrap_or_default();
+                    options.set(new_options);
+
+                    popup_data.set(None);
+                    show_popup.set(false);
+                    focus.set(Focus::Option);
+                })
             }
         }
     } else {
@@ -382,7 +407,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
             justify_content: JustifyContent::Center,
         ) {
             AppList(has_focus: focus.get() == Focus::App, app_list: SupportedApps::as_string_list(), selected: selected_app.get().as_index())
-            OptionList(has_focus: focus.get() == Focus::Option, on_edit_option, app:selected_app.get())
+            OptionList(has_focus: focus.get() == Focus::Option, on_edit_option, options: options.read().clone())
             #(popup)
         }
     }
