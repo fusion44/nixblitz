@@ -13,18 +13,20 @@ use error_stack::{Result, ResultExt};
 use iocraft::prelude::*;
 use log::error;
 use nixblitz_core::{
-    OPTION_TITLES, SupportedApps,
+    SupportedApps,
     bool_data::BoolOptionChangeData,
-    option_data::{GetOptionId, OptionData, OptionDataChangeNotification, OptionId},
+    option_data::{GetOptionId, OptionData, OptionDataChangeNotification},
     string_list_data::StringListOptionChangeData,
 };
 use nixblitz_system::project::Project;
 
+use crate::errors::CliError;
 use crate::tui2_components::{
-    NavDirection, Popup, get_background_color, get_selected_char, navigate_selection,
-    utils::format_bool_subtitle,
+    Popup, SelectableList, SelectableListData, SelectionValue, get_background_color,
+    get_selected_char,
 };
-use crate::{errors::CliError, tui2_components::SelectList};
+
+const MAX_HEIGHT: u16 = 25;
 
 pub async fn start_tui2(
     _tick_rate: f64,
@@ -106,149 +108,14 @@ fn AppList(props: &mut AppListProps) -> impl Into<AnyElement<'static>> {
     }
 }
 
-#[derive(Default, Props)]
-struct OptionsListProps {
-    has_focus: bool,
-    on_edit_option: Handler<'static, OptionId>,
-    options: Arc<Vec<OptionData>>,
-}
-
-const MAX_HEIGHT: u16 = 25;
-
-#[component]
-fn OptionList(props: &mut OptionsListProps, mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
-    let (_, height) = hooks.use_terminal_size();
-    let mut selected = hooks.use_state(|| 0);
-    let options = &props.options;
-    let num_opts = options.len();
-    let height = height.min(MAX_HEIGHT);
-    let max_num_list_items = (height as usize / 2) - 1; // minus one for the borders
-    let mut offset = hooks.use_state(|| 0);
-
-    hooks.use_terminal_events({
-        let mut option_handler = props.on_edit_option.take();
-        let options = options.clone();
-        let f = props.has_focus;
-        move |event| {
-            if !f {
-                return;
-            }
-
-            match event {
-                TerminalEvent::Key(KeyEvent { code, kind, .. })
-                    if kind != KeyEventKind::Release =>
-                {
-                    match code {
-                        KeyCode::Char('j') => {
-                            let res = navigate_selection(
-                                NavDirection::Next,
-                                selected.get(),
-                                offset.get(),
-                                num_opts,
-                                max_num_list_items,
-                            );
-                            offset.set(res.offset);
-                            selected.set(res.selected);
-                        }
-                        KeyCode::Char('k') => {
-                            let res = navigate_selection(
-                                NavDirection::Previous,
-                                selected.get(),
-                                offset.get(),
-                                num_opts,
-                                max_num_list_items,
-                            );
-                            offset.set(res.offset);
-                            selected.set(res.selected);
-                        }
-                        KeyCode::Enter => {
-                            let i = selected.get();
-                            let o = options.get(i).unwrap().id();
-                            option_handler(o.clone());
-                        }
-                        _ => {}
-                    }
-                }
-                _ => {}
-            }
-        }
-    });
-
-    let option_entries = options
-        .iter()
-        .enumerate()
-        .skip(offset.get())
-        .map(|(i, option)| {
-            let char = get_selected_char(i == selected.get());
-            let background_color = get_background_color(i == selected.get());
-            let option = option.clone();
-            let id = option.id();
-            let title = OPTION_TITLES
-                .get(id)
-                .ok_or(CliError::OptionTitleRetrievalError(id.to_string()))
-                .unwrap();
-
-            match option {
-                OptionData::Bool(b) => {
-                    let subtitle = format_bool_subtitle(b.value());
-                    element! {
-                        View(
-                            flex_direction: FlexDirection::Column,
-                            background_color,
-                        ) {
-                            Text(content: format!("{} {}", char, title))
-                            Text(content: format!("{} {}", char, subtitle))
-                        }
-                    }
-                }
-                _ => {
-                    element! {
-                        View(
-                            flex_direction: FlexDirection::Column,
-                            background_color,
-                        ) {
-                            Text(content: format!("{} {}", char, title))
-                            Text(content: format!("{} {}", char, "subtitle"))
-                        }
-                    }
-                }
-            }
-        })
-        .take(max_num_list_items)
-        .collect::<Vec<_>>();
-
-    if selected.get() > num_opts {
-        if num_opts <= max_num_list_items {
-            offset.set(0);
-        } else {
-            offset.set(num_opts - max_num_list_items);
-        }
-        selected.set(num_opts - 1);
-    }
-
-    let content = format!("Offset: {}, Selected: {}", offset.get(), selected.get());
-    element! {
-        View(
-            height: height + 2,
-            flex_direction: FlexDirection::Column,
-            border_style: BorderStyle::Round,
-        ) {
-            View (flex_direction: FlexDirection::Column) {
-                #(option_entries)
-                Text(content)
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, strum::Display, Copy, PartialEq, Eq)]
 enum Focus {
-    App,
-    Option,
+    AppList,
+    OptionList,
     Popup,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, strum::Display, PartialEq)]
 enum PopupData {
     Help(String),
     Option(OptionData),
@@ -260,7 +127,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let project = hooks.use_context_mut::<Arc<Mutex<Project>>>();
     let mut show_help = hooks.use_state(|| false);
     let mut should_exit = hooks.use_state(|| false);
-    let mut focus = hooks.use_state(|| Focus::Option);
+    let mut focus = hooks.use_state(|| Focus::OptionList);
     let mut selected_app = hooks.use_state(|| SupportedApps::NixOS);
     let mut show_popup = hooks.use_state(|| false);
     let mut popup_data: State<Option<PopupData>> = hooks.use_state(|| None);
@@ -297,15 +164,6 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                     KeyCode::Tab => on_app_selected(false),
                     KeyCode::BackTab => on_app_selected(true),
                     KeyCode::Char('q') => should_exit.set(true),
-                    KeyCode::Char('p') => {
-                        let new_val = !show_popup.get();
-                        show_popup.set(new_val);
-                        if new_val {
-                            focus.set(Focus::Popup);
-                        } else {
-                            focus.set(Focus::Option);
-                        };
-                    }
                     KeyCode::Char('?') => {
                         if !show_help.get() {
                             show_help.set(true)
@@ -326,51 +184,53 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
 
     let (width, height) = hooks.use_terminal_size();
     let project_clone = project.clone();
-    let on_edit_option = move |option_id: OptionId| {
-        let current_options = options.read().clone();
-        let option_data = current_options
-            .iter()
-            .find(|o| *o.id() == option_id)
-            .cloned();
+    let on_edit_option = move |selection: SelectionValue| {
+        if let SelectionValue::OptionId(option_id) = selection {
+            let current_options = options.read().clone();
+            let option_data = current_options
+                .iter()
+                .find(|o| *o.id() == option_id)
+                .cloned();
 
-        if let Some(option_data) = option_data {
-            let project_clone = project_clone.clone();
+            if let Some(option_data) = option_data {
+                let project_clone = project_clone.clone();
 
-            match option_data {
-                OptionData::Bool(b) => {
-                    let mut p = project_clone.lock().unwrap();
-                    let change_notification = OptionDataChangeNotification::Bool(
-                        BoolOptionChangeData::new(option_id.clone(), !b.value()),
-                    );
-
-                    let res = p.on_option_changed(change_notification);
-                    if let Err(e) = res {
-                        error!("Error setting option: {:?}", e);
-                    } else {
-                        let new_options = p.get_app_options().unwrap_or_default();
-                        drop(p);
-                        options.set(new_options);
-                    }
-                }
-                OptionData::StringList(_) => {
-                    if show_popup.get() {
-                        error!(
-                            "Trying to open a string list popup while another popup is already open"
+                match option_data {
+                    OptionData::Bool(b) => {
+                        let mut p = project_clone.lock().unwrap();
+                        let change_notification = OptionDataChangeNotification::Bool(
+                            BoolOptionChangeData::new(option_id.clone(), !b.value()),
                         );
-                        return;
-                    }
 
-                    popup_data.set(Some(PopupData::Option(option_data)));
-                    show_popup.set(true);
-                    focus.set(Focus::Popup);
+                        let res = p.on_option_changed(change_notification);
+                        if let Err(e) = res {
+                            error!("Error setting option: {:?}", e);
+                        } else {
+                            let new_options = p.get_app_options().unwrap_or_default();
+                            drop(p);
+                            options.set(new_options);
+                        }
+                    }
+                    OptionData::StringList(_) => {
+                        if show_popup.get() {
+                            error!(
+                                "Trying to open a string list popup while another popup is already open"
+                            );
+                            return;
+                        }
+
+                        popup_data.set(Some(PopupData::Option(option_data)));
+                        show_popup.set(true);
+                        focus.set(Focus::Popup);
+                    }
+                    _ => {}
                 }
-                _ => {}
+            } else {
+                error!(
+                    "Option with id {:?} not found in current options state",
+                    option_id
+                );
             }
-        } else {
-            error!(
-                "Option with id {:?} not found in current options state",
-                option_id
-            );
         }
     };
 
@@ -389,7 +249,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
 
                     popup_data.set(None);
                     show_popup.set(false);
-                    focus.set(Focus::Option);
+                    focus.set(Focus::OptionList);
                 })
             }
         }
@@ -406,8 +266,19 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
         ) {
-            AppList(has_focus: focus.get() == Focus::App, app_list: SupportedApps::as_string_list(), selected: selected_app.get().as_index())
-            OptionList(has_focus: focus.get() == Focus::Option, on_edit_option, options: options.read().clone())
+            AppList(
+                has_focus: focus.get() == Focus::AppList,
+                app_list: SupportedApps::as_string_list(),
+                selected: selected_app.get().as_index()
+            )
+            SelectableList(
+                has_focus: focus.get() == Focus::OptionList,
+                on_selected: on_edit_option,
+                data: SelectableListData::Options(options.read().clone()),
+                show_border: true,
+                max_height: Some(MAX_HEIGHT),
+                debug_info: false,
+            )
             #(popup)
         }
     }
@@ -425,24 +296,27 @@ where
         OptionData::StringList(s) => {
             let s_for_closure = s.clone();
             let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
-            let on_selected = move |i: usize| {
-                if let Some(selected) = s_for_closure.options().get(i) {
-                    let mut project = project.lock().unwrap();
-                    let res = project.on_option_changed(OptionDataChangeNotification::StringList(
-                        StringListOptionChangeData::new(
-                            s_for_closure.id().clone(),
-                            selected.value.clone(),
-                        ),
-                    ));
-                    if let Err(e) = res {
-                        error!("Error setting option: {:?}", e);
+            let on_selected = move |selection: SelectionValue| {
+                if let SelectionValue::Index(i) = selection {
+                    if let Some(selected) = s_for_closure.options().get(i) {
+                        let mut project = project.lock().unwrap();
+                        let res =
+                            project.on_option_changed(OptionDataChangeNotification::StringList(
+                                StringListOptionChangeData::new(
+                                    s_for_closure.id().clone(),
+                                    selected.value.clone(),
+                                ),
+                            ));
+                        if let Err(e) = res {
+                            error!("Error setting option: {:?}", e);
+                        }
+                    } else {
+                        error!("Option index out of bounds");
                     }
-                } else {
-                    error!("Option index out of bounds");
-                }
 
-                if let Some(cb) = on_close_requested.lock().unwrap().take() {
-                    cb();
+                    if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                        cb();
+                    }
                 }
             };
 
@@ -453,10 +327,14 @@ where
                         title: "Choose wisely".to_string(),
                         children: vec![
                             element! {
-                                SelectList(
+                                SelectableList(
                                     has_focus: true,
-                                    options: s.options().clone(),
                                     on_selected,
+                                    data: SelectableListData::StringListItems(
+                                        s.options().clone()),
+                                    show_border: false,
+                                    max_height: Some(20),
+                                    debug_info: true,
                                 )
                             }.into_any()
                         ]
