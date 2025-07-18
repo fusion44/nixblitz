@@ -11,27 +11,26 @@ use nixblitz_core::{
 use crate::{
     errors::CliError,
     tui2_components::{
-        ListItem, NavDirection, get_background_color, get_selected_char, navigate_selection,
-        utils::format_bool_subtitle,
+        ListItem, NavDirection, get_selected_char, navigate_selection,
+        utils::{
+            DEFAULT_MAX_HEIGHT, RenderWithWidth, SelectableItem, format_bool_subtitle,
+            get_focus_border_color, get_selected_item_color,
+        },
     },
 };
-
-/// Generic item trait that can be implemented by different data types
-pub trait SelectableItem: Clone {
-    type SelectionValue: Clone;
-
-    fn render(&self, is_selected: bool) -> AnyElement<'static>;
-}
 
 impl SelectableItem for StringListOptionItem {
     type SelectionValue = usize;
 
-    fn render(&self, is_selected: bool) -> AnyElement<'static> {
+    fn render(&self, is_selected: bool, component_focused: bool) -> AnyElement<'static> {
+        let background_color = get_selected_item_color(is_selected, component_focused);
+        let prefix = get_selected_char(is_selected);
         element! {
             ListItem(
                 item: self.clone(),
-                is_selected,
-            )
+                background_color,
+                prefix,
+             )
         }
         .into_any()
     }
@@ -40,39 +39,76 @@ impl SelectableItem for StringListOptionItem {
 impl SelectableItem for OptionData {
     type SelectionValue = OptionId;
 
-    fn render(&self, is_selected: bool) -> AnyElement<'static> {
+    fn render(&self, is_selected: bool, component_focused: bool) -> AnyElement<'static> {
+        self.render_with_width(is_selected, component_focused, None)
+    }
+}
+
+impl RenderWithWidth for OptionData {
+    fn render_with_width(
+        &self,
+        is_selected: bool,
+        component_focused: bool,
+        max_width: Option<u16>,
+    ) -> AnyElement<'static> {
         let char = get_selected_char(is_selected);
-        let background_color = get_background_color(is_selected);
+        let background_color = get_selected_item_color(is_selected, component_focused);
         let id = self.id();
         let title = OPTION_TITLES
             .get(id)
             .ok_or(CliError::OptionTitleRetrievalError(id.to_string()))
             .unwrap();
 
+        let truncate_text = |text: &str, prefix: &str| {
+            if let Some(width) = max_width {
+                let available_width = width.saturating_sub(4) as usize; // Account for border + padding
+                let full_text = format!("{} {}", prefix, text);
+                if full_text.len() > available_width {
+                    format!(
+                        "{} {}...",
+                        prefix,
+                        &text[..available_width.saturating_sub(prefix.len() + 4)]
+                    )
+                } else {
+                    full_text
+                }
+            } else {
+                format!("{} {}", prefix, text)
+            }
+        };
+
         match self {
             OptionData::Bool(b) => {
                 let subtitle = format_bool_subtitle(b.value());
+                let title_text = truncate_text(title, &char.to_string());
+                let subtitle_text = truncate_text(&subtitle, &char.to_string());
+
                 element! {
                     View(
                         flex_direction: FlexDirection::Column,
                         background_color,
                     ) {
-                        Text(content: format!("{} {}", char, title))
-                        Text(content: format!("{} {}", char, subtitle))
+                        Text(content: title_text)
+                        Text(content: subtitle_text)
                     }
                 }
                 .into_any()
             }
-            _ => element! {
-                View(
-                    flex_direction: FlexDirection::Column,
-                    background_color,
-                ) {
-                    Text(content: format!("{} {}", char, title))
-                    Text(content: format!("{} {}", char, "subtitle"))
+            _ => {
+                let title_text = truncate_text(title, &char.to_string());
+                let subtitle_text = truncate_text("subtitle", &char.to_string());
+
+                element! {
+                    View(
+                        flex_direction: FlexDirection::Column,
+                        background_color,
+                    ) {
+                        Text(content: title_text)
+                        Text(content: subtitle_text)
+                    }
                 }
+                .into_any()
             }
-            .into_any(),
         }
     }
 }
@@ -115,10 +151,9 @@ pub struct SelectableListProps {
     pub data: SelectableListData,
     pub show_border: bool,
     pub max_height: Option<u16>,
+    pub width: Option<u16>,
     pub debug_info: bool,
 }
-
-const DEFAULT_MAX_HEIGHT: u16 = 25;
 
 #[component]
 pub fn SelectableList(
@@ -215,14 +250,16 @@ pub fn SelectableList(
             .iter()
             .enumerate()
             .skip(offset.get())
-            .map(|(i, option)| option.render(i == current_selection))
+            .map(|(i, option)| {
+                option.render_with_width(i == current_selection, props.has_focus, props.width)
+            })
             .take(max_num_list_items)
             .collect(),
         SelectableListData::StringListItems(items) => items
             .iter()
             .enumerate()
             .skip(offset.get())
-            .map(|(i, item)| item.render(i == current_selection))
+            .map(|(i, item)| item.render(i == current_selection, props.has_focus))
             .take(max_num_list_items)
             .collect(),
     };
@@ -250,11 +287,42 @@ pub fn SelectableList(
     all_items.extend(debug_item);
 
     if props.show_border {
+        let border_color = get_focus_border_color(props.has_focus);
+        if let Some(width) = props.width {
+            element! {
+                View(
+                    width,
+                    height: height + 2,
+                    flex_direction: FlexDirection::Column,
+                    border_style: BorderStyle::Round,
+                    border_color,
+                ) {
+                    View(flex_direction: FlexDirection::Column) {
+                        #(all_items)
+                    }
+                }
+            }
+        } else {
+            element! {
+                View(
+                    height: height + 2,
+                    flex_direction: FlexDirection::Column,
+                    border_style: BorderStyle::Round,
+                    border_color,
+                ) {
+                    View(flex_direction: FlexDirection::Column) {
+                        #(all_items)
+                    }
+                }
+            }
+        }
+    } else if let Some(width) = props.width {
         element! {
             View(
-                height: height + 2,
+                width,
+                height,
                 flex_direction: FlexDirection::Column,
-                border_style: BorderStyle::Round,
+                border_style: BorderStyle::None,
             ) {
                 View(flex_direction: FlexDirection::Column) {
                     #(all_items)

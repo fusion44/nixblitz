@@ -1,3 +1,4 @@
+pub mod app_list;
 pub mod list;
 pub mod popup;
 pub mod utils;

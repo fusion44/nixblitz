@@ -20,13 +20,14 @@ use nixblitz_core::{
 };
 use nixblitz_system::project::Project;
 
-use crate::errors::CliError;
-use crate::tui2_components::{
-    Popup, SelectableList, SelectableListData, SelectionValue, get_background_color,
-    get_selected_char,
-};
+use crate::tui2_components::{Popup, SelectableList, SelectableListData, SelectionValue};
+use crate::{errors::CliError, tui2_components::app_list::AppList};
 
-const MAX_HEIGHT: u16 = 25;
+const MAX_HEIGHT: u16 = 25; // Maximum height of the TUI, will be +2 for borders
+const MAX_TOTAL_WIDTH: u16 = 120; // Maximum width of AppList + OptionList
+const APP_LIST_WIDTH: u16 = 20;
+const MIN_OPTION_WIDTH: u16 = 40;
+const PADDING: u16 = 2;
 
 pub async fn start_tui2(
     _tick_rate: f64,
@@ -78,36 +79,6 @@ pub async fn start_tui2(
     Ok(())
 }
 
-#[derive(Default, Props)]
-struct AppListProps {
-    has_focus: bool,
-    app_list: &'static [&'static str],
-    selected: usize,
-}
-
-#[component]
-fn AppList(props: &mut AppListProps) -> impl Into<AnyElement<'static>> {
-    let selected = props.selected;
-    let items = props.app_list.iter().enumerate().map(|(i, app)| {
-        let char = get_selected_char(i == selected);
-        let background_color = get_background_color(i == selected);
-        element! {
-            View(background_color: background_color) {
-                Text(content: format!("{} {}", char, app.to_string()))
-            }
-        }
-    });
-
-    element! {
-        View(
-            flex_direction: FlexDirection::Column,
-            border_style: BorderStyle::Round,
-        ) {
-            #(items)
-        }
-    }
-}
-
 #[derive(Debug, Clone, strum::Display, Copy, PartialEq, Eq)]
 enum Focus {
     AppList,
@@ -142,6 +113,11 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
 
     let project_clone = project.clone();
     let mut on_app_selected = move |reverse: bool| {
+        if focus.get() != Focus::OptionList {
+            // We only want to change the app if the focus is on the option list
+            return;
+        }
+
         let next_app = match reverse {
             true => selected_app.get().previous(),
             false => selected_app.get().next(),
@@ -183,6 +159,13 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     }
 
     let (width, height) = hooks.use_terminal_size();
+
+    let total_available_width = width.min(MAX_TOTAL_WIDTH);
+    let option_list_width = total_available_width
+        .saturating_sub(APP_LIST_WIDTH)
+        .saturating_sub(PADDING)
+        .max(MIN_OPTION_WIDTH);
+
     let project_clone = project.clone();
     let on_edit_option = move |selection: SelectionValue| {
         if let SelectionValue::OptionId(option_id) = selection {
@@ -269,7 +252,9 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
             AppList(
                 has_focus: focus.get() == Focus::AppList,
                 app_list: SupportedApps::as_string_list(),
-                selected: selected_app.get().as_index()
+                selected_item: selected_app.get().as_index(),
+                width: APP_LIST_WIDTH,
+                max_height: Some(MAX_HEIGHT),
             )
             SelectableList(
                 has_focus: focus.get() == Focus::OptionList,
@@ -277,6 +262,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                 data: SelectableListData::Options(options.read().clone()),
                 show_border: true,
                 max_height: Some(MAX_HEIGHT),
+                width: Some(option_list_width),
                 debug_info: false,
             )
             #(popup)
@@ -334,6 +320,7 @@ where
                                         s.options().clone()),
                                     show_border: false,
                                     max_height: Some(20),
+                                    width: Some(40),
                                     debug_info: true,
                                 )
                             }.into_any()

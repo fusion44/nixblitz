@@ -1,4 +1,6 @@
-use iocraft::Color;
+use iocraft::{AnyElement, Color};
+
+pub const DEFAULT_MAX_HEIGHT: u16 = 26;
 
 pub enum NavDirection {
     Previous,
@@ -6,19 +8,25 @@ pub enum NavDirection {
 }
 
 pub fn get_focus_border_color(has_focus: bool) -> Color {
-    if has_focus { Color::Green } else { Color::Blue }
+    if has_focus { Color::Green } else { Color::Grey }
 }
 
-pub fn get_selected_char(selected: bool) -> char {
-    if selected { '>' } else { ' ' }
-}
-
-pub fn get_background_color(selected: bool) -> Color {
-    if selected {
-        Color::DarkBlue
+pub fn get_selected_item_color(selected: bool, component_focused: bool) -> Color {
+    if selected && component_focused {
+        Color::Blue
+    } else if selected && !component_focused {
+        Color::DarkGrey
     } else {
-        Color::Reset
+        get_background_color()
     }
+}
+
+pub fn get_selected_char(selected: bool) -> &'static char {
+    if selected { &'>' } else { &' ' }
+}
+
+pub fn get_background_color() -> Color {
+    Color::Reset
 }
 
 pub fn format_bool_subtitle(value: bool) -> String {
@@ -73,4 +81,26 @@ pub fn navigate_selection(
             }
         }
     }
+}
+
+/// Extension trait for rendering with width support
+pub trait RenderWithWidth {
+    fn render_with_width(
+        &self,
+        is_selected: bool,
+        component_focused: bool,
+        max_width: Option<u16>,
+    ) -> AnyElement<'static>;
+}
+
+/// Generic item trait that can be implemented by different data types
+pub trait SelectableItem: Clone {
+    type SelectionValue: Clone;
+
+    // We have four states:
+    // 1. The component is focused and the item is not selected
+    // 2. The component is focused and the item is selected
+    // 3. The component is not focused and the item is not selected
+    // 4. The component is not focused and the item is selected
+    fn render(&self, is_selected: bool, component_focused: bool) -> AnyElement<'static>;
 }
