@@ -2,7 +2,7 @@ use iocraft::prelude::*;
 
 use crate::tui2_components::{
     get_selected_char,
-    utils::{DEFAULT_MAX_HEIGHT, get_focus_border_color, get_selected_item_color},
+    utils::{get_focus_border_color, get_selected_item_color},
 };
 
 #[derive(Default, Props)]
@@ -10,7 +10,7 @@ pub(crate) struct AppListProps {
     pub has_focus: bool,
     pub app_list: &'static [&'static str],
     pub selected_item: usize,
-    pub max_height: Option<u16>,
+    pub height: Option<u16>,
     pub width: Option<u16>,
 }
 
@@ -19,9 +19,12 @@ pub(crate) fn AppList(
     props: &mut AppListProps,
     mut hooks: Hooks,
 ) -> impl Into<AnyElement<'static>> {
-    let (width, height) = hooks.use_terminal_size();
-    let max_height = props.max_height.unwrap_or(DEFAULT_MAX_HEIGHT);
-    let height = height.min(max_height) + 2;
+    let (width, _) = hooks.use_terminal_size();
+    let height = if let Some(h) = props.height {
+        h
+    } else {
+        props.app_list.len() as u16 + 2
+    };
 
     let selected = props.selected_item;
     let items = props.app_list.iter().enumerate().map(|(i, app)| {

@@ -23,7 +23,6 @@ pub fn Popup<'a>(props: &mut PopupProps<'a>, _hooks: Hooks) -> impl Into<AnyElem
             flex_direction: FlexDirection::Column,
         ) {
             View(
-                background_color: Color::Blue,
                 justify_content: JustifyContent::Center,
             ) {
                 Text(content: &title)

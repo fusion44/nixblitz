@@ -1,7 +1,5 @@
 use iocraft::{AnyElement, Color};
 
-pub const DEFAULT_MAX_HEIGHT: u16 = 26;
-
 pub enum NavDirection {
     Previous,
     Next,
@@ -83,24 +81,21 @@ pub fn navigate_selection(
     }
 }
 
-/// Extension trait for rendering with width support
-pub trait RenderWithWidth {
-    fn render_with_width(
-        &self,
-        is_selected: bool,
-        component_focused: bool,
-        max_width: Option<u16>,
-    ) -> AnyElement<'static>;
-}
-
 /// Generic item trait that can be implemented by different data types
 pub trait SelectableItem: Clone {
     type SelectionValue: Clone;
+
+    fn item_height(&self) -> u16;
 
     // We have four states:
     // 1. The component is focused and the item is not selected
     // 2. The component is focused and the item is selected
     // 3. The component is not focused and the item is not selected
     // 4. The component is not focused and the item is selected
-    fn render(&self, is_selected: bool, component_focused: bool) -> AnyElement<'static>;
+    fn render(
+        &self,
+        is_selected: bool,
+        component_focused: bool,
+        width: Option<u16>,
+    ) -> AnyElement<'static>;
 }

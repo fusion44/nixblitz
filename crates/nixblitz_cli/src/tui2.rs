@@ -13,17 +13,22 @@ use error_stack::{Result, ResultExt};
 use iocraft::prelude::*;
 use log::error;
 use nixblitz_core::{
-    SupportedApps,
+    OPTION_TITLES, SupportedApps,
     bool_data::BoolOptionChangeData,
     option_data::{GetOptionId, OptionData, OptionDataChangeNotification},
     string_list_data::StringListOptionChangeData,
+    text_edit_data::TextOptionChangeData,
 };
 use nixblitz_system::project::Project;
 
-use crate::tui2_components::{Popup, SelectableList, SelectableListData, SelectionValue};
+use crate::tui2_components::{
+    Popup, SelectableList, SelectableListData, SelectionValue, TextInputPopup,
+    TextInputPopupResult,
+    utils::{get_focus_border_color, get_selected_item_color},
+};
 use crate::{errors::CliError, tui2_components::app_list::AppList};
 
-const MAX_HEIGHT: u16 = 25; // Maximum height of the TUI, will be +2 for borders
+const MAX_HEIGHT: u16 = 24; // Maximum height of the TUI, will be +2 for borders
 const MAX_TOTAL_WIDTH: u16 = 120; // Maximum width of AppList + OptionList
 const APP_LIST_WIDTH: u16 = 20;
 const MIN_OPTION_WIDTH: u16 = 40;
@@ -194,7 +199,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                             options.set(new_options);
                         }
                     }
-                    OptionData::StringList(_) => {
+                    OptionData::StringList(_) | OptionData::TextEdit(_) => {
                         if show_popup.get() {
                             error!(
                                 "Trying to open a string list popup while another popup is already open"
@@ -206,7 +211,9 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                         show_popup.set(true);
                         focus.set(Focus::Popup);
                     }
-                    _ => {}
+                    _ => {
+                        println!("Option {:?} not handled, yet", option_data);
+                    }
                 }
             } else {
                 error!(
@@ -254,17 +261,23 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                 app_list: SupportedApps::as_string_list(),
                 selected_item: selected_app.get().as_index(),
                 width: APP_LIST_WIDTH,
-                max_height: Some(MAX_HEIGHT),
+                height: Some(MAX_HEIGHT),
             )
-            SelectableList(
-                has_focus: focus.get() == Focus::OptionList,
-                on_selected: on_edit_option,
-                data: SelectableListData::Options(options.read().clone()),
-                show_border: true,
-                max_height: Some(MAX_HEIGHT),
-                width: Some(option_list_width),
-                debug_info: false,
-            )
+            View(
+                width: option_list_width,
+                height: MAX_HEIGHT,
+                border_style: BorderStyle::Round,
+                border_color: get_focus_border_color(focus.get() == Focus::OptionList),
+                justify_content: JustifyContent::Stretch,
+            ) {
+                SelectableList(
+                    height: MAX_HEIGHT - 2, // -2 for borders
+                    width: option_list_width - 2,
+                    has_focus: focus.get() == Focus::OptionList,
+                    on_selected: on_edit_option,
+                    data: SelectableListData::Options(options.read().clone()),
+                )
+            }
             #(popup)
         }
     }
@@ -318,13 +331,44 @@ where
                                     on_selected,
                                     data: SelectableListData::StringListItems(
                                         s.options().clone()),
-                                    show_border: false,
-                                    max_height: Some(20),
-                                    width: Some(40),
-                                    debug_info: true,
                                 )
                             }.into_any()
                         ]
+                    )
+                }
+                .into_any(),
+            )
+        }
+        OptionData::TextEdit(text_data) => {
+            let id = text_data.id().clone();
+            let title = OPTION_TITLES.get(&id).map_or("", |v| v);
+            let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
+            let on_submit = move |result| {
+                match result {
+                    TextInputPopupResult::Accepted(value) => {
+                        let res = project.lock().unwrap().on_option_changed(
+                            OptionDataChangeNotification::TextEdit(TextOptionChangeData::new(
+                                id.clone(),
+                                value,
+                            )),
+                        );
+                        if let Err(e) = res {
+                            error!("Error setting option: {:?}", e);
+                        }
+                    }
+                    TextInputPopupResult::Cancelled => {}
+                };
+                if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                    cb();
+                }
+            };
+            Some(
+                element! {
+                    TextInputPopup(
+                        title,
+                        text: text_data.value().clone(),
+                        max_lines: text_data.max_lines(),
+                        on_submit,
                     )
                 }
                 .into_any(),

@@ -12,17 +12,23 @@ use crate::{
     errors::CliError,
     tui2_components::{
         ListItem, NavDirection, get_selected_char, navigate_selection,
-        utils::{
-            DEFAULT_MAX_HEIGHT, RenderWithWidth, SelectableItem, format_bool_subtitle,
-            get_focus_border_color, get_selected_item_color,
-        },
+        utils::{SelectableItem, format_bool_subtitle, get_selected_item_color},
     },
 };
 
 impl SelectableItem for StringListOptionItem {
     type SelectionValue = usize;
 
-    fn render(&self, is_selected: bool, component_focused: bool) -> AnyElement<'static> {
+    fn item_height(&self) -> u16 {
+        1
+    }
+
+    fn render(
+        &self,
+        is_selected: bool,
+        component_focused: bool,
+        _: Option<u16>,
+    ) -> AnyElement<'static> {
         let background_color = get_selected_item_color(is_selected, component_focused);
         let prefix = get_selected_char(is_selected);
         element! {
@@ -39,77 +45,63 @@ impl SelectableItem for StringListOptionItem {
 impl SelectableItem for OptionData {
     type SelectionValue = OptionId;
 
-    fn render(&self, is_selected: bool, component_focused: bool) -> AnyElement<'static> {
-        self.render_with_width(is_selected, component_focused, None)
+    fn item_height(&self) -> u16 {
+        2
     }
-}
 
-impl RenderWithWidth for OptionData {
-    fn render_with_width(
+    fn render(
         &self,
         is_selected: bool,
         component_focused: bool,
-        max_width: Option<u16>,
+        width: Option<u16>,
     ) -> AnyElement<'static> {
         let char = get_selected_char(is_selected);
         let background_color = get_selected_item_color(is_selected, component_focused);
         let id = self.id();
         let title = OPTION_TITLES
             .get(id)
-            .ok_or(CliError::OptionTitleRetrievalError(id.to_string()))
-            .unwrap();
+            .expect("Failed to retrieve option title");
 
-        let truncate_text = |text: &str, prefix: &str| {
-            if let Some(width) = max_width {
-                let available_width = width.saturating_sub(4) as usize; // Account for border + padding
-                let full_text = format!("{} {}", prefix, text);
-                if full_text.len() > available_width {
-                    format!(
-                        "{} {}...",
-                        prefix,
-                        &text[..available_width.saturating_sub(prefix.len() + 4)]
-                    )
-                } else {
-                    full_text
-                }
-            } else {
-                format!("{} {}", prefix, text)
-            }
+        let subtitle = match self {
+            OptionData::Bool(b) => format_bool_subtitle(b.value()),
+            _ => "subtitle".to_string(),
         };
 
-        match self {
-            OptionData::Bool(b) => {
-                let subtitle = format_bool_subtitle(b.value());
-                let title_text = truncate_text(title, &char.to_string());
-                let subtitle_text = truncate_text(&subtitle, &char.to_string());
-
-                element! {
-                    View(
-                        flex_direction: FlexDirection::Column,
-                        background_color,
-                    ) {
-                        Text(content: title_text)
-                        Text(content: subtitle_text)
+        let truncate_text = |text: &str, prefix: &str| {
+            width.map_or_else(
+                || format!("{} {}", prefix, text),
+                |w| {
+                    let available_width = w.saturating_sub(4) as usize; // Account for border, etc.
+                    let full_text = format!("{} {}", prefix, text);
+                    if full_text.len() <= available_width {
+                        return full_text;
                     }
+                    let end = available_width.saturating_sub(prefix.len() + 4); // "... " and prefix
+                    format!("{} {}...", prefix, &text[..end])
+                },
+            )
+        };
+
+        let char_str = &char.to_string();
+        let title_text = truncate_text(title, char_str);
+        let subtitle_text = truncate_text(&subtitle, char_str);
+
+        if let Some(width) = width {
+            element! {
+                View(width, flex_direction: FlexDirection::Column, background_color) {
+                    Text(content: title_text)
+                    Text(content: subtitle_text)
                 }
-                .into_any()
             }
-            _ => {
-                let title_text = truncate_text(title, &char.to_string());
-                let subtitle_text = truncate_text("subtitle", &char.to_string());
-
-                element! {
-                    View(
-                        flex_direction: FlexDirection::Column,
-                        background_color,
-                    ) {
-                        Text(content: title_text)
-                        Text(content: subtitle_text)
-                    }
+        } else {
+            element! {
+                View(flex_direction: FlexDirection::Column, background_color) {
+                    Text(content: title_text)
+                    Text(content: subtitle_text)
                 }
-                .into_any()
             }
         }
+        .into_any()
     }
 }
 
@@ -149,10 +141,9 @@ pub struct SelectableListProps {
     pub has_focus: bool,
     pub on_selected: Handler<'static, SelectionValue>,
     pub data: SelectableListData,
-    pub show_border: bool,
-    pub max_height: Option<u16>,
-    pub width: Option<u16>,
     pub debug_info: bool,
+    pub width: Option<u16>,
+    pub height: Option<u16>,
 }
 
 #[component]
@@ -169,15 +160,19 @@ pub fn SelectableList(
         };
     }
 
-    let (_, height) = hooks.use_terminal_size();
-    let max_height = props.max_height.unwrap_or(DEFAULT_MAX_HEIGHT);
-    let height = height.min(max_height);
-
     let num_items = props.data.len();
-    let max_num_list_items = match &props.data {
-        SelectableListData::Options(_) => (height as usize / 2) - 1, // minus one for the borders
-        SelectableListData::StringListItems(_) => height as usize,
+    let item_height = match &props.data {
+        SelectableListData::Options(o) => o.first().map_or(2, |item| item.item_height()),
+        SelectableListData::StringListItems(i) => i.first().map_or(1, |item| item.item_height()),
+    } as usize;
+
+    let available_height = if let Some(h) = props.height {
+        h
+    } else {
+        // If no height is provided, we expect that we have enough space to render the entire list.
+        num_items as u16
     };
+    let max_num_list_items = available_height as usize / item_height;
 
     let mut selected = hooks.use_state(|| 0);
     let mut offset = hooks.use_state(|| 0);
@@ -250,16 +245,14 @@ pub fn SelectableList(
             .iter()
             .enumerate()
             .skip(offset.get())
-            .map(|(i, option)| {
-                option.render_with_width(i == current_selection, props.has_focus, props.width)
-            })
+            .map(|(i, option)| option.render(i == current_selection, props.has_focus, props.width))
             .take(max_num_list_items)
             .collect(),
         SelectableListData::StringListItems(items) => items
             .iter()
             .enumerate()
             .skip(offset.get())
-            .map(|(i, item)| item.render(i == current_selection, props.has_focus))
+            .map(|(i, item)| item.render(i == current_selection, props.has_focus, props.width))
             .take(max_num_list_items)
             .collect(),
     };
@@ -277,7 +270,14 @@ pub fn SelectableList(
     if props.debug_info {
         debug_item.push(
             element! {
-                Text(content: format!("Offset: {}, Selected: {}", offset.get(), selected.get()))
+                Text(
+                    content: format!("Offset: {}, Selected: {}, W: {}, H: {}",
+                        offset.get(),
+                        selected.get(),
+                        props.width.unwrap_or(0),
+                        props.height.unwrap_or(0),
+                    )
+                )
             }
             .into_any(),
         );
@@ -286,60 +286,13 @@ pub fn SelectableList(
     let mut all_items = items;
     all_items.extend(debug_item);
 
-    if props.show_border {
-        let border_color = get_focus_border_color(props.has_focus);
-        if let Some(width) = props.width {
-            element! {
-                View(
-                    width,
-                    height: height + 2,
-                    flex_direction: FlexDirection::Column,
-                    border_style: BorderStyle::Round,
-                    border_color,
-                ) {
-                    View(flex_direction: FlexDirection::Column) {
-                        #(all_items)
-                    }
-                }
-            }
-        } else {
-            element! {
-                View(
-                    height: height + 2,
-                    flex_direction: FlexDirection::Column,
-                    border_style: BorderStyle::Round,
-                    border_color,
-                ) {
-                    View(flex_direction: FlexDirection::Column) {
-                        #(all_items)
-                    }
-                }
-            }
-        }
-    } else if let Some(width) = props.width {
-        element! {
-            View(
-                width,
-                height,
-                flex_direction: FlexDirection::Column,
-                border_style: BorderStyle::None,
-            ) {
-                View(flex_direction: FlexDirection::Column) {
-                    #(all_items)
-                }
-            }
-        }
-    } else {
-        element! {
-            View(
-                height,
-                flex_direction: FlexDirection::Column,
-                border_style: BorderStyle::None,
-            ) {
-                View(flex_direction: FlexDirection::Column) {
-                    #(all_items)
-                }
-            }
+    element! {
+        View(
+            height: available_height,
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Stretch,
+        ) {
+            #(all_items)
         }
     }
 }
