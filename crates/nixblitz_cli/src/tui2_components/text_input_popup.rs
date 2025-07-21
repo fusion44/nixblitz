@@ -1,6 +1,6 @@
 use iocraft::prelude::*;
 
-use crate::tui2_components::Popup;
+use crate::tui2_components::{CustomTextInput, Popup};
 
 #[derive(Debug, Clone)]
 pub enum TextInputPopupResult {
@@ -99,11 +99,12 @@ pub fn TextInputPopup(
             height: text_input_height,
             background_color: Color::DarkGrey,
         ){
-            TextInput(
+            CustomTextInput(
                 multiline: is_multiline,
                 has_focus: *focus.read() == PopupFocus::Edit,
                 value: initial_input_value.read().clone(),
                 on_change: move |new_value| initial_input_value.set(new_value),
+                masked: false,
             )
         }
     };

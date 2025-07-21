@@ -16,15 +16,16 @@ use nixblitz_core::{
     OPTION_TITLES, SupportedApps,
     bool_data::BoolOptionChangeData,
     option_data::{GetOptionId, OptionData, OptionDataChangeNotification},
+    password_data::PasswordOptionChangeData,
     string_list_data::StringListOptionChangeData,
     text_edit_data::TextOptionChangeData,
 };
 use nixblitz_system::project::Project;
 
 use crate::tui2_components::{
-    Popup, SelectableList, SelectableListData, SelectionValue, TextInputPopup,
-    TextInputPopupResult,
-    utils::{get_focus_border_color, get_selected_item_color},
+    PasswordInputMode, PasswordInputPopup, PasswordInputResult, Popup, SelectableList,
+    SelectableListData, SelectionValue, TextInputPopup, TextInputPopupResult,
+    utils::get_focus_border_color,
 };
 use crate::{errors::CliError, tui2_components::app_list::AppList};
 
@@ -199,7 +200,9 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                             options.set(new_options);
                         }
                     }
-                    OptionData::StringList(_) | OptionData::TextEdit(_) => {
+                    OptionData::StringList(_)
+                    | OptionData::TextEdit(_)
+                    | OptionData::PasswordEdit(_) => {
                         if show_popup.get() {
                             error!(
                                 "Trying to open a string list popup while another popup is already open"
@@ -294,6 +297,9 @@ where
     match data {
         OptionData::StringList(s) => {
             let s_for_closure = s.clone();
+            // Not, this callbacks only function is to notify the caller
+            // that the popup can be closed. No value should be passed back.
+            // This should probably be refactored such that the popup closes itself
             let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
             let on_selected = move |selection: SelectionValue| {
                 if let SelectionValue::Index(i) = selection {
@@ -368,6 +374,44 @@ where
                         title,
                         text: text_data.value().clone(),
                         max_lines: text_data.max_lines(),
+                        on_submit,
+                    )
+                }
+                .into_any(),
+            )
+        }
+        OptionData::PasswordEdit(password_data) => {
+            let id = password_data.id().clone();
+            let title = OPTION_TITLES.get(&id).map_or("", |v| v);
+            let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
+
+            let on_submit = move |result| match result {
+                PasswordInputResult::Accepted(value) => {
+                    let res =
+                        project.lock().unwrap().on_option_changed(
+                            OptionDataChangeNotification::PasswordEdit(
+                                PasswordOptionChangeData::new(id.clone(), value, None),
+                            ),
+                        );
+                    if let Err(e) = res {
+                        error!("Error setting option: {:?}", e);
+                    }
+                    if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                        cb();
+                    }
+                }
+                PasswordInputResult::Cancelled => {
+                    if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                        cb();
+                    }
+                }
+            };
+
+            Some(
+                element! {
+                    PasswordInputPopup(
+                        title,
+                        mode: PasswordInputMode::SetNewPassword,
                         on_submit,
                     )
                 }

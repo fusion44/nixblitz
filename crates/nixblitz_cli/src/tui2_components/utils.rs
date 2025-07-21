@@ -27,6 +27,15 @@ pub fn get_background_color() -> Color {
     Color::Reset
 }
 
+pub fn get_text_input_color(focused: bool, error: bool) -> Color {
+    match (focused, error) {
+        (true, true) => Color::DarkMagenta,
+        (false, true) => Color::Magenta,
+        (true, false) => Color::DarkGrey,
+        (false, false) => Color::Grey,
+    }
+}
+
 pub fn format_bool_subtitle(value: bool) -> String {
     if value {
         return "✓ (true)".to_string();
