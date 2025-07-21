@@ -54,6 +54,10 @@ impl TextOptionData {
     pub fn max_lines(&self) -> u16 {
         self.max_lines
     }
+
+    pub fn first_line(&self) -> &str {
+        self.value.split('\n').next().unwrap_or_default()
+    }
 }
 
 impl ApplicableOptionData for TextOptionData {

@@ -40,6 +40,7 @@ pub struct TextInputPopupProps {
     pub max_lines: u16,
     pub text: String,
     pub on_submit: Handler<'static, TextInputPopupResult>,
+    pub height: Option<u16>,
 }
 
 #[component]
@@ -92,11 +93,15 @@ pub fn TextInputPopup(
             _ => {}
         }
     });
-    let text_input_height = props.max_lines.min(10);
+    let height = if let Some(height) = props.height {
+        height
+    } else {
+        props.max_lines.min(10)
+    };
     let text_input_view = element! {
         View(
+            height,
             width: 40,
-            height: text_input_height,
             background_color: Color::DarkGrey,
         ){
             CustomTextInput(

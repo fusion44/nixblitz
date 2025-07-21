@@ -14,8 +14,6 @@ pub enum CliError {
     IoError(String),
     #[error("Unable to start the TUI")]
     UnableToStartTui,
-    #[error("Unable to wind down the TUI")]
-    UnableToWindDownTui,
     #[error("Unable to initialize the Project struct")]
     UnableToInitProjectStruct,
     #[error("Unable to draw a component")]

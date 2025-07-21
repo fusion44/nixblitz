@@ -25,7 +25,7 @@ use nixblitz_system::project::Project;
 use crate::tui2_components::{
     PasswordInputMode, PasswordInputPopup, PasswordInputResult, Popup, SelectableList,
     SelectableListData, SelectionValue, TextInputPopup, TextInputPopupResult,
-    utils::get_focus_border_color,
+    utils::{SelectableItem, get_focus_border_color},
 };
 use crate::{errors::CliError, tui2_components::app_list::AppList};
 
@@ -94,7 +94,6 @@ enum Focus {
 
 #[derive(Debug, Clone, strum::Display, PartialEq)]
 enum PopupData {
-    Help(String),
     Option(OptionData),
 }
 
@@ -173,8 +172,8 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
         .max(MIN_OPTION_WIDTH);
 
     let project_clone = project.clone();
-    let on_edit_option = move |selection: SelectionValue| {
-        if let SelectionValue::OptionId(option_id) = selection {
+    let on_edit_option = move |selection: Option<SelectionValue>| {
+        if let Some(SelectionValue::OptionId(option_id)) = selection {
             let current_options = options.read().clone();
             let option_data = current_options
                 .iter()
@@ -229,7 +228,6 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
 
     let popup = if let Some(data) = popup_data.read().clone() {
         match data {
-            PopupData::Help(_) => todo!(),
             PopupData::Option(option_data) => {
                 let project_for_popup = project.clone();
                 build_option_popup(project.clone(), option_data, move || {
@@ -297,12 +295,14 @@ where
     match data {
         OptionData::StringList(s) => {
             let s_for_closure = s.clone();
+            let title = OPTION_TITLES.get(s.id()).map_or("title_not_found", |v| v);
+
             // Not, this callbacks only function is to notify the caller
             // that the popup can be closed. No value should be passed back.
             // This should probably be refactored such that the popup closes itself
             let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
-            let on_selected = move |selection: SelectionValue| {
-                if let SelectionValue::Index(i) = selection {
+            let on_selected = move |selection: Option<SelectionValue>| {
+                if let Some(SelectionValue::Index(i)) = selection {
                     if let Some(selected) = s_for_closure.options().get(i) {
                         let mut project = project.lock().unwrap();
                         let res =
@@ -318,25 +318,35 @@ where
                     } else {
                         error!("Option index out of bounds");
                     }
+                }
 
-                    if let Some(cb) = on_close_requested.lock().unwrap().take() {
-                        cb();
-                    }
+                if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                    cb();
                 }
             };
 
+            let options = s.options().clone();
+            let num_options = options.len();
+            let item_height = options.first().map_or(1, |item| item.item_height());
+            let max_num_list_items = (MAX_HEIGHT / item_height) as usize;
+            let height = if num_options > max_num_list_items {
+                Some(MAX_HEIGHT - 4)
+            } else {
+                None
+            };
             Some(
                 element! {
                     Popup(
                         has_focus: true,
-                        title: "Choose wisely".to_string(),
+                        title: title.to_string(),
                         children: vec![
                             element! {
                                 SelectableList(
+                                    height,
+                                    width: Some(40),
                                     has_focus: true,
                                     on_selected,
-                                    data: SelectableListData::StringListItems(
-                                        s.options().clone()),
+                                    data: SelectableListData::StringListItems(options),
                                 )
                             }.into_any()
                         ]
@@ -368,9 +378,16 @@ where
                     cb();
                 }
             };
+
+            let height = if text_data.max_lines() > MAX_HEIGHT - 4 {
+                Some(MAX_HEIGHT - 4)
+            } else {
+                None
+            };
             Some(
                 element! {
                     TextInputPopup(
+                        height,
                         title,
                         text: text_data.value().clone(),
                         max_lines: text_data.max_lines(),

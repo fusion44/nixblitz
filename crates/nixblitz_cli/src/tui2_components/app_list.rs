@@ -43,7 +43,7 @@ pub(crate) fn AppList(
 
         element! {
             View(background_color: background_color) {
-                Text(content: display_text)
+                Text(content: display_text.to_uppercase(), color: Color::White)
             }
         }
     });

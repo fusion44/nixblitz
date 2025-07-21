@@ -8,12 +8,9 @@ use nixblitz_core::{
     string_list_data::StringListOptionItem,
 };
 
-use crate::{
-    errors::CliError,
-    tui2_components::{
-        ListItem, NavDirection, get_selected_char, navigate_selection,
-        utils::{SelectableItem, format_bool_subtitle, get_selected_item_color},
-    },
+use crate::tui2_components::{
+    ListItem, NavDirection, get_selected_char, navigate_selection,
+    utils::{SelectableItem, format_bool_subtitle, get_selected_item_color},
 };
 
 impl SelectableItem for StringListOptionItem {
@@ -58,13 +55,18 @@ impl SelectableItem for OptionData {
         let char = get_selected_char(is_selected);
         let background_color = get_selected_item_color(is_selected, component_focused);
         let id = self.id();
-        let title = OPTION_TITLES
-            .get(id)
-            .expect("Failed to retrieve option title");
+        let title = OPTION_TITLES.get(id).map_or("title_not_found", |v| v);
 
         let subtitle = match self {
             OptionData::Bool(b) => format_bool_subtitle(b.value()),
-            _ => "subtitle".to_string(),
+            OptionData::StringList(s) => s.value().to_string(),
+            OptionData::ManualStringList(m) => m.value().join(", "),
+            OptionData::TextEdit(t) => t.first_line().to_string(),
+            OptionData::Path(p) => p.value().unwrap_or_default(),
+            OptionData::PasswordEdit(_) => "********".to_string(),
+            OptionData::NumberEdit(n) => n.value().to_string(),
+            OptionData::NetAddress(n) => n.value().map_or(String::new(), |v| v.to_string()),
+            OptionData::Port(p) => p.value().to_string(),
         };
 
         let truncate_text = |text: &str, prefix: &str| {
@@ -83,20 +85,19 @@ impl SelectableItem for OptionData {
         };
 
         let char_str = &char.to_string();
-        let title_text = truncate_text(title, char_str);
+        let title_text = truncate_text(title, char_str).to_uppercase();
         let subtitle_text = truncate_text(&subtitle, char_str);
-
         if let Some(width) = width {
             element! {
                 View(width, flex_direction: FlexDirection::Column, background_color) {
-                    Text(content: title_text)
+                    Text(content: title_text, color: Color::White, wrap: TextWrap::NoWrap)
                     Text(content: subtitle_text)
                 }
             }
         } else {
             element! {
                 View(flex_direction: FlexDirection::Column, background_color) {
-                    Text(content: title_text)
+                    Text(content: title_text, color: Color::White, wrap: TextWrap::NoWrap)
                     Text(content: subtitle_text)
                 }
             }
@@ -139,7 +140,7 @@ pub enum SelectionValue {
 #[derive(Default, Props)]
 pub struct SelectableListProps {
     pub has_focus: bool,
-    pub on_selected: Handler<'static, SelectionValue>,
+    pub on_selected: Handler<'static, Option<SelectionValue>>,
     pub data: SelectableListData,
     pub debug_info: bool,
     pub width: Option<u16>,
@@ -229,7 +230,11 @@ pub fn SelectableList(
                                     SelectionValue::Index(selected.get())
                                 }
                             };
-                            on_selected(selection_value);
+                            on_selected(Some(selection_value));
+                        }
+                        KeyCode::Esc => {
+                            // Cancel
+                            on_selected(None);
                         }
                         _ => {}
                     }
@@ -286,13 +291,26 @@ pub fn SelectableList(
     let mut all_items = items;
     all_items.extend(debug_item);
 
-    element! {
-        View(
-            height: available_height,
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Stretch,
-        ) {
-            #(all_items)
+    if let Some(width) = props.width {
+        element! {
+            View(
+                width,
+                height: available_height,
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Stretch,
+            ) {
+                #(all_items)
+            }
+        }
+    } else {
+        element! {
+            View(
+                height: available_height,
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Stretch,
+            ) {
+                #(all_items)
+            }
         }
     }
 }
