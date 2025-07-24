@@ -15,6 +15,7 @@ use log::error;
 use nixblitz_core::{
     OPTION_TITLES, SupportedApps,
     bool_data::BoolOptionChangeData,
+    net_address_data::NetAddressOptionChangeData,
     option_data::{GetOptionId, OptionData, OptionDataChangeNotification},
     password_data::PasswordOptionChangeData,
     string_list_data::StringListOptionChangeData,
@@ -23,8 +24,9 @@ use nixblitz_core::{
 use nixblitz_system::project::Project;
 
 use crate::tui2_components::{
-    PasswordInputMode, PasswordInputPopup, PasswordInputResult, Popup, SelectableList,
-    SelectableListData, SelectionValue, TextInputPopup, TextInputPopupResult,
+    NetAddressPopup, NetAddressPopupResult, PasswordInputMode, PasswordInputPopup,
+    PasswordInputResult, Popup, SelectableList, SelectableListData, SelectionValue, TextInputPopup,
+    TextInputPopupResult,
     utils::{SelectableItem, get_focus_border_color},
 };
 use crate::{errors::CliError, tui2_components::app_list::AppList};
@@ -201,7 +203,8 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                     }
                     OptionData::StringList(_)
                     | OptionData::TextEdit(_)
-                    | OptionData::PasswordEdit(_) => {
+                    | OptionData::PasswordEdit(_)
+                    | OptionData::NetAddress(_) => {
                         if show_popup.get() {
                             error!(
                                 "Trying to open a string list popup while another popup is already open"
@@ -429,6 +432,42 @@ where
                     PasswordInputPopup(
                         title,
                         mode: PasswordInputMode::SetNewPassword,
+                        on_submit,
+                    )
+                }
+                .into_any(),
+            )
+        }
+        OptionData::NetAddress(net_address_data) => {
+            let id = net_address_data.id().clone();
+            let title = OPTION_TITLES.get(&id).map_or("", |v| v);
+            let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
+            let on_submit = move |result| {
+                match result {
+                    NetAddressPopupResult::Accepted(value) => {
+                        let res = project.lock().unwrap().on_option_changed(
+                            OptionDataChangeNotification::NetAddress(NetAddressOptionChangeData::new(
+                                id.clone(),
+                                value,
+                            )),
+                        );
+                        if let Err(e) = res {
+                            error!("Error setting option: {:?}", e);
+                        }
+                    }
+                    NetAddressPopupResult::Cancelled => {}
+                };
+                if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                    cb();
+                }
+            };
+
+            Some(
+                element! {
+                    NetAddressPopup(
+                        title,
+                        text: net_address_data.value().map_or(
+                            String::new(), |v| v.to_string()),
                         on_submit,
                     )
                 }
