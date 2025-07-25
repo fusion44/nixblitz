@@ -4,16 +4,9 @@ use dioxus::prelude::*;
 use dioxus_logger::tracing;
 use nixblitz_core::{
     SystemClientCommand, SystemServerEvent, SystemState,
-    app_option_data::{
-        option_data::{GetOptionId, OptionData},
-        *,
-    },
 };
 
-use crate::{
-    backend::{get_app_options_wrapper, get_supported_apps_wrapper},
-    components::{Button, Configurator, option_editors::*},
-};
+use crate::components::{Button, Configurator};
 use futures::{
     SinkExt, StreamExt,
     channel::mpsc::{self, UnboundedSender},
@@ -33,7 +26,7 @@ fn get_ws_url() -> String {
         let url = std::env::var("NIXBLITZ_SYSTEM_WS_OVERRIDE")
             .unwrap_or_else(|_| DEV_SYS_WS_URL.to_string());
         tracing::info!("Using development WebSocket URL: {}", &url);
-        return url;
+        url
     }
 
     #[cfg(not(debug_assertions))]
@@ -61,8 +54,8 @@ fn get_ws_url() -> String {
 
 #[component]
 pub fn Config() -> Element {
-    let mut system_state: SystemStateSignal = use_signal(|| Arc::new(RwLock::new(None)));
-    let mut command_sender: SystemClientCommandSignal = use_signal(|| None);
+    let system_state: SystemStateSignal = use_signal(|| Arc::new(RwLock::new(None)));
+    let command_sender: SystemClientCommandSignal = use_signal(|| None);
     let logs: SystemLogsSignal = use_signal(Vec::new);
     let mut url: Signal<String> = use_signal(String::new);
     let mut show_logs_modal = use_signal(|| false);

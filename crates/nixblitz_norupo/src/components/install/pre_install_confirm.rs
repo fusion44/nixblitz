@@ -1,11 +1,8 @@
 use dioxus::prelude::*;
-use dioxus_logger::tracing;
 use nixblitz_core::PreInstallConfirmData;
 
-use crate::classes::typography;
 use crate::classes::typography::headings::{H2, H3};
 use crate::components::Button;
-use crate::string_formatters::format_bytes_to_gb;
 
 #[component]
 pub fn PreInstallConfirm(

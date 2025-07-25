@@ -1,5 +1,5 @@
 use crate::engine::{EngineState, SharedInstallState};
-use error_stack::{FutureExt, Report, Result, ResultExt};
+use error_stack::{Report, ResultExt};
 use log::{debug, info};
 use nixblitz_core::{
     DiskoInstallStepName, DiskoStepStatus, InstallError, InstallServerEvent, InstallState,

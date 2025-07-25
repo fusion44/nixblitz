@@ -1,7 +1,5 @@
 use dioxus::prelude::*;
-use nixblitz_core::app_option_data::option_data::{
-    GetOptionId, OptionData, OptionDataChangeNotification, OptionId,
-};
+use nixblitz_core::app_option_data::option_data::{OptionData, OptionDataChangeNotification};
 
 #[cfg(feature = "server")]
 fn get_project() -> Result<nixblitz_system::project::Project, ServerFnError> {
@@ -77,6 +75,7 @@ pub(crate) async fn set_app_option_wrapper(
 
 #[cfg(feature = "server")]
 pub async fn set_app_options(n: OptionDataChangeNotification) -> Result<(), ServerFnError> {
+    use nixblitz_core::option_data::GetOptionId;
     use nixblitz_system::project::Project;
     use std::path::PathBuf;
 

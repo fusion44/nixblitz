@@ -1,9 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_logger::tracing;
-use nixblitz_core::app_option_data::{
-    option_data::{GetOptionId, OptionData},
-    *,
-};
+use nixblitz_core::app_option_data::option_data::{GetOptionId, OptionData};
 
 use crate::{
     backend::{get_app_options_wrapper, get_supported_apps_wrapper},
@@ -14,10 +11,10 @@ use crate::{
 pub fn Configurator() -> Element {
     let apps = use_resource(get_supported_apps_wrapper);
     let opts = use_resource(move || get_app_options_wrapper("Nix OS".to_string()));
-    let mut option_data: Signal<Vec<OptionData>> = use_signal(|| vec![]);
+    let mut option_data: Signal<Vec<OptionData>> = use_signal(std::vec::Vec::new);
 
-    let mut is_fetching = use_signal(|| false);
-    let mut selected_app: Signal<Option<String>> = use_signal(|| Some("Nix OS".to_string()));
+    let is_fetching = use_signal(|| false);
+    let selected_app: Signal<Option<String>> = use_signal(|| Some("Nix OS".to_string()));
 
     use_effect(move || {
         tracing::trace!("in effect, checking opts resource");
@@ -35,9 +32,9 @@ pub fn Configurator() -> Element {
     });
 
     let fetch_app_options = use_callback(move |app: String| {
-        let mut option_data = option_data.clone();
-        let mut is_fetching = is_fetching.clone();
-        let mut selected_app = selected_app.clone();
+        let mut option_data = option_data;
+        let mut is_fetching = is_fetching;
+        let mut selected_app = selected_app;
 
         async move {
             if !*is_fetching.read() {
@@ -174,7 +171,7 @@ pub fn Configurator() -> Element {
                 .iter()
                 .map(move |app| {
                     let app_clone = app.clone();
-                    let is_selected = selected_app.read().as_ref() == Some(&app);
+                    let is_selected = selected_app.read().as_ref() == Some(app);
                     rsx! {
                         li {
                             key: "{app}",

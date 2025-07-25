@@ -22,7 +22,6 @@ use std::{
     env,
     io::Write,
     net::{IpAddr, Ipv4Addr},
-    str::FromStr,
 };
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::broadcast;

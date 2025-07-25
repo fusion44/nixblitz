@@ -12,7 +12,6 @@ pub use bool_option_editor::*;
 pub use manual_string_list_option_editor::*;
 pub use netaddress_option_editor::*;
 pub use number_option_editor::*;
-pub use password_option_editor::*;
 pub use path_option_editor::*;
 pub use port_option_editor::*;
 pub use string_list_option_editor::*;

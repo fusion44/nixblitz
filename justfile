@@ -78,7 +78,7 @@ run-cli *args='':
 
 # serve the installer engine
 run-installer-engine:
-  cd {{rust_src}}; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "debug"; cargo run -p nixblitz_installer_engine
+  cd {{rust_src}}; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.NIXBLITZ_DEMO = 1; $env.RUST_LOG = "debug"; cargo run -p nixblitz_installer_engine
 
 run-system-engine:
   cd {{rust_src}}; $env.NIXBLITZ_WORK_DIR = '{{work_dir}}'; $env.RUST_BACKTRACE = 1; $env.RUST_LOG = "debug"; cargo run -p nixblitz_system_engine

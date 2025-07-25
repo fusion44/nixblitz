@@ -3,15 +3,11 @@ use std::{net::IpAddr, str::FromStr};
 use dioxus::prelude::*;
 use dioxus_logger::tracing;
 use nixblitz_core::app_option_data::{
-    bool_data::BoolOptionChangeData,
     net_address_data::NetAddressOptionChangeData,
     option_data::{OptionDataChangeNotification, OptionId},
-    password_data::PasswordOptionChangeData,
-    text_edit_data::TextOptionChangeData,
 };
-use tracing::info;
 
-use crate::{backend::set_app_option_wrapper, components::input_type::InputType};
+use crate::backend::set_app_option_wrapper;
 
 #[component]
 pub(crate) fn NetAddressOptionEditor(
@@ -19,7 +15,7 @@ pub(crate) fn NetAddressOptionEditor(
     applied: bool,
     id: OptionId,
 ) -> Element {
-    let mut value = use_signal(|| {
+    let value = use_signal(|| {
         if value.is_none() {
             "".to_string()
         } else {

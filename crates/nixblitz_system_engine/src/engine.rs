@@ -1,7 +1,7 @@
 use log::{debug, error, info};
 use nixblitz_core::{SystemState, *};
 use nixblitz_system::project::Project;
-use nixblitz_system::utils::{commit_config, reboot_system};
+use nixblitz_system::utils::reboot_system;
 use std::env;
 use std::process::exit;
 use std::sync::Arc;

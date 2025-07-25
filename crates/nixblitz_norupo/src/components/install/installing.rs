@@ -1,6 +1,5 @@
 use dioxus::prelude::*;
-use dioxus_logger::tracing;
-use nixblitz_core::{DiskoInstallStep, DiskoStepStatus};
+use nixblitz_core::DiskoInstallStep;
 
 use crate::{classes::typography, components::InstallStepRow};
 

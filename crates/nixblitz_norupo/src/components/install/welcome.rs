@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-use dioxus_logger::tracing;
 
 use crate::classes::typography;
 use crate::components::Button;

@@ -1,25 +1,17 @@
 use std::sync::{Arc, RwLock};
 
 use dioxus::prelude::*;
-use dioxus::prelude::*;
 use dioxus_logger::tracing;
 use nixblitz_core::{
     DiskoInstallStep, InstallState,
-    app_option_data::{
-        option_data::{GetOptionId, OptionData},
-        *,
-    },
 };
 
 use crate::{
-    backend::{get_app_options_wrapper, get_supported_apps_wrapper},
-    classes::{buttons, typography::headings},
+    classes::typography::headings,
     components::{
         Button, Configurator, InstallDiskSelection, InstallSuccess, Installing, PreInstallConfirm,
         install::{SystemCheckDisplay, Welcome},
-        option_editors::*,
     },
-    installer_engine_connection::EngineConnection,
 };
 use futures::{SinkExt, StreamExt, channel::mpsc, future};
 use gloo_net::websocket::{Message, futures::WebSocket};
@@ -38,7 +30,7 @@ fn get_ws_url() -> String {
         let url = std::env::var("NIXBLITZ_INSTALLER_WS_OVERRIDE")
             .unwrap_or_else(|_| DEV_WS_URL.to_string());
         tracing::info!("Using development WebSocket URL: {}", &url);
-        return url;
+        url
     }
 
     #[cfg(not(debug_assertions))]
@@ -66,8 +58,8 @@ fn get_ws_url() -> String {
 
 #[component]
 pub fn Install() -> Element {
-    let mut install_state: InstallStateSignal = use_signal(|| Arc::new(RwLock::new(None)));
-    let mut command_sender: ClientCommandSignal = use_signal(|| None);
+    let install_state: InstallStateSignal = use_signal(|| Arc::new(RwLock::new(None)));
+    let command_sender: ClientCommandSignal = use_signal(|| None);
     // FYI: Vec::new acts as a function pointter, so we can skip giving a
     //      full closure to use_signal like above
     let install_steps: InstallStepsSignal = use_signal(Vec::new);

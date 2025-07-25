@@ -1,12 +1,8 @@
 use dioxus::prelude::*;
 use nixblitz_core::{
     app_option_data::{
-        bool_data::BoolOptionChangeData,
-        number_data::NumberOptionChangeData,
         option_data::{OptionDataChangeNotification, OptionId},
-        password_data::PasswordOptionChangeData,
         port_data::PortOptionChangeData,
-        text_edit_data::TextOptionChangeData,
     },
     number_value::NumberValue,
 };
@@ -15,7 +11,7 @@ use crate::{backend::set_app_option_wrapper, components::input_type::InputType};
 
 #[component]
 pub(crate) fn PortOptionEditor(value: NumberValue, applied: bool, id: OptionId) -> Element {
-    let mut value_str = use_signal(|| value.to_string());
+    let value_str = use_signal(|| value.to_string());
     let clone1 = id.clone();
 
     let set_data = use_callback(move |new_value: String| {

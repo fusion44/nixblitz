@@ -13,7 +13,7 @@ pub(crate) fn StringListOptionEditor(
     id: OptionId,
     options: Vec<StringListOptionItem>,
 ) -> Element {
-    let mut selected_value = use_signal(|| value.clone());
+    let selected_value = use_signal(|| value.clone());
 
     let clone1 = id.clone();
     let set_data = use_callback(move |value: String| {

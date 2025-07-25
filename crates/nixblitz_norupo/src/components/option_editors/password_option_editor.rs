@@ -1,16 +1,14 @@
 use dioxus::prelude::*;
 use nixblitz_core::app_option_data::{
-    bool_data::BoolOptionChangeData,
     option_data::{OptionDataChangeNotification, OptionId},
     password_data::PasswordOptionChangeData,
-    text_edit_data::TextOptionChangeData,
 };
 
 use crate::{backend::set_app_option_wrapper, components::input_type::InputType};
 
 #[component]
 pub(crate) fn PasswordOptionEditor(value: String, applied: bool, id: OptionId) -> Element {
-    let mut value = use_signal(|| value);
+    let value = use_signal(|| value);
     let clone1 = id.clone();
 
     let set_data = use_callback(move |value: String| {

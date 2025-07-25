@@ -1,11 +1,7 @@
 use dioxus::prelude::*;
-use dioxus_logger::tracing;
 use nixblitz_core::DiskInfo;
-use nixblitz_core::option_data::OptionId;
-use nixblitz_core::string_list_data::StringListOptionItem;
 
-use crate::classes::typography;
-use crate::components::{Button, StringListOptionEditor};
+use crate::components::Button;
 use crate::string_formatters::format_bytes_to_gb;
 
 #[component]
@@ -25,7 +21,7 @@ pub fn InstallDiskSelection(
             .iter()
             .map(|disk| {
                 let disk_path_for_closure = disk.path.clone();
-                let on_select_handler = on_select.clone();
+                let on_select_handler = on_select;
                 let mounts =                         if disk.mount_points.is_empty() {
                             "None".to_string()
                         } else {

@@ -1,16 +1,14 @@
 use dioxus::prelude::*;
 use nixblitz_core::app_option_data::{
-    bool_data::BoolOptionChangeData,
     option_data::{OptionDataChangeNotification, OptionId},
     path_data::PathOptionChangeData,
-    text_edit_data::TextOptionChangeData,
 };
 
 use crate::backend::set_app_option_wrapper;
 
 #[component]
 pub(crate) fn PathOptionEditor(value: Option<String>, applied: bool, id: OptionId) -> Element {
-    let mut value = use_signal(|| {
+    let value = use_signal(|| {
         if value.is_none() {
             "".to_string()
         } else {

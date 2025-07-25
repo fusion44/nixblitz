@@ -1,5 +1,4 @@
 use components::app::App;
-use dioxus::prelude::launch;
 
 mod backend;
 mod classes;

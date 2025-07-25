@@ -801,7 +801,7 @@ mod tests {
                 Shell::VARIANTS[0].to_nix_package_name().into(),
                 Shell::VARIANTS
                     .iter()
-                    .map(|p| StringListOptionItem::new(p.to_string().into(), p.to_string()))
+                    .map(|p| StringListOptionItem::new(p.to_string(), p.to_string()))
                     .collect(),
             )),
             Box::new(BoolOptionData::new(

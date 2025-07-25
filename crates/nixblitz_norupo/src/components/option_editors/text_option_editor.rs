@@ -1,11 +1,9 @@
 use dioxus::prelude::*;
 use dioxus_logger::tracing;
 use nixblitz_core::app_option_data::{
-    bool_data::BoolOptionChangeData,
     option_data::{OptionDataChangeNotification, OptionId},
     text_edit_data::TextOptionChangeData,
 };
-use tracing::info;
 
 use crate::backend::set_app_option_wrapper;
 
@@ -16,7 +14,7 @@ pub(crate) fn TextOptionEditor(
     id: OptionId,
     max_lines: u16,
 ) -> Element {
-    let mut value = use_signal(|| value);
+    let value = use_signal(|| value);
     let clone1 = id.clone();
 
     let set_data = use_callback(move |value: String| {
