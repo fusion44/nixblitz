@@ -1,6 +1,6 @@
 use std::{
     io, panic,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
 
@@ -11,7 +11,7 @@ use crossterm::{
 };
 use error_stack::{Result, ResultExt};
 use iocraft::prelude::*;
-use log::{error, warn};
+use log::{error, info, warn};
 use nixblitz_core::{
     OPTION_TITLES, SupportedApps,
     bool_data::BoolOptionChangeData,
@@ -23,12 +23,15 @@ use nixblitz_core::{
     string_list_data::StringListOptionChangeData,
     text_edit_data::TextOptionChangeData,
 };
-use nixblitz_system::project::Project;
+use nixblitz_system::{
+    project::Project,
+    utils::{init_default_project, safety_checks},
+};
 
 use crate::tui_components::{
-    NetAddressPopup, NetAddressPopupResult, NumberPopup, NumberPopupResult, PasswordInputMode,
-    PasswordInputPopup, PasswordInputResult, Popup, SelectableList, SelectableListData,
-    SelectionValue, TextInputPopup, TextInputPopupResult,
+    ConfirmInput, NetAddressPopup, NetAddressPopupResult, NumberPopup, NumberPopupResult,
+    PasswordInputMode, PasswordInputPopup, PasswordInputResult, Popup, SelectableList,
+    SelectableListData, SelectionValue, TextInputPopup, TextInputPopupResult,
     utils::{SelectableItem, get_focus_border_color},
 };
 use crate::{errors::CliError, tui_components::app_list::AppList};
@@ -39,22 +42,58 @@ const APP_LIST_WIDTH: u16 = 20;
 const MIN_OPTION_WIDTH: u16 = 40;
 const PADDING: u16 = 2;
 
-pub async fn start_tui_app(
-    _tick_rate: f64,
-    _frame_rate: f64,
-    work_dir: PathBuf,
-) -> Result<(), CliError> {
-    let project = Arc::new(Mutex::new(Project::load(work_dir.clone()).change_context(
-        CliError::GenericError(format!("Unable to load project in dir {:?}", work_dir)),
-    )?));
+async fn load_or_create_project(
+    work_dir: &Path,
+    create_if_missing: bool,
+) -> Result<Option<Project>, CliError> {
+    match Project::load(work_dir.to_path_buf()) {
+        Ok(project) => return Ok(Some(project)),
+        Err(e) => {
+            info!(
+                "Project not found at {}: {}. Checking if we can create one.",
+                work_dir.display(),
+                e
+            );
+        }
+    }
+
+    safety_checks(work_dir).change_context(CliError::Unknown)?;
+
+    let mut decision = create_if_missing;
+    if !decision {
+        let _ = element! {
+            ConfirmInput(
+                title: format!("No project found at {}. Create it?", work_dir.display()),
+                value_out: &mut decision
+            )
+        }
+        .render_loop()
+        .await;
+    }
+
+    if decision {
+        init_default_project(work_dir, Some(false)).change_context(CliError::Unknown)?;
+        let project = Project::load(work_dir.to_path_buf()).change_context(
+            CliError::GenericError("Failed to load newly initialized project".to_string()),
+        )?;
+        Ok(Some(project))
+    } else {
+        println!("Aborting...");
+        Ok(None)
+    }
+}
+
+pub async fn start_tui_app(work_dir: PathBuf, create_project: &bool) -> Result<(), CliError> {
+    let project = match load_or_create_project(&work_dir, *create_project).await? {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    let project = Arc::new(Mutex::new(project));
 
     fn restore_terminal() {
-        if let Err(e) = disable_raw_mode() {
-            eprintln!("Failed to disable raw mode: {}", e);
-        }
-        if let Err(e) = execute!(io::stdout(), LeaveAlternateScreen, Show) {
-            eprintln!("Failed to leave alternate screen: {}", e);
-        }
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen, Show);
     }
 
     let original_hook = panic::take_hook();
@@ -63,10 +102,9 @@ pub async fn start_tui_app(
         original_hook(panic_info);
     }));
 
-    let mut stdout = io::stdout();
-
     enable_raw_mode().change_context(CliError::UnableToStartTui)?;
-    execute!(stdout, EnterAlternateScreen, Hide).change_context(CliError::UnableToStartTui)?;
+    execute!(io::stdout(), EnterAlternateScreen, Hide)
+        .change_context(CliError::UnableToStartTui)?;
 
     let result = tokio::task::spawn(async move {
         let _ = element! {

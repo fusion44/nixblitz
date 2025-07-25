@@ -25,10 +25,9 @@ async fn main() -> Result<(), CliError> {
 
     match &cli.command {
         Some(commands::Commands::Tui {
-            tick_rate,
-            frame_rate,
             work_dir,
-        }) => start_tui(*tick_rate, *frame_rate, work_dir.clone()).await?,
+            create_project,
+        }) => start_tui(work_dir.clone(), create_project).await?,
         Some(commands::Commands::Init { work_dir, force }) => {
             init_default_project_cmd(work_dir, *force)?
         }

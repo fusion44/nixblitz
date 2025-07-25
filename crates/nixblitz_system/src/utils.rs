@@ -144,7 +144,7 @@ pub fn check_password_validity_confirm(
     Ok(())
 }
 
-fn safety_checks(work_dir: &Path) -> Result<(), ProjectError> {
+pub fn safety_checks(work_dir: &Path) -> Result<(), ProjectError> {
     if !work_dir.exists() {
         return Ok(());
     }

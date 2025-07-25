@@ -1,4 +1,5 @@
 pub mod app_list;
+pub mod confirm_input;
 pub mod custom_text_input;
 pub mod list;
 pub mod net_address_popup;
@@ -8,6 +9,7 @@ pub mod popup;
 pub mod text_input_popup;
 pub mod utils;
 
+pub use confirm_input::ConfirmInput;
 pub use custom_text_input::CustomTextInput;
 pub use list::{ListItem, SelectableList, SelectableListData, SelectionValue};
 pub use net_address_popup::{NetAddressPopup, NetAddressPopupResult};
