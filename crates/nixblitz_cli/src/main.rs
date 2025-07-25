@@ -7,23 +7,13 @@ use commands::{
 use error_stack::Result;
 use errors::{CliError, init_error_handlers};
 
-mod action;
-mod app;
-mod app_contexts;
 mod cli;
-mod colors;
 mod commands;
-mod components;
-mod config;
-mod constants;
 mod errors;
 mod logging;
 pub mod macros;
-mod pages;
 mod tui;
-mod tui2;
-mod tui2_components;
-mod utils;
+mod tui_components;
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
@@ -39,11 +29,6 @@ async fn main() -> Result<(), CliError> {
             frame_rate,
             work_dir,
         }) => start_tui(*tick_rate, *frame_rate, work_dir.clone()).await?,
-        Some(commands::Commands::Tui2 {
-            tick_rate,
-            frame_rate,
-            work_dir,
-        }) => crate::tui2::start_tui2(*tick_rate, *frame_rate, work_dir.clone()).await?,
         Some(commands::Commands::Init { work_dir, force }) => {
             init_default_project_cmd(work_dir, *force)?
         }

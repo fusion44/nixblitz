@@ -1,7 +1,7 @@
 use iocraft::{Color, prelude::*};
 use strum::Display;
 
-use crate::tui2_components::{CustomTextInput, Popup, utils::get_text_input_color};
+use crate::tui_components::{CustomTextInput, Popup, utils::get_text_input_color};
 
 #[derive(Debug, Clone)]
 pub enum PasswordInputResult {

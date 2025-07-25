@@ -1,16 +1,9 @@
 use clap::Parser;
 use log::LevelFilter;
 
-use crate::{
-    commands::Commands,
-    config::{get_config_dir, get_data_dir},
-};
+use crate::commands::Commands;
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
-const BUILD_DATE: &str = match option_env!("VERGEN_BUILD_DATE") {
-    Some(date) => date,
-    None => "date-unknown",
-};
 const GIT_SHA: &str = match option_env!("VERGEN_GIT_SHA") {
     Some(sha) => sha,
     None => "sha-unknown",
@@ -38,18 +31,11 @@ pub struct Cli {
 pub fn version() -> String {
     let author = clap::crate_authors!();
 
-    let config_dir_path = get_config_dir().display().to_string();
-    let data_dir_path = get_data_dir().display().to_string();
-
     let version_message = format!("{}-{} ({})", PKG_VERSION, GIT_SHA, GIT_COMMIT_DATE);
 
     format!(
         "\
 {version_message}
-
-Authors: {author}
-
-Config directory: {config_dir_path}
-Data directory: {data_dir_path}"
+Authors: {author}"
     )
 }

@@ -1,24 +1,9 @@
 use std::path::PathBuf;
 
-use error_stack::{Result, ResultExt};
-use log::error;
+use error_stack::Result;
 
-use crate::{app::App, errors::CliError};
+use crate::{errors::CliError, tui::start_tui_app};
 
 pub async fn start_tui(tick_rate: f64, frame_rate: f64, work_dir: PathBuf) -> Result<(), CliError> {
-    let absolute_work_dir =
-        work_dir
-            .canonicalize()
-            .change_context(CliError::UnableCanonicalizeWorkDir(
-                "Unable to resolve work dir".to_string(),
-            ))?;
-    let app = App::new(tick_rate, frame_rate, absolute_work_dir);
-    let res = app.expect("Unable to create the TUI app;").run().await;
-
-    if let Err(report) = res {
-        error!("{report:?}");
-        return Err(report.change_context(CliError::UnableToStartTui));
-    }
-
-    Ok(())
+    start_tui_app(tick_rate, frame_rate, work_dir).await
 }

@@ -1,6 +1,6 @@
 use iocraft::prelude::*;
 
-use crate::tui2_components::utils::get_focus_border_color;
+use crate::tui_components::utils::get_focus_border_color;
 
 #[derive(Default, Props)]
 pub struct PopupProps<'a> {

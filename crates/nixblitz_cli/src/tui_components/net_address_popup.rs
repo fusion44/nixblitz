@@ -2,7 +2,7 @@ use std::net::IpAddr;
 
 use iocraft::prelude::*;
 
-use crate::tui2_components::{CustomTextInput, Popup};
+use crate::tui_components::{CustomTextInput, Popup};
 
 #[derive(Debug, Clone)]
 pub enum NetAddressPopupResult {

@@ -1,7 +1,7 @@
 use iocraft::prelude::*;
 use nixblitz_core::string_list_data::StringListOptionItem;
 
-use crate::tui2_components::get_selected_char;
+use crate::tui_components::get_selected_char;
 
 #[derive(Props)]
 pub struct ListItemProps {

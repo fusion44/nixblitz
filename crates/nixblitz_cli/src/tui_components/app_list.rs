@@ -1,6 +1,6 @@
 use iocraft::prelude::*;
 
-use crate::tui2_components::{
+use crate::tui_components::{
     get_selected_char,
     utils::{get_focus_border_color, get_selected_item_color},
 };

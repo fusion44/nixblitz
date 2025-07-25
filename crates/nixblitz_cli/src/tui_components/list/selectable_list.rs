@@ -8,7 +8,7 @@ use nixblitz_core::{
     string_list_data::StringListOptionItem,
 };
 
-use crate::tui2_components::{
+use crate::tui_components::{
     ListItem, NavDirection, get_selected_char, navigate_selection,
     utils::{SelectableItem, format_bool_subtitle, get_selected_item_color},
 };

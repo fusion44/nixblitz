@@ -1,7 +1,7 @@
 use iocraft::prelude::*;
 use nixblitz_core::NumberValue;
 
-use crate::tui2_components::{CustomTextInput, Popup};
+use crate::tui_components::{CustomTextInput, Popup};
 
 #[derive(Debug, Clone)]
 pub enum NumberPopupResult {
