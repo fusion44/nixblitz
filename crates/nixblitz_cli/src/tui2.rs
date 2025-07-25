@@ -11,22 +11,24 @@ use crossterm::{
 };
 use error_stack::{Result, ResultExt};
 use iocraft::prelude::*;
-use log::error;
+use log::{error, warn};
 use nixblitz_core::{
     OPTION_TITLES, SupportedApps,
     bool_data::BoolOptionChangeData,
     net_address_data::NetAddressOptionChangeData,
+    number_data::NumberOptionChangeData,
     option_data::{GetOptionId, OptionData, OptionDataChangeNotification},
     password_data::PasswordOptionChangeData,
+    port_data::PortOptionChangeData,
     string_list_data::StringListOptionChangeData,
     text_edit_data::TextOptionChangeData,
 };
 use nixblitz_system::project::Project;
 
 use crate::tui2_components::{
-    NetAddressPopup, NetAddressPopupResult, PasswordInputMode, PasswordInputPopup,
-    PasswordInputResult, Popup, SelectableList, SelectableListData, SelectionValue, TextInputPopup,
-    TextInputPopupResult,
+    NetAddressPopup, NetAddressPopupResult, NumberPopup, NumberPopupResult, PasswordInputMode,
+    PasswordInputPopup, PasswordInputResult, Popup, SelectableList, SelectableListData,
+    SelectionValue, TextInputPopup, TextInputPopupResult,
     utils::{SelectableItem, get_focus_border_color},
 };
 use crate::{errors::CliError, tui2_components::app_list::AppList};
@@ -204,7 +206,9 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                     OptionData::StringList(_)
                     | OptionData::TextEdit(_)
                     | OptionData::PasswordEdit(_)
-                    | OptionData::NetAddress(_) => {
+                    | OptionData::NetAddress(_)
+                    | OptionData::Port(_)
+                    | OptionData::NumberEdit(_) => {
                         if show_popup.get() {
                             error!(
                                 "Trying to open a string list popup while another popup is already open"
@@ -446,10 +450,9 @@ where
                 match result {
                     NetAddressPopupResult::Accepted(value) => {
                         let res = project.lock().unwrap().on_option_changed(
-                            OptionDataChangeNotification::NetAddress(NetAddressOptionChangeData::new(
-                                id.clone(),
-                                value,
-                            )),
+                            OptionDataChangeNotification::NetAddress(
+                                NetAddressOptionChangeData::new(id.clone(), value),
+                            ),
                         );
                         if let Err(e) = res {
                             error!("Error setting option: {:?}", e);
@@ -474,6 +477,79 @@ where
                 .into_any(),
             )
         }
-        _ => None,
+        OptionData::Port(port_data) => {
+            let id = port_data.id().clone();
+            let title = OPTION_TITLES.get(&id).map_or("", |v| v);
+            let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
+            let on_submit = move |result| {
+                match result {
+                    NumberPopupResult::Accepted(value) => {
+                        let res = project.lock().unwrap().on_option_changed(
+                            OptionDataChangeNotification::Port(PortOptionChangeData::new(
+                                id.clone(),
+                                value,
+                            )),
+                        );
+                        if let Err(e) = res {
+                            error!("Error setting option: {:?}", e);
+                        }
+                    }
+                    NumberPopupResult::Cancelled => {}
+                };
+                if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                    cb();
+                }
+            };
+
+            Some(
+                element! {
+                    NumberPopup(
+                        title,
+                        value: port_data.value().clone(),
+                        on_submit,
+                    )
+                }
+                .into_any(),
+            )
+        }
+        OptionData::NumberEdit(number_data) => {
+            let id = number_data.id().clone();
+            let title = OPTION_TITLES.get(&id).map_or("", |v| v);
+            let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
+            let on_submit = move |result| {
+                match result {
+                    NumberPopupResult::Accepted(value) => {
+                        let res = project.lock().unwrap().on_option_changed(
+                            OptionDataChangeNotification::Number(NumberOptionChangeData::new(
+                                id.clone(),
+                                value,
+                            )),
+                        );
+                        if let Err(e) = res {
+                            error!("Error setting option: {:?}", e);
+                        }
+                    }
+                    NumberPopupResult::Cancelled => {}
+                };
+                if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                    cb();
+                }
+            };
+
+            Some(
+                element! {
+                    NumberPopup(
+                        title,
+                        value: number_data.value().clone(),
+                        on_submit,
+                    )
+                }
+                .into_any(),
+            )
+        }
+        _ => {
+            warn!("Option {} not handled, yet", data);
+            None
+        }
     }
 }

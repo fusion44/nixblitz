@@ -21,6 +21,25 @@ pub enum NumberValue {
     Float(Option<f64>),
 }
 
+impl Default for NumberValue {
+    fn default() -> Self {
+        NumberValue::Int(None)
+    }
+}
+
+// This macro encapsulates all the parsing and error-handling logic.
+macro_rules! parse_value {
+    ($value:expr, $type:ty, $constructor:expr) => {
+        $value
+            .map(|s| {
+                s.parse::<$type>()
+                    .map_err(|_| ParseError::StringParseError(s.to_owned()))
+            })
+            .transpose()
+            .map($constructor)
+    };
+}
+
 impl NumberValue {
     /// Converts the `NumberValue` to a `String`.
     /// Returns the provided default string if the value is `None`.
@@ -46,6 +65,52 @@ impl NumberValue {
             NumberValue::Int(Some(v)) => v.to_string(),
             NumberValue::Float(Some(v)) => v.to_string(),
             _ => default.to_string(),
+        }
+    }
+
+    /// Parses an optional string into a new `NumberValue`, using the current instance's variant as a template.
+    ///
+    /// This method determines the target numeric type from the variant of `self`.
+    /// If the input `value` is `Some(string)`, it attempts to parse the string. If `value`
+    /// is `None`, it creates a new `NumberValue` of the same variant with an inner value of `None`.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - An `Option<&str>` containing the string to parse.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<NumberValue, ParseError>` which is:
+    /// * `Ok(NumberValue)` on successful parsing or if the input was `None`.
+    /// * `Err(ParseError::StringParseError)` if the string cannot be parsed into the target type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use nixblitz_core::number_value::NumberValue;
+    /// use nixblitz_core::errors::ParseError;
+    ///
+    /// // Use an Int instance as a template to parse a string into a new Int.
+    /// let template_int = NumberValue::Int(None);
+    /// let new_num = template_int.parse_as_variant(Some("-123")).unwrap();
+    /// assert_eq!(new_num, NumberValue::Int(Some(-123)));
+    ///
+    /// // Use a UInt instance as a template with None input.
+    /// let template_uint = NumberValue::UInt(Some(10));
+    /// let new_none = template_uint.parse_as_variant(None).unwrap();
+    /// assert_eq!(new_none, NumberValue::UInt(None));
+    ///
+    /// // Use a U16 instance as a template where parsing fails.
+    /// let template_u16 = NumberValue::U16(None);
+    /// let result = template_u16.parse_as_variant(Some("not-a-number"));
+    /// assert!(matches!(result, Err(ParseError::StringParseError(_))));
+    /// ```
+    pub fn parse_as_variant(&self, value: Option<&str>) -> Result<NumberValue, ParseError> {
+        match self {
+            NumberValue::U16(_) => parse_value!(value, u16, NumberValue::U16),
+            NumberValue::UInt(_) => parse_value!(value, usize, NumberValue::UInt),
+            NumberValue::Int(_) => parse_value!(value, isize, NumberValue::Int),
+            NumberValue::Float(_) => parse_value!(value, f64, NumberValue::Float),
         }
     }
 
@@ -222,6 +287,61 @@ mod tests {
         assert_eq!(NumberValue::UInt(None).to_string(), "");
         assert_eq!(NumberValue::Int(None).to_string(), "");
         assert_eq!(NumberValue::Float(None).to_string(), "");
+    }
+
+    #[test]
+    fn test_parse_as_variant() {
+        // --- Test Templates ---
+        let template_u16 = NumberValue::U16(None);
+        let template_uint = NumberValue::UInt(None);
+        let template_int = NumberValue::Int(None);
+        let template_float = NumberValue::Float(None);
+
+        // --- Success Cases ---
+        assert_eq!(
+            template_u16.parse_as_variant(Some("123")).unwrap(),
+            NumberValue::U16(Some(123))
+        );
+        assert_eq!(
+            template_uint.parse_as_variant(Some("456")).unwrap(),
+            NumberValue::UInt(Some(456))
+        );
+        assert_eq!(
+            template_int.parse_as_variant(Some("-789")).unwrap(),
+            NumberValue::Int(Some(-789))
+        );
+        assert_eq!(
+            template_float.parse_as_variant(Some("1.23")).unwrap(),
+            NumberValue::Float(Some(1.23))
+        );
+
+        // --- None Input Cases ---
+        assert_eq!(
+            template_u16.parse_as_variant(None).unwrap(),
+            NumberValue::U16(None)
+        );
+        assert_eq!(
+            template_uint.parse_as_variant(None).unwrap(),
+            NumberValue::UInt(None)
+        );
+        assert_eq!(
+            template_int.parse_as_variant(None).unwrap(),
+            NumberValue::Int(None)
+        );
+        assert_eq!(
+            template_float.parse_as_variant(None).unwrap(),
+            NumberValue::Float(None)
+        );
+
+        // --- Failure Cases ---
+        // Invalid format
+        assert!(template_u16.parse_as_variant(Some("abc")).is_err());
+        assert!(template_uint.parse_as_variant(Some("1.5")).is_err()); // No floats for ints
+        assert!(template_int.parse_as_variant(Some("--5")).is_err());
+        assert!(template_float.parse_as_variant(Some("1,23")).is_err()); // Comma instead of dot
+
+        // Overflow
+        assert!(template_u16.parse_as_variant(Some("65536")).is_err()); // u16 max is 65535
     }
 
     #[test]

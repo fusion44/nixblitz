@@ -52,7 +52,7 @@ impl OptionId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, strum::Display, PartialEq, Serialize, Deserialize)]
 pub enum OptionData {
     Bool(Box<BoolOptionData>),
     StringList(Box<StringListOptionData>),
