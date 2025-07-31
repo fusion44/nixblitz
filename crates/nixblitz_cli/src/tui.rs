@@ -23,16 +23,13 @@ use nixblitz_core::{
     string_list_data::StringListOptionChangeData,
     text_edit_data::TextOptionChangeData,
 };
-use nixblitz_system::{
-    project::Project,
-    utils::{init_default_project, safety_checks},
-};
+use nixblitz_system::project::Project;
 
 use crate::tui_components::{
-    ConfirmInput, NetAddressPopup, NetAddressPopupResult, NumberPopup, NumberPopupResult,
-    PasswordInputMode, PasswordInputPopup, PasswordInputResult, Popup, SelectableList,
-    SelectableListData, SelectionValue, TextInputPopup, TextInputPopupResult,
-    utils::{SelectableItem, get_focus_border_color},
+    NetAddressPopup, NetAddressPopupResult, NumberPopup, NumberPopupResult, PasswordInputMode,
+    PasswordInputPopup, PasswordInputResult, Popup, SelectableList, SelectableListData,
+    SelectionValue, TextInputPopup, TextInputPopupResult,
+    utils::{SelectableItem, get_focus_border_color, load_or_create_project},
 };
 use crate::{errors::CliError, tui_components::app_list::AppList};
 
@@ -41,47 +38,6 @@ const MAX_TOTAL_WIDTH: u16 = 120; // Maximum width of AppList + OptionList
 const APP_LIST_WIDTH: u16 = 20;
 const MIN_OPTION_WIDTH: u16 = 40;
 const PADDING: u16 = 2;
-
-async fn load_or_create_project(
-    work_dir: &Path,
-    create_if_missing: bool,
-) -> Result<Option<Project>, CliError> {
-    match Project::load(work_dir.to_path_buf()) {
-        Ok(project) => return Ok(Some(project)),
-        Err(e) => {
-            info!(
-                "Project not found at {}: {}. Checking if we can create one.",
-                work_dir.display(),
-                e
-            );
-        }
-    }
-
-    safety_checks(work_dir).change_context(CliError::Unknown)?;
-
-    let mut decision = create_if_missing;
-    if !decision {
-        let _ = element! {
-            ConfirmInput(
-                title: format!("No project found at {}. Create it?", work_dir.display()),
-                value_out: &mut decision
-            )
-        }
-        .render_loop()
-        .await;
-    }
-
-    if decision {
-        init_default_project(work_dir, Some(false)).change_context(CliError::Unknown)?;
-        let project = Project::load(work_dir.to_path_buf()).change_context(
-            CliError::GenericError("Failed to load newly initialized project".to_string()),
-        )?;
-        Ok(Some(project))
-    } else {
-        println!("Aborting...");
-        Ok(None)
-    }
-}
 
 pub async fn start_tui_app(work_dir: PathBuf, create_project: &bool) -> Result<(), CliError> {
     let project = match load_or_create_project(&work_dir, *create_project).await? {

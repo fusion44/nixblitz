@@ -1,4 +1,14 @@
-use iocraft::{AnyElement, Color};
+use std::path::Path;
+
+use error_stack::{Result, ResultExt};
+use iocraft::{AnyElement, Color, ElementExt, element};
+use log::info;
+use nixblitz_system::{
+    project::Project,
+    utils::{init_default_project, safety_checks},
+};
+
+use crate::{errors::CliError, tui_components::ConfirmInput};
 
 pub enum NavDirection {
     Previous,
@@ -107,4 +117,45 @@ pub trait SelectableItem: Clone {
         component_focused: bool,
         width: Option<u16>,
     ) -> AnyElement<'static>;
+}
+
+pub async fn load_or_create_project(
+    work_dir: &Path,
+    create_if_missing: bool,
+) -> Result<Option<Project>, CliError> {
+    match Project::load(work_dir.to_path_buf()) {
+        Ok(project) => return Ok(Some(project)),
+        Err(e) => {
+            info!(
+                "Project not found at {}: {}. Checking if we can create one.",
+                work_dir.display(),
+                e
+            );
+        }
+    }
+
+    safety_checks(work_dir).change_context(CliError::Unknown)?;
+
+    let mut decision = create_if_missing;
+    if !decision {
+        let _ = element! {
+            ConfirmInput(
+                title: format!("No project found at {}. Create it?", work_dir.display()),
+                value_out: &mut decision
+            )
+        }
+        .render_loop()
+        .await;
+    }
+
+    if decision {
+        init_default_project(work_dir, Some(false)).change_context(CliError::Unknown)?;
+        let project = Project::load(work_dir.to_path_buf()).change_context(
+            CliError::GenericError("Failed to load newly initialized project".to_string()),
+        )?;
+        Ok(Some(project))
+    } else {
+        println!("Aborting...");
+        Ok(None)
+    }
 }

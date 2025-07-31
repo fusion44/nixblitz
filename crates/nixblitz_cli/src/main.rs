@@ -1,11 +1,12 @@
 use clap::Parser;
 use cli::Cli;
 use commands::{
-    apply::apply_changes_cmd, init::init_default_project_cmd, install::install_wizard,
-    set::set_option_value, tui::start_tui,
+    apply::apply_changes_cmd, init::init_default_project_cmd, set::set_option_value, tui::start_tui,
 };
 use error_stack::Result;
 use errors::{CliError, init_error_handlers};
+
+use crate::commands::install::start_install_app;
 
 mod cli;
 mod commands;
@@ -31,7 +32,7 @@ async fn main() -> Result<(), CliError> {
         Some(commands::Commands::Init { work_dir, force }) => {
             init_default_project_cmd(work_dir, *force)?
         }
-        Some(commands::Commands::Install { work_dir }) => install_wizard(work_dir)?,
+        Some(commands::Commands::Install { work_dir }) => start_install_app(work_dir).await?,
         Some(commands::Commands::Doctor {}) => {
             println!(
                 "We haven't quite figured out how to implement this yet. Maybe try asking a magic 8-ball instead?"

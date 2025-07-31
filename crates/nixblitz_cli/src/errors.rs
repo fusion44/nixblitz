@@ -32,6 +32,8 @@ pub enum CliError {
     OptionSetError(String, String, String),
     #[error("Unsupported app/option combination '{}' / '{}'", .0, .1)]
     OptionUnsupportedError(String, String),
+    #[error("Unable to reach the installer engine")]
+    InstallerEngineUnreachable,
 }
 
 pub fn init_error_handlers() {
