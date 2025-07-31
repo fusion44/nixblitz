@@ -100,7 +100,8 @@ in
 
     installPhase = ''
       runHook preInstall
-      mkdir -p $out
+      local installDir=$out/bin
+      mkdir -p $installDir
       local assetsSourceDir="target/dx/nixblitz_norupo/release/web"
 
       if [ ! -d "$assetsSourceDir" ]; then
@@ -110,8 +111,8 @@ in
         exit 1
       fi
 
-      echo "Copying assets from $assetsSourceDir to $out"
-      cp -R "$assetsSourceDir"/* $out
+      echo "Copying server binary and assets from $assetsSourceDir to $installDir"
+      cp -R "$assetsSourceDir"/* $installDir
 
       runHook postInstall
     '';
@@ -121,6 +122,6 @@ in
       homepage = manifest.homepage or "https://github.com/fusion44/nixblitz";
       license = pkgs.lib.licenses.mit;
       maintainers = ["fusion44"];
-      mainProgram = "nixblitz_norupo";
+      mainProgram = "server";
     };
   }

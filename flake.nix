@@ -54,12 +54,31 @@
 
     systems = flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs {inherit system;};
+      mainPkg = self.packages.${system}.${cli_name};
     in {
       packages = {
         ${cli_name} = pkgs.callPackage ./crates/nixblitz_cli/default.nix {};
         ${docs_name} = pkgs.callPackage ./docs/default.nix {};
         ${webapp_name} = pkgs.callPackage ./crates/nixblitz_norupo/default.nix {};
         default = self.packages.${system}.${cli_name};
+      };
+
+      apps = {
+        default = self.apps.${system}.${cli_name};
+        ${cli_name} = {
+          type = "app";
+          program = "${mainPkg}/bin/nixblitz";
+        };
+
+        ${install_engine_name} = {
+          type = "app";
+          program = "${mainPkg}/bin/nixblitz_installer_engine";
+        };
+
+        ${system_engine_name} = {
+          type = "app";
+          program = "${mainPkg}/bin/nixblitz_system_engine";
+        };
       };
 
       devShell = with pkgs;
