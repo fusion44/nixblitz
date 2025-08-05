@@ -11,11 +11,7 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-nixblitz_cli = { path = "nixblitz_cli" }
 nixblitz_core = { path = "nixblitz_core" }
-nixblitz_installer_engine = { path = "nixblitz_installer_engine" }
-nixblitz_system_engine = { path = "nixblitz_system_engine" }
-nixblitz_norupo = { path = "nixblitz_norupo" }
 nixblitz_system = { path = "nixblitz_system" }
 
 [profile.wasm-dev]

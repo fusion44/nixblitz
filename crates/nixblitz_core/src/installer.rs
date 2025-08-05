@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
+use strum::Display;
 use strum_macros::VariantArray;
 
 pub use crate::SystemSummary;
@@ -37,7 +38,18 @@ impl std::fmt::Display for DiskoInstallStep {
 
 // The install steps that are performed by the Disko installer
 #[derive(
-    Hash, Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, VariantArray,
+    Hash,
+    Serialize,
+    Deserialize,
+    Debug,
+    Display,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    VariantArray,
 )]
 pub enum DiskoInstallStepName {
     Deps,
@@ -47,12 +59,6 @@ pub enum DiskoInstallStepName {
     Copy,
     Bootloader,
     PostInstall,
-}
-
-impl Display for DiskoInstallStepName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
 }
 
 impl DiskoInstallStepName {

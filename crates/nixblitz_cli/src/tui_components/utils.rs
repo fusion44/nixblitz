@@ -8,7 +8,7 @@ use nixblitz_system::{
     utils::{init_default_project, safety_checks},
 };
 
-use crate::{errors::CliError, tui_components::ConfirmInput};
+use crate::{errors::CliError, tui_components::ConfirmInputInline};
 
 pub enum NavDirection {
     Previous,
@@ -139,7 +139,7 @@ pub async fn load_or_create_project(
     let mut decision = create_if_missing;
     if !decision {
         let _ = element! {
-            ConfirmInput(
+            ConfirmInputInline(
                 title: format!("No project found at {}. Create it?", work_dir.display()),
                 value_out: &mut decision
             )

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sysinfo::{Cpu, Process, ProcessStatus, System};
 
 /// Summary and the results of the compatibility check.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Default, Deserialize, Debug, Clone, PartialEq)]
 pub struct CheckResult {
     pub summary: SystemSummary,
     pub is_compatible: bool,
@@ -10,7 +10,7 @@ pub struct CheckResult {
 }
 
 /// A representation of the entire system's state.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Default, Deserialize, Debug, Clone, PartialEq)]
 pub struct SystemSummary {
     pub total_memory: u64,
     pub used_memory: u64,
