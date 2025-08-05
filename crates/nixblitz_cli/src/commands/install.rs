@@ -2,7 +2,7 @@ use std::{
     io, panic,
     path::Path,
     sync::{Arc, Mutex, RwLock},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crossterm::{
@@ -330,6 +330,11 @@ pub async fn connect_and_manage(
 
                         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
+                        let ping_interval = Duration::from_secs(15);
+                        let timeout_duration = Duration::from_secs(25);
+                        let mut last_ping_time = Instant::now();
+                        let mut last_pong_time = Instant::now();
+
                         loop {
                             let steps_state = steps_state.clone();
                             let logs_state = logs_state.clone();
@@ -341,6 +346,7 @@ pub async fn connect_and_manage(
                                         &mut state,
                                         steps_state,
                                         logs_state,
+                                        &mut last_pong_time,
                                     );
                                 },
 
@@ -349,6 +355,21 @@ pub async fn connect_and_manage(
                                         break;
                                     }
                                 },
+                                _ = tokio::time::sleep(Duration::from_secs(1)) => {
+                                    if last_ping_time.elapsed() > ping_interval {
+                                        debug!("[System] Sending ping.");
+                                        if ws_sender.send(Message::Ping(vec![].into())).await.is_err() {
+                                            error!("[System] Failed to send ping.");
+                                            break;
+                                        }
+                                        last_ping_time = Instant::now();
+                                    }
+
+                                    if last_pong_time.elapsed() > timeout_duration {
+                                        error!("[System] WebSocket connection timed out due to no pong response.");
+                                        break;
+                                    }
+                                }
 
                                 else => {
                                     debug!("[System] A channel was closed. Breaking connection loop.");
@@ -385,6 +406,7 @@ fn handle_server_message(
     state: &mut State<InstallState>,
     install_steps_state: InstallStepsState,
     install_logs_state: InstallLogsState,
+    last_pong_time: &mut Instant,
 ) {
     match msg {
         Message::Text(text) => {
@@ -423,10 +445,12 @@ fn handle_server_message(
             debug!("[Server] -> Received binary message (ignored).");
         }
         Message::Ping(_) => {
-            debug!("[Server] -> Received Ping (ignoring)");
+            debug!("[Server] -> Received Ping (updating last_pong_time)");
+            *last_pong_time = Instant::now();
         }
         Message::Pong(_) => {
-            debug!("[Server] -> Received Pong (ignoring)");
+            debug!("[Server] -> Received Pong (updating last_pong_time)");
+            *last_pong_time = Instant::now();
         }
         Message::Close(c) => {
             debug!("[Server] -> Received close frame: {:?}", c);
