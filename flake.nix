@@ -49,6 +49,7 @@
         ${docs_name} = self.packages.${prev.stdenv.hostPlatform.system}.${docs_name};
         ${webapp_name} = self.packages.${prev.stdenv.hostPlatform.system}.${webapp_name};
         ${install_engine_name} = self.packages.${prev.stdenv.hostPlatform.system}.${install_engine_name};
+        ${system_engine_name} = self.packages.${prev.stdenv.hostPlatform.system}.${system_engine_name};
       };
     };
 
