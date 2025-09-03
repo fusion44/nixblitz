@@ -155,7 +155,7 @@ in {
           NIXBLITZ_WORK_DIR = cfg.dataDir;
         };
         serviceConfig = {
-          ExecStart = "${cfg.package}/server";
+          ExecStart = "${cfg.package}/bin/server";
           User = cfg.server.user;
           Group = cfg.server.group;
           Restart = "always";
