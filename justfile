@@ -20,8 +20,13 @@ format:
   dx fmt
 
 update-default-nix:
+  #!/usr/bin/env nu
   nu ./scripts/update-default-nix.nu
+
+  gum confirm "Commit changes?"
   git add crates/nixblitz_cli/default.nix crates/nixblitz_norupo/default.nix
+  git commit -m "chore: update hashes"
+  git push f44 main
 
 update-flake-locks mode="nixblitz":
   #!/usr/bin/env nu
@@ -190,6 +195,12 @@ run-installer-vm target='default':
   } else {
     print "Unknown target '{{target}}'. Valid targets are 'default', 'single' and 'dual'."
   }
+
+ssh-installer-vm:
+  ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no nixos@localhost -p 10022
+
+ssh-installed-vm:
+  ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no admin@localhost -p 10022
 
 # Build all crates
 nix-build-all:
