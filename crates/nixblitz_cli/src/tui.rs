@@ -29,6 +29,7 @@ use crate::tui_components::{
     NetAddressPopup, NetAddressPopupResult, NumberPopup, NumberPopupResult, PasswordInputMode,
     PasswordInputPopup, PasswordInputResult, Popup, SelectableList, SelectableListData,
     SelectionValue, TextInputPopup, TextInputPopupResult,
+    app_option_list::AppOptionList,
     utils::{SelectableItem, get_focus_border_color, load_or_create_project},
 };
 use crate::{errors::CliError, tui_components::app_list::AppList};
@@ -265,21 +266,13 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                 width: APP_LIST_WIDTH,
                 height: Some(MAX_HEIGHT),
             )
-            View(
-                width: option_list_width,
-                height: MAX_HEIGHT,
-                border_style: BorderStyle::Round,
-                border_color: get_focus_border_color(focus.get() == Focus::OptionList),
-                justify_content: JustifyContent::Stretch,
-            ) {
-                SelectableList(
-                    height: MAX_HEIGHT - 2, // -2 for borders
-                    width: option_list_width - 2,
+            AppOptionList (
+                    height: MAX_HEIGHT,
+                    width: option_list_width,
                     has_focus: focus.get() == Focus::OptionList,
-                    on_selected: on_edit_option,
-                    data: SelectableListData::Options(options.read().clone()),
-                )
-            }
+                    on_edit_option,
+                    options: options.read().clone(),
+            )
             #(popup)
         }
     }

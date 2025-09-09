@@ -48,6 +48,18 @@ pub(crate) fn AppList(
         }
     });
 
+    let header = element! {
+        View(margin_top: -1) {
+            MixedText(
+                align: TextAlign::Center,
+                contents: vec![
+                    MixedTextContent::new("<"),
+                    MixedTextContent::new("TAB").color(Color::Green),
+                    MixedTextContent::new("> switch app"),
+                ]
+            )
+        }
+    };
     let border_color = get_focus_border_color(props.has_focus);
     if let Some(width) = props.width {
         element! {
@@ -58,6 +70,7 @@ pub(crate) fn AppList(
                 border_style: BorderStyle::Round,
                 border_color,
             ) {
+                #(header)
                 #(items)
             }
         }
@@ -69,6 +82,7 @@ pub(crate) fn AppList(
                 border_style: BorderStyle::Round,
                 border_color,
             ) {
+                #(header)
                 #(items)
             }
         }

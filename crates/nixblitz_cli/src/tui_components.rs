@@ -1,4 +1,5 @@
 pub mod app_list;
+pub mod app_option_list;
 pub mod configurator;
 pub mod confirm;
 pub mod confirm_input_inline;
