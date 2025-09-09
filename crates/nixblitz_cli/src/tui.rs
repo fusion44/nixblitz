@@ -1,6 +1,6 @@
 use std::{
     io, panic,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
@@ -11,7 +11,7 @@ use crossterm::{
 };
 use error_stack::{Result, ResultExt};
 use iocraft::prelude::*;
-use log::{error, info, warn};
+use log::{error, warn};
 use nixblitz_core::{
     OPTION_TITLES, SupportedApps,
     bool_data::BoolOptionChangeData,
@@ -251,29 +251,51 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     };
 
     element! {
-        View(
+        View (
             width,
             height,
-            background_color: Color::Reset,
-            flex_direction: FlexDirection::Row,
+            flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
         ) {
-            AppList(
-                has_focus: focus.get() == Focus::AppList,
-                app_list: SupportedApps::as_string_list(),
-                selected_item: selected_app.get().as_index(),
-                width: APP_LIST_WIDTH,
-                height: Some(MAX_HEIGHT),
-            )
-            AppOptionList (
-                    height: MAX_HEIGHT,
-                    width: option_list_width,
-                    has_focus: focus.get() == Focus::OptionList,
-                    on_edit_option,
-                    options: options.read().clone(),
-            )
-            #(popup)
+            View (
+                background_color: Color::Reset,
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+            ) {
+                AppList (
+                    has_focus: focus.get() == Focus::AppList,
+                    app_list: SupportedApps::as_string_list(),
+                    selected_item: selected_app.get().as_index(),
+                    width: APP_LIST_WIDTH,
+                    height: Some(MAX_HEIGHT),
+                )
+                AppOptionList (
+                        height: MAX_HEIGHT,
+                        width: option_list_width,
+                        has_focus: focus.get() == Focus::OptionList,
+                        on_edit_option,
+                        options: options.read().clone(),
+                )
+                #(popup)
+            }
+            View(
+                height: 3,
+                width: option_list_width + APP_LIST_WIDTH,
+                background_color: Color::Reset,
+                border_style: BorderStyle::Round,
+                border_color: get_focus_border_color(false),
+                ) {
+                    MixedText(
+                        align: TextAlign::Center,
+                        contents: vec![
+                            MixedTextContent::new(" <"),
+                            MixedTextContent::new("CTRL + a").color(Color::Green),
+                            MixedTextContent::new("> Apply Changes "),
+                        ]
+                    )
+            }
         }
     }
 }
