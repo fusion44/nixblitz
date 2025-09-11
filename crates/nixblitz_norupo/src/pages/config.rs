@@ -2,9 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use dioxus::prelude::*;
 use dioxus_logger::tracing;
-use nixblitz_core::{
-    SystemClientCommand, SystemServerEvent, SystemState,
-};
+use nixblitz_core::{SystemClientCommand, SystemServerEvent, SystemState};
 
 use crate::components::{Button, Configurator};
 use futures::{

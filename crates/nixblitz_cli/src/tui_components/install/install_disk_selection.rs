@@ -91,5 +91,3 @@ pub fn InstallDiskSelection(
         }
     }
 }
-
-
