@@ -4,7 +4,7 @@
   basePath ? "",
 }: let
   manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
-  commitSha = "7f30615497ddad479969f13fe2d52654fdae9236";
+  commitSha = "7e83399424af8a955ba86d83d6297bc2834add43";
   shortSha = builtins.substring 0 7 commitSha;
 
   # for local development
@@ -13,7 +13,7 @@
   src = pkgs.fetchgit {
     url = "https://forge.f44.fyi/f44/nixblitz";
     rev = commitSha;
-    sha256 = "sha256-/1Gwjjun/4L09zPchqTWSojWm40B+9B8d3xcHF7XoUQ=";
+    sha256 = "sha256-19jvIssIIZ1KgJ9GXhkG7SaSAQOwTOOOXGnkGMUYfHQ=";
   };
 
   # src = fetchFromGitHub {
