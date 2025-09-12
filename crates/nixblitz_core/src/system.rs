@@ -25,7 +25,7 @@ pub enum SystemConfigSwitchStepName {
 }
 
 // State of the installation, visible to all clients
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Display)]
 pub enum SystemState {
     Idle,
     Switching,
@@ -34,7 +34,7 @@ pub enum SystemState {
 }
 
 // Commands from any client to the server
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Display)]
 pub enum SystemClientCommand {
     SwitchConfig,
     DevReset,
@@ -42,7 +42,7 @@ pub enum SystemClientCommand {
 }
 
 // Events from the server to all clients
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Display)]
 pub enum SystemServerEvent {
     StateChanged(SystemState),
     UpdateLog(String),

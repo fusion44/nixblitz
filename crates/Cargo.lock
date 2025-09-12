@@ -3801,6 +3801,7 @@ dependencies = [
  "dirs",
  "error-stack",
  "fern",
+ "futures",
  "futures-util",
  "iocraft",
  "log",

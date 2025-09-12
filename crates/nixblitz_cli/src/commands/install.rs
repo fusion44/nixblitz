@@ -36,13 +36,13 @@ use crate::{
 /// Manages the connection state and communication with the WebSocket task.
 /// This struct can be safely cloned and shared between threads.
 #[derive(Clone)]
-pub struct EngineConnection {
+pub struct TuiInstallEngineConnection {
     /// A channel to send commands FROM the UI TO the WebSocket task.
     /// This is set by the connection task itself.
     pub command_sender: Arc<RwLock<Option<UnboundedSender<InstallClientCommand>>>>,
 }
 
-impl EngineConnection {
+impl TuiInstallEngineConnection {
     /// Create a new, uninitialized connection service.
     pub fn new() -> Self {
         Self {
@@ -118,7 +118,7 @@ fn InstallerTuiApp(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let mut show_help = hooks.use_state(|| false);
     let mut should_exit = hooks.use_state(|| false);
     let mut connected = hooks.use_state(|| false);
-    let engine = hooks.use_state(|| Arc::new(Mutex::new(EngineConnection::new())));
+    let engine = hooks.use_state(|| Arc::new(Mutex::new(TuiInstallEngineConnection::new())));
     let mut state = hooks.use_state(|| InstallState::Idle);
     let install_steps: InstallStepsState = Arc::new(Mutex::new(hooks.use_state(Vec::new)));
     let install_logs: InstallLogsState = Arc::new(Mutex::new(hooks.use_state(Vec::new)));
@@ -291,7 +291,7 @@ fn InstallerTuiApp(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     }
 }
 
-fn advance(engine: Arc<Mutex<EngineConnection>>, command: InstallClientCommand) {
+fn advance(engine: Arc<Mutex<TuiInstallEngineConnection>>, command: InstallClientCommand) {
     engine
         .lock()
         .expect("BUG: engine lock poisoned")
@@ -299,8 +299,8 @@ fn advance(engine: Arc<Mutex<EngineConnection>>, command: InstallClientCommand) 
 }
 
 /// Establishes and manages the WebSocket connection in a background task.
-pub async fn connect_and_manage(
-    engine: Arc<Mutex<EngineConnection>>,
+async fn connect_and_manage(
+    engine: Arc<Mutex<TuiInstallEngineConnection>>,
     url_str: &str,
     state: &mut State<InstallState>,
     install_steps_state: InstallStepsState,

@@ -13,7 +13,7 @@ use error_stack::{Result, ResultExt};
 use iocraft::prelude::*;
 use log::{error, warn};
 use nixblitz_core::{
-    OPTION_TITLES, SupportedApps,
+    OPTION_TITLES, SupportedApps, SystemClientCommand, SystemState,
     bool_data::BoolOptionChangeData,
     net_address_data::NetAddressOptionChangeData,
     number_data::NumberOptionChangeData,
@@ -24,15 +24,21 @@ use nixblitz_core::{
     text_edit_data::TextOptionChangeData,
 };
 use nixblitz_system::project::Project;
+use tokio::sync::oneshot;
 
-use crate::tui_components::{
-    NetAddressPopup, NetAddressPopupResult, NumberPopup, NumberPopupResult, PasswordInputMode,
-    PasswordInputPopup, PasswordInputResult, Popup, SelectableList, SelectableListData,
-    SelectionValue, TextInputPopup, TextInputPopupResult,
-    app_option_list::AppOptionList,
-    utils::{SelectableItem, get_focus_border_color, load_or_create_project},
+use crate::{
+    errors::CliError, tui_components::app_list::AppList, tui_system_ws_utils::connect_and_manage,
 };
-use crate::{errors::CliError, tui_components::app_list::AppList};
+use crate::{
+    tui_components::{
+        LogViewer, NetAddressPopup, NetAddressPopupResult, NumberPopup, NumberPopupResult,
+        PasswordInputMode, PasswordInputPopup, PasswordInputResult, Popup, SelectableList,
+        SelectableListData, SelectionValue, Spinner, TextInputPopup, TextInputPopupResult,
+        app_option_list::AppOptionList,
+        utils::{SelectableItem, get_focus_border_color, load_or_create_project},
+    },
+    tui_system_ws_utils::TuiSystemEngineConnection,
+};
 
 const MAX_HEIGHT: u16 = 24; // Maximum height of the TUI, will be +2 for borders
 const MAX_TOTAL_WIDTH: u16 = 120; // Maximum width of AppList + OptionList
@@ -92,20 +98,36 @@ enum Focus {
 }
 
 #[derive(Debug, Clone, strum::Display, PartialEq)]
-enum PopupData {
+pub(crate) enum PopupData {
     Option(OptionData),
+    Update,
 }
+
+pub(crate) type SwitchLogsState = Arc<Mutex<State<Vec<String>>>>;
+pub(crate) type ShowPopupState = Arc<Mutex<State<bool>>>;
+pub(crate) type PopupDataState = Arc<Mutex<State<Option<PopupData>>>>;
 
 #[component]
 fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let mut system = hooks.use_context_mut::<SystemContext>();
     let project = hooks.use_context_mut::<Arc<Mutex<Project>>>();
-    let mut show_help = hooks.use_state(|| false);
-    let mut should_exit = hooks.use_state(|| false);
+
+    // ui states
     let mut focus = hooks.use_state(|| Focus::OptionList);
     let mut selected_app = hooks.use_state(|| SupportedApps::NixOS);
-    let mut show_popup = hooks.use_state(|| false);
-    let mut popup_data: State<Option<PopupData>> = hooks.use_state(|| None);
+    let mut should_exit = hooks.use_state(|| false);
+    let mut show_help = hooks.use_state(|| false);
+
+    // websocket states
+    let mut connected = hooks.use_state(|| false);
+    let mut shutdown_tx = hooks.use_state(|| Option::<oneshot::Sender<()>>::None);
+    let system_state = hooks.use_state(|| SystemState::Idle);
+    let engine = hooks.use_state(|| Arc::new(Mutex::new(TuiSystemEngineConnection::new())));
+
+    // popup states
+    let show_popup: ShowPopupState = Arc::new(Mutex::new(hooks.use_state(|| false)));
+    let popup_data: PopupDataState = Arc::new(Mutex::new(hooks.use_state(|| None)));
+    let switch_logs: SwitchLogsState = Arc::new(Mutex::new(hooks.use_state(Vec::new)));
 
     let mut options: State<Arc<Vec<OptionData>>> = hooks.use_state(|| {
         project
@@ -115,46 +137,86 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
             .unwrap_or_default()
     });
 
-    let project_clone = project.clone();
-    let mut on_app_selected = move |reverse: bool| {
-        if focus.get() != Focus::OptionList {
-            // We only want to change the app if the focus is on the option list
-            return;
+    hooks.use_future({
+        let e = engine.read().clone();
+        let s_logs = switch_logs.clone();
+        let s_popup = show_popup.clone();
+        let p_data = popup_data.clone();
+
+        async move {
+            let (tx, rx) = oneshot::channel();
+            shutdown_tx.set(Some(tx));
+
+            connect_and_manage(
+                e,
+                "ws://127.0.0.1:3000/ws",
+                system_state,
+                s_logs,
+                s_popup,
+                p_data,
+                rx,
+            )
+            .await;
+            connected.set(true);
         }
+    });
 
-        let next_app = match reverse {
-            true => selected_app.get().previous(),
-            false => selected_app.get().next(),
-        };
-        project_clone.lock().unwrap().set_selected_app(next_app);
-        selected_app.set(next_app);
+    let mut on_app_selected = {
+        let project = project.clone();
+        move |reverse: bool| {
+            if focus.get() != Focus::OptionList {
+                return;
+            }
 
-        let new_options = project_clone
-            .lock()
-            .unwrap()
-            .get_app_options()
-            .unwrap_or_default();
-        options.set(new_options);
+            let next_app = if reverse {
+                selected_app.get().previous()
+            } else {
+                selected_app.get().next()
+            };
+            project.lock().unwrap().set_selected_app(next_app);
+            selected_app.set(next_app);
+            options.set(
+                project
+                    .lock()
+                    .unwrap()
+                    .get_app_options()
+                    .unwrap_or_default(),
+            );
+        }
     };
 
     hooks.use_terminal_events({
-        move |event| match event {
-            TerminalEvent::Key(KeyEvent { code, kind, .. }) if kind != KeyEventKind::Release => {
+        let engine = engine.read().clone();
+        let show_popup_lock = show_popup.clone();
+        move |event| {
+            if let TerminalEvent::Key(KeyEvent {
+                code,
+                kind: KeyEventKind::Press,
+                modifiers,
+                ..
+            }) = event
+            {
                 match code {
+                    KeyCode::Char('q') => {
+                        if let Some(tx) = shutdown_tx.write().take() {
+                            let _ = tx.send(());
+                        }
+                        should_exit.set(true);
+                    }
                     KeyCode::Tab => on_app_selected(false),
                     KeyCode::BackTab => on_app_selected(true),
-                    KeyCode::Char('q') => should_exit.set(true),
-                    KeyCode::Char('?') => {
-                        if !show_help.get() {
-                            show_help.set(true)
-                        } else {
-                            show_help.set(false)
+                    KeyCode::Char('?') => show_help.set(!show_help.get()),
+                    KeyCode::Char('s') if modifiers == KeyModifiers::CONTROL => {
+                        if !show_popup_lock.lock().unwrap().get() {
+                            engine
+                                .lock()
+                                .unwrap()
+                                .send_command(SystemClientCommand::SwitchConfig);
                         }
                     }
                     _ => {}
                 }
             }
-            _ => {}
         }
     });
 
@@ -171,6 +233,9 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
         .max(MIN_OPTION_WIDTH);
 
     let project_clone = project.clone();
+    let show_popup_clone = show_popup.clone();
+    let popup_data_clone = popup_data.clone();
+
     let on_edit_option = move |selection: Option<SelectionValue>| {
         if let Some(SelectionValue::OptionId(option_id)) = selection {
             let current_options = options.read().clone();
@@ -181,6 +246,8 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
 
             if let Some(option_data) = option_data {
                 let project_clone = project_clone.clone();
+                let show_popup_clone = show_popup_clone.clone();
+                let popup_data_clone = popup_data_clone.clone();
 
                 match option_data {
                     OptionData::Bool(b) => {
@@ -204,15 +271,25 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                     | OptionData::NetAddress(_)
                     | OptionData::Port(_)
                     | OptionData::NumberEdit(_) => {
-                        if show_popup.get() {
+                        if show_popup_clone
+                            .lock()
+                            .expect("BUG: show_popup lock poisoned")
+                            .get()
+                        {
                             error!(
                                 "Trying to open a string list popup while another popup is already open"
                             );
                             return;
                         }
 
-                        popup_data.set(Some(PopupData::Option(option_data)));
-                        show_popup.set(true);
+                        popup_data_clone
+                            .lock()
+                            .expect("BUG: popup_data lock poisoned")
+                            .set(Some(PopupData::Option(option_data)));
+                        show_popup_clone
+                            .lock()
+                            .expect("BUG: show_popup lock poisoned")
+                            .set(true);
                         focus.set(Focus::Popup);
                     }
                     _ => {
@@ -228,7 +305,13 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
         }
     };
 
-    let popup = if let Some(data) = popup_data.read().clone() {
+    let popup = if let Some(data) = popup_data
+        .lock()
+        .expect("BUG: popup_data lock poisoned")
+        .read()
+        .clone()
+    {
+        let popup_data = popup_data.clone();
         match data {
             PopupData::Option(option_data) => {
                 let project_for_popup = project.clone();
@@ -239,11 +322,25 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                         .get_app_options()
                         .unwrap_or_default();
                     options.set(new_options);
-
-                    popup_data.set(None);
-                    show_popup.set(false);
+                    popup_data
+                        .lock()
+                        .expect("BUG: popup_data lock poisoned")
+                        .set(None);
+                    show_popup
+                        .lock()
+                        .expect("BUG: show_popup lock poisoned")
+                        .set(false);
                     focus.set(Focus::OptionList);
                 })
+            }
+            PopupData::Update => {
+                let switch_logs = switch_logs
+                    .lock()
+                    .expect("BUG: switch_logs lock poisoned")
+                    .read()
+                    .clone();
+
+                build_update_popup(switch_logs, move || {})
             }
         }
     } else {
@@ -291,13 +388,44 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                         align: TextAlign::Center,
                         contents: vec![
                             MixedTextContent::new(" <"),
-                            MixedTextContent::new("CTRL + a").color(Color::Green),
-                            MixedTextContent::new("> Apply Changes "),
+                            MixedTextContent::new("CTRL + s").color(Color::Green),
+                            MixedTextContent::new("> Switch Config"),
+                            MixedTextContent::new(" <"),
+                            MixedTextContent::new("q").color(Color::Green),
+                            MixedTextContent::new("> Quit"),
                         ]
                     )
             }
         }
     }
+}
+
+fn build_update_popup<F>(logs: Vec<String>, _on_close_requested: F) -> Option<AnyElement<'static>>
+where
+    F: FnOnce() + Send + 'static,
+{
+    Some(
+        element! {
+            Popup(
+                has_focus: true,
+                title: " Switching config…".to_string(),
+                spinner: Some(element! {
+                    Spinner()
+                }.into_any()),
+                children: vec![
+                    element! {
+                        View(
+                            flex_direction: FlexDirection::Column,
+                            align_items: AlignItems::Center
+                        ) {
+                            LogViewer(logs, max_height: 25, width: 50)
+                        }
+                    }.into_any()
+                ]
+            )
+        }
+        .into_any(),
+    )
 }
 
 fn build_option_popup<F>(

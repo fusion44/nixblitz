@@ -15,6 +15,7 @@ mod logging;
 pub mod macros;
 mod tui;
 mod tui_components;
+mod tui_system_ws_utils;
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {

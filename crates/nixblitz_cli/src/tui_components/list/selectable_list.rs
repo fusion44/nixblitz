@@ -6,6 +6,7 @@ use nixblitz_core::{
     OPTION_TITLES,
     option_data::{GetOptionId, OptionData, OptionId},
     string_list_data::StringListOptionItem,
+    truncate_text,
 };
 
 use crate::tui_components::{
@@ -69,24 +70,11 @@ impl SelectableItem for OptionData {
             OptionData::Port(p) => p.value().to_string(),
         };
 
-        let truncate_text = |text: &str, prefix: &str| {
-            width.map_or_else(
-                || format!("{} {}", prefix, text),
-                |w| {
-                    let available_width = w.saturating_sub(4) as usize; // Account for border, etc.
-                    let full_text = format!("{} {}", prefix, text);
-                    if full_text.len() <= available_width {
-                        return full_text;
-                    }
-                    let end = available_width.saturating_sub(prefix.len() + 4); // "... " and prefix
-                    format!("{} {}...", prefix, &text[..end])
-                },
-            )
-        };
+        let available_width = width.map_or(usize::MAX, |w| w.saturating_sub(4) as usize);
 
         let char_str = &char.to_string();
-        let title_text = truncate_text(title, char_str).to_uppercase();
-        let subtitle_text = truncate_text(&subtitle, char_str);
+        let title_text = truncate_text(title, Some(char_str), Some(available_width)).to_uppercase();
+        let subtitle_text = truncate_text(&subtitle, Some(char_str), Some(available_width));
         if let Some(width) = width {
             element! {
                 View(width, flex_direction: FlexDirection::Column, background_color) {
