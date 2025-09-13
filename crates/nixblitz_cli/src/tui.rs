@@ -24,10 +24,13 @@ use nixblitz_core::{
     text_edit_data::TextOptionChangeData,
 };
 use nixblitz_system::project::Project;
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, watch};
 
 use crate::{
-    errors::CliError, tui_components::app_list::AppList, tui_system_ws_utils::connect_and_manage,
+    errors::CliError,
+    tui_components::{EngineOffHelpPopup, app_list::AppList},
+    tui_shared::{Focus, FocusState},
+    tui_system_ws_utils::connect_and_manage,
 };
 use crate::{
     tui_components::{
@@ -37,6 +40,7 @@ use crate::{
         app_option_list::AppOptionList,
         utils::{SelectableItem, get_focus_border_color, load_or_create_project},
     },
+    tui_shared::{ConnectionStatus, PopupData, PopupDataState, ShowPopupState, SwitchLogsState},
     tui_system_ws_utils::TuiSystemEngineConnection,
 };
 
@@ -90,22 +94,18 @@ pub async fn start_tui_app(work_dir: PathBuf, create_project: &bool) -> Result<(
     Ok(())
 }
 
-#[derive(Debug, Clone, strum::Display, Copy, PartialEq, Eq)]
-enum Focus {
-    AppList,
-    OptionList,
-    Popup,
+fn reset_popup(data: PopupDataState, show: ShowPopupState, focus: FocusState) {
+    data.lock()
+        .expect("BUG: popup_data lock poisoned")
+        .set(None);
+    show.lock()
+        .expect("BUG: show_popup lock poisoned")
+        .set(false);
+    focus
+        .lock()
+        .expect("BUG: focus lock poisoned")
+        .set(Focus::OptionList);
 }
-
-#[derive(Debug, Clone, strum::Display, PartialEq)]
-pub(crate) enum PopupData {
-    Option(OptionData),
-    Update,
-}
-
-pub(crate) type SwitchLogsState = Arc<Mutex<State<Vec<String>>>>;
-pub(crate) type ShowPopupState = Arc<Mutex<State<bool>>>;
-pub(crate) type PopupDataState = Arc<Mutex<State<Option<PopupData>>>>;
 
 #[component]
 fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
@@ -113,13 +113,14 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let project = hooks.use_context_mut::<Arc<Mutex<Project>>>();
 
     // ui states
-    let mut focus = hooks.use_state(|| Focus::OptionList);
+    let focus: FocusState = Arc::new(Mutex::new(hooks.use_state(|| Focus::OptionList)));
     let mut selected_app = hooks.use_state(|| SupportedApps::NixOS);
     let mut should_exit = hooks.use_state(|| false);
     let mut show_help = hooks.use_state(|| false);
 
     // websocket states
-    let mut connected = hooks.use_state(|| false);
+    let (connection_status_tx, connection_status_rx) = watch::channel(ConnectionStatus::Connecting);
+    let mut connection_status = hooks.use_state(|| ConnectionStatus::Connecting);
     let mut shutdown_tx = hooks.use_state(|| Option::<oneshot::Sender<()>>::None);
     let system_state = hooks.use_state(|| SystemState::Idle);
     let engine = hooks.use_state(|| Arc::new(Mutex::new(TuiSystemEngineConnection::new())));
@@ -138,10 +139,21 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     });
 
     hooks.use_future({
+        let mut rx = connection_status_rx.clone();
+        async move {
+            while let Ok(()) = rx.changed().await {
+                let status = *rx.borrow();
+                connection_status.set(status);
+            }
+        }
+    });
+
+    hooks.use_future({
         let e = engine.read().clone();
         let s_logs = switch_logs.clone();
         let s_popup = show_popup.clone();
         let p_data = popup_data.clone();
+        let connection_status_tx = connection_status_tx.clone();
 
         async move {
             let (tx, rx) = oneshot::channel();
@@ -155,16 +167,17 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                 s_popup,
                 p_data,
                 rx,
+                connection_status_tx,
             )
             .await;
-            connected.set(true);
         }
     });
 
     let mut on_app_selected = {
         let project = project.clone();
+        let focus = focus.clone();
         move |reverse: bool| {
-            if focus.get() != Focus::OptionList {
+            if focus.lock().expect("BUG: focus lock poisoned").get() != Focus::OptionList {
                 return;
             }
 
@@ -187,7 +200,9 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
 
     hooks.use_terminal_events({
         let engine = engine.read().clone();
-        let show_popup_lock = show_popup.clone();
+        let show_popup_clone = show_popup.clone();
+        let popup_data_clone = popup_data.clone();
+        let focus_clone = focus.clone();
         move |event| {
             if let TerminalEvent::Key(KeyEvent {
                 code,
@@ -207,11 +222,28 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                     KeyCode::BackTab => on_app_selected(true),
                     KeyCode::Char('?') => show_help.set(!show_help.get()),
                     KeyCode::Char('s') if modifiers == KeyModifiers::CONTROL => {
-                        if !show_popup_lock.lock().unwrap().get() {
+                        if !show_popup_clone.lock().unwrap().get()
+                            && connection_status.get() == ConnectionStatus::Connected
+                        {
                             engine
                                 .lock()
                                 .unwrap()
                                 .send_command(SystemClientCommand::SwitchConfig);
+                        } else if !show_popup_clone.lock().unwrap().get()
+                            && connection_status.get() == ConnectionStatus::Disconnected
+                        {
+                            show_popup_clone
+                                .lock()
+                                .expect("BUG: show_popup lock poisoned")
+                                .set(true);
+                            popup_data_clone
+                                .lock()
+                                .expect("BUG: popup_data lock poisoned")
+                                .set(Some(PopupData::EngineOffHelp));
+                            focus_clone
+                                .lock()
+                                .expect("BUG: focus lock poisoned")
+                                .set(Focus::Popup);
                         }
                     }
                     _ => {}
@@ -235,6 +267,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
     let project_clone = project.clone();
     let show_popup_clone = show_popup.clone();
     let popup_data_clone = popup_data.clone();
+    let focus_clone = focus.clone();
 
     let on_edit_option = move |selection: Option<SelectionValue>| {
         if let Some(SelectionValue::OptionId(option_id)) = selection {
@@ -248,6 +281,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                 let project_clone = project_clone.clone();
                 let show_popup_clone = show_popup_clone.clone();
                 let popup_data_clone = popup_data_clone.clone();
+                let focus_clone = focus_clone.clone();
 
                 match option_data {
                     OptionData::Bool(b) => {
@@ -290,7 +324,10 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                             .lock()
                             .expect("BUG: show_popup lock poisoned")
                             .set(true);
-                        focus.set(Focus::Popup);
+                        focus_clone
+                            .lock()
+                            .expect("BUG: show_popup lock poisoned")
+                            .set(Focus::Popup);
                     }
                     _ => {
                         println!("Option {:?} not handled, yet", option_data);
@@ -311,7 +348,9 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
         .read()
         .clone()
     {
-        let popup_data = popup_data.clone();
+        let popup_data_clone = popup_data.clone();
+        let show_popup_clone = show_popup.clone();
+        let focus_clone = focus.clone();
         match data {
             PopupData::Option(option_data) => {
                 let project_for_popup = project.clone();
@@ -322,15 +361,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                         .get_app_options()
                         .unwrap_or_default();
                     options.set(new_options);
-                    popup_data
-                        .lock()
-                        .expect("BUG: popup_data lock poisoned")
-                        .set(None);
-                    show_popup
-                        .lock()
-                        .expect("BUG: show_popup lock poisoned")
-                        .set(false);
-                    focus.set(Focus::OptionList);
+                    reset_popup(popup_data_clone, show_popup_clone, focus_clone);
                 })
             }
             PopupData::Update => {
@@ -342,11 +373,53 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
 
                 build_update_popup(switch_logs, move || {})
             }
+            PopupData::EngineOffHelp => build_engine_off_help_popup(move || {
+                reset_popup(
+                    popup_data_clone.clone(),
+                    show_popup_clone.clone(),
+                    focus_clone.clone(),
+                );
+            }),
         }
     } else {
         None
     };
 
+    let status_bar = match connection_status.get() {
+        ConnectionStatus::Connecting => Some(element! {
+            MixedText(
+                align: TextAlign::Center,
+                contents: vec![
+                    MixedTextContent::new("Connecting to system engine..."),
+                ]
+            )
+        }),
+        ConnectionStatus::Connected => Some(element! {
+            MixedText(
+                align: TextAlign::Center,
+                contents: vec![
+                    MixedTextContent::new(" <"),
+                    MixedTextContent::new("CTRL + s").color(Color::Green),
+                    MixedTextContent::new("> Switch Config"),
+                    MixedTextContent::new(" <"),
+                    MixedTextContent::new("q").color(Color::Green),
+                    MixedTextContent::new("> Quit"),
+                ]
+            )
+        }),
+        ConnectionStatus::Disconnected => Some(element! {
+            MixedText(
+                align: TextAlign::Center,
+                contents: vec![
+                    MixedTextContent::new("Operating in non-system engine mode. Press '"),
+                    MixedTextContent::new("q").color(Color::Green),
+                    MixedTextContent::new("' to quit."),
+                ]
+            )
+        }),
+    };
+
+    let focus = focus.lock().expect("BUG: focus lock poisoned").get();
     element! {
         View (
             width,
@@ -362,7 +435,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                 justify_content: JustifyContent::Center,
             ) {
                 AppList (
-                    has_focus: focus.get() == Focus::AppList,
+                    has_focus: focus == Focus::AppList,
                     app_list: SupportedApps::as_string_list(),
                     selected_item: selected_app.get().as_index(),
                     width: APP_LIST_WIDTH,
@@ -371,7 +444,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                 AppOptionList (
                         height: MAX_HEIGHT,
                         width: option_list_width,
-                        has_focus: focus.get() == Focus::OptionList,
+                        has_focus: focus == Focus::OptionList,
                         on_edit_option,
                         options: options.read().clone(),
                 )
@@ -384,20 +457,17 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                 border_style: BorderStyle::Round,
                 border_color: get_focus_border_color(false),
                 ) {
-                    MixedText(
-                        align: TextAlign::Center,
-                        contents: vec![
-                            MixedTextContent::new(" <"),
-                            MixedTextContent::new("CTRL + s").color(Color::Green),
-                            MixedTextContent::new("> Switch Config"),
-                            MixedTextContent::new(" <"),
-                            MixedTextContent::new("q").color(Color::Green),
-                            MixedTextContent::new("> Quit"),
-                        ]
-                    )
+                    #(status_bar)
             }
         }
     }
+}
+
+fn build_engine_off_help_popup<F>(mut on_close_requested: F) -> Option<AnyElement<'static>>
+where
+    F: FnMut() + Send + 'static + Sync,
+{
+    Some(element! { EngineOffHelpPopup(on_confirm: move |_| { on_close_requested() }) }.into_any())
 }
 
 fn build_update_popup<F>(logs: Vec<String>, _on_close_requested: F) -> Option<AnyElement<'static>>

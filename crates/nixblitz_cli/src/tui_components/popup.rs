@@ -26,6 +26,9 @@ pub fn Popup<'a>(props: &mut PopupProps<'a>, _hooks: Hooks) -> impl Into<AnyElem
             View(
                 flex_direction: FlexDirection::Row,
                 justify_content: JustifyContent::Center,
+                border_style: BorderStyle::Single,
+                border_edges: Edges::Bottom,
+                border_color: Color::Grey
             ) {
                 #(&mut props.spinner)
                 Text(content: &title)

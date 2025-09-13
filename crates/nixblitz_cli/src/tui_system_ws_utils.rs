@@ -10,7 +10,7 @@ use tokio::{
     net::TcpStream,
     sync::{
         mpsc::{UnboundedSender, unbounded_channel},
-        oneshot,
+        oneshot, watch,
     },
 };
 
@@ -18,7 +18,9 @@ use futures_util::{SinkExt, StreamExt, stream::SplitSink};
 
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
 
-use crate::tui::{PopupData, PopupDataState, ShowPopupState, SwitchLogsState};
+use crate::tui_shared::{
+    ConnectionStatus, PopupData, PopupDataState, ShowPopupState, SwitchLogsState,
+};
 
 #[derive(Clone)]
 pub(crate) struct TuiSystemEngineConnection {
@@ -53,6 +55,7 @@ pub(crate) async fn connect_and_manage(
     show_popup: ShowPopupState,
     popup_data: PopupDataState,
     mut shutdown_rx: oneshot::Receiver<()>,
+    connection_status_tx: watch::Sender<ConnectionStatus>,
 ) {
     let s_logs = switch_logs.clone();
     let url = url.to_string();
@@ -62,11 +65,20 @@ pub(crate) async fn connect_and_manage(
         let popup_data = popup_data.clone();
 
         async move {
+            let mut attempts = 0;
             loop {
+                if attempts >= 3 {
+                    warn!("[System] Maximum connection attempts reached.");
+                    let _ = connection_status_tx.send(ConnectionStatus::Disconnected);
+                    return;
+                }
+                attempts += 1;
                 debug!("[System] Attempting to connect to {}...", url.clone());
+                let _ = connection_status_tx.send(ConnectionStatus::Connecting);
                 match connect_async(url.clone()).await {
                     Ok((ws_stream, _response)) => {
                         debug!("[System] ✅ WebSocket connection successful!");
+                        let _ = connection_status_tx.send(ConnectionStatus::Connected);
                         let (tx, mut rx) = unbounded_channel::<SystemClientCommand>();
                         engine
                             .lock()
@@ -120,9 +132,10 @@ pub(crate) async fn connect_and_manage(
                     }
                     Err(e) => {
                         error!(
-                            "[System] ❌ Failed to connect: {}. Retrying in 5 seconds...",
+                            "[System] ❌ Failed to connect: {}. Retrying in 1 seconds...",
                             e
                         );
+                        tokio::time::sleep(Duration::from_secs(1)).await;
                     }
                 }
 
@@ -134,13 +147,13 @@ pub(crate) async fn connect_and_manage(
                     .unwrap()
                     .take();
                 warn!("[System] Connection lost.");
+                let _ = connection_status_tx.send(ConnectionStatus::Disconnected);
                 if shutdown_rx.try_recv().is_ok() {
                     info!(
                         "[System] Shutdown signal received during disconnected state. Exiting task."
                     );
                     return;
                 }
-                tokio::time::sleep(Duration::from_secs(5)).await;
             }
         }
     });
