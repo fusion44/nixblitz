@@ -20,8 +20,10 @@ type SystemLogsSignal = Signal<Vec<String>>;
 fn get_ws_url() -> String {
     #[cfg(debug_assertions)]
     {
+        use nixblitz_core::NIXBLITZ_SYSTEM_WS_OVERRIDE;
+
         const DEV_SYS_WS_URL: &str = "ws://127.0.0.1:3000/ws";
-        let url = std::env::var("NIXBLITZ_SYSTEM_WS_OVERRIDE")
+        let url = std::env::var(NIXBLITZ_SYSTEM_WS_OVERRIDE)
             .unwrap_or_else(|_| DEV_SYS_WS_URL.to_string());
         tracing::info!("Using development WebSocket URL: {}", &url);
         url

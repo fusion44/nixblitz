@@ -52,14 +52,14 @@ in {
       server = {
         port = mkOption {
           type = types.port;
-          default = 3001;
-          description = "The internal port for the Dioxus server to bind to.";
+          default = 3000;
+          description = "The internal port for the server to bind to.";
         };
 
         host = mkOption {
           type = types.str;
           default = "127.0.0.1";
-          description = "The internal host address for the Dioxus server to bind to.";
+          description = "The internal host address for the server to bind to.";
         };
 
         environment = mkOption {

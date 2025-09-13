@@ -5,7 +5,9 @@ use std::{
 
 use iocraft::hooks::State;
 use log::{debug, error, info, warn};
-use nixblitz_core::{SystemClientCommand, SystemServerEvent, SystemState};
+use nixblitz_core::{
+    NIXBLITZ_SYSTEM_WS_OVERRIDE, SystemClientCommand, SystemServerEvent, SystemState,
+};
 use tokio::{
     net::TcpStream,
     sync::{
@@ -45,6 +47,11 @@ impl TuiSystemEngineConnection {
             error!("[TUI] Error: Cannot send command, not connected.");
         }
     }
+}
+
+pub(crate) fn get_ws_url() -> String {
+    const DEV_SYS_WS_URL: &str = "ws://127.0.0.1:3000/ws";
+    std::env::var(NIXBLITZ_SYSTEM_WS_OVERRIDE).unwrap_or_else(|_| DEV_SYS_WS_URL.to_string())
 }
 
 pub(crate) async fn connect_and_manage(
@@ -233,6 +240,42 @@ async fn handle_client_command(
         Err(e) => {
             error!("[System] Error: Failed to serialize client command: {}", e);
             Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{NIXBLITZ_SYSTEM_WS_OVERRIDE, get_ws_url};
+
+    #[test]
+    fn test_get_ws_url_default() {
+        let original_var = std::env::var(NIXBLITZ_SYSTEM_WS_OVERRIDE).ok();
+        unsafe { std::env::remove_var(NIXBLITZ_SYSTEM_WS_OVERRIDE) };
+
+        let url = get_ws_url();
+
+        assert_eq!(url, "ws://127.0.0.1:3000/ws");
+
+        if let Some(val) = original_var {
+            unsafe { std::env::set_var(NIXBLITZ_SYSTEM_WS_OVERRIDE, val) };
+        }
+    }
+
+    #[test]
+    fn test_get_ws_url_with_override() {
+        let original_var = std::env::var(NIXBLITZ_SYSTEM_WS_OVERRIDE).ok();
+        let custom_url = "ws://my-custom-server:8080/ws-path";
+        unsafe { std::env::set_var(NIXBLITZ_SYSTEM_WS_OVERRIDE, custom_url) };
+        let url = get_ws_url();
+        assert_eq!(url, custom_url);
+
+        unsafe {
+            if let Some(val) = original_var {
+                std::env::set_var(NIXBLITZ_SYSTEM_WS_OVERRIDE, val);
+            } else {
+                std::env::remove_var(NIXBLITZ_SYSTEM_WS_OVERRIDE);
+            }
         }
     }
 }

@@ -30,7 +30,7 @@ use crate::{
     errors::CliError,
     tui_components::{EngineOffHelpPopup, app_list::AppList},
     tui_shared::{Focus, FocusState},
-    tui_system_ws_utils::connect_and_manage,
+    tui_system_ws_utils::{connect_and_manage, get_ws_url},
 };
 use crate::{
     tui_components::{
@@ -161,7 +161,7 @@ fn App(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
 
             connect_and_manage(
                 e,
-                "ws://127.0.0.1:3000/ws",
+                &get_ws_url(),
                 system_state,
                 s_logs,
                 s_popup,

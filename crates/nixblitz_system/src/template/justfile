@@ -7,7 +7,7 @@ default:
 build target="nixos-vm":
 	#!/usr/bin/env bash
 	if [[ "{{target}}" == "nixos-vm" ]] ; then
-		cd src && nixos-rebuild build-vm --flake .#nixblitzvm
+		cd src && nixos-rebuild build-vm --flake .#nixblitzx86vm
 	elif [[ "{{target}}" == "pi4-image" ]] ; then
 		cd src && nix build .#images.pi4
 	elif [[ "{{target}}" == "pi5-image" ]] ; then

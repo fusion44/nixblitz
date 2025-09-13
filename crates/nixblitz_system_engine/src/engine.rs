@@ -185,6 +185,13 @@ async fn real_switch_config_process(
 
     {
         let mut state_guard = state_arc.lock().await;
+
+        // The system will briefly be in a updated succeeded state before
+        // transitioning to idle.
+        state_guard.state = SystemState::UpdateSucceeded;
+        let success_event = SystemServerEvent::StateChanged(state_guard.state.clone());
+        let _ = sender.send(success_event);
+
         state_guard.state = SystemState::Idle;
         debug!("Apply config process completed successfully.");
         let final_event = SystemServerEvent::StateChanged(state_guard.state.clone());
@@ -225,6 +232,13 @@ async fn fake_switch_config_process(
 
     {
         let mut state_guard = state_arc.lock().await;
+
+        // The system will briefly be in a updated succeeded state before
+        // transitioning to idle.
+        state_guard.state = SystemState::UpdateSucceeded;
+        let success_event = SystemServerEvent::StateChanged(state_guard.state.clone());
+        let _ = sender.send(success_event);
+
         state_guard.state = SystemState::Idle;
         debug!("Fake installation process completed successfully.");
         let final_event = SystemServerEvent::StateChanged(state_guard.state.clone());
