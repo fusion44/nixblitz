@@ -15,6 +15,7 @@ pub struct NetAddressPopupProps {
     pub title: &'static str,
     pub text: String,
     pub on_submit: Handler<'static, NetAddressPopupResult>,
+    pub has_focus: Option<bool>,
 }
 
 #[component]
@@ -22,6 +23,7 @@ pub fn NetAddressPopup(
     props: &mut NetAddressPopupProps,
     hooks: &mut Hooks,
 ) -> impl Into<AnyElement<'static>> {
+    let has_focus = props.has_focus.unwrap_or(true);
     let mut error_message = hooks.use_state(|| None::<String>);
     let mut current_component = hooks.use_state(|| props.text.clone());
 
@@ -30,6 +32,10 @@ pub fn NetAddressPopup(
 
         move |event| match event {
             TerminalEvent::Key(KeyEvent { code, kind, .. }) if kind != KeyEventKind::Release => {
+                if !has_focus {
+                    return;
+                }
+
                 match code {
                     KeyCode::Enter => {
                         if current_component.read().is_empty() {
@@ -60,7 +66,7 @@ pub fn NetAddressPopup(
 
     let text_input_view = element! {
         CustomTextInput(
-            has_focus: true,
+            has_focus,
             value: current_component.read().clone(),
             on_change: move |new_value| current_component.set(new_value),
         )
@@ -74,7 +80,7 @@ pub fn NetAddressPopup(
 
     element! {
         Popup(
-            has_focus: true,
+            has_focus,
             title: props.title,
             children: vec![
                 element! {

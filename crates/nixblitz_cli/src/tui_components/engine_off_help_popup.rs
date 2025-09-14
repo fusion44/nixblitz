@@ -5,6 +5,7 @@ use crate::tui_components::Popup;
 #[derive(Default, Props)]
 pub struct EngineOffHelpPopupProps {
     pub on_confirm: Handler<'static, ()>,
+    pub has_focus: Option<bool>,
 }
 
 #[component]
@@ -12,6 +13,7 @@ pub fn EngineOffHelpPopup(
     props: &mut EngineOffHelpPopupProps,
     mut hooks: Hooks,
 ) -> impl Into<AnyElement<'static>> {
+    let has_focus = props.has_focus.unwrap_or(true);
     let text = element! {
         MixedText(
             align: TextAlign::Center,
@@ -25,8 +27,19 @@ pub fn EngineOffHelpPopup(
         )
     };
 
+    let btn_color = if has_focus {
+        Color::Green
+    } else {
+        Color::Reset
+    };
+
     let ok_button = element! {
-        View(height: 1, width: 10, justify_content: JustifyContent::Center, background_color: Color::Green) {
+        View(
+            height: 1,
+            width: 10,
+            justify_content: JustifyContent::Center,
+            background_color: btn_color,
+        ) {
             Text(content: "OK".to_string())
         }
     };

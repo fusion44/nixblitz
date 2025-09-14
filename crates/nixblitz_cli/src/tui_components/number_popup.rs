@@ -14,6 +14,7 @@ pub struct NumberPopupProps {
     pub title: &'static str,
     pub value: NumberValue,
     pub on_submit: Handler<'static, NumberPopupResult>,
+    pub has_focus: Option<bool>,
 }
 
 #[component]
@@ -21,6 +22,7 @@ pub fn NumberPopup(
     props: &mut NumberPopupProps,
     hooks: &mut Hooks,
 ) -> impl Into<AnyElement<'static>> {
+    let has_focus = props.has_focus.unwrap_or(true);
     let mut error_message = hooks.use_state(|| None::<String>);
     let mut current_value = hooks.use_state(|| props.value.to_string_or(""));
 
@@ -30,6 +32,10 @@ pub fn NumberPopup(
 
         move |event| match event {
             TerminalEvent::Key(KeyEvent { code, kind, .. }) if kind != KeyEventKind::Release => {
+                if !has_focus {
+                    return;
+                }
+
                 match code {
                     KeyCode::Enter => {
                         let input_str = current_value.read();
@@ -77,7 +83,7 @@ pub fn NumberPopup(
 
     let text_input_view = element! {
         CustomTextInput(
-            has_focus: true,
+            has_focus,
             value: current_value.read().clone(),
             on_change: move |new_value| current_value.set(new_value),
         )
@@ -91,7 +97,7 @@ pub fn NumberPopup(
 
     element! {
         Popup(
-            has_focus: true,
+            has_focus,
             title: props.title,
             children: vec![
                 element! {

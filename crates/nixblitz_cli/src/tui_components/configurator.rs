@@ -19,9 +19,8 @@ use nixblitz_system::project::Project;
 use crate::tui_components::{
     NetAddressPopup, NetAddressPopupResult, NumberPopup, NumberPopupResult, PasswordInputMode,
     PasswordInputPopup, PasswordInputResult, Popup, SelectableList, SelectableListData,
-    SelectionValue, TextInputPopup, TextInputPopupResult,
-    app_list::AppList,
-    utils::{SelectableItem, get_focus_border_color},
+    SelectionValue, TextInputPopup, TextInputPopupResult, app_list::AppList,
+    app_option_list::AppOptionList, utils::SelectableItem,
 };
 
 const MAX_HEIGHT: u16 = 24; // Maximum height of the TUI, will be +2 for borders
@@ -31,7 +30,7 @@ const MIN_OPTION_WIDTH: u16 = 40;
 const PADDING: u16 = 2;
 
 #[derive(Debug, Clone, strum::Display, Copy, PartialEq, Eq)]
-enum Focus {
+enum InternalFocus {
     AppList,
     OptionList,
     Popup,
@@ -45,6 +44,7 @@ enum PopupData {
 #[derive(Default, Props)]
 pub struct ConfiguratorProps {
     pub on_submit: Option<Handler<'static, ()>>,
+    pub has_focus: Option<bool>,
 }
 
 #[component]
@@ -56,11 +56,11 @@ pub fn Configurator(
     let project = hooks.use_context_mut::<Arc<Mutex<Project>>>();
     let mut show_help = hooks.use_state(|| false);
     let mut should_exit = hooks.use_state(|| false);
-    let mut focus = hooks.use_state(|| Focus::OptionList);
+    let mut internal_focus = hooks.use_state(|| InternalFocus::OptionList);
     let mut selected_app = hooks.use_state(|| SupportedApps::NixOS);
     let mut show_popup = hooks.use_state(|| false);
     let mut popup_data: State<Option<PopupData>> = hooks.use_state(|| None);
-    let show_footer = hooks.use_state(|| props.on_submit.is_some());
+    let has_focus = props.has_focus.unwrap_or(true);
 
     let mut options: State<Arc<Vec<OptionData>>> = hooks.use_state(|| {
         project
@@ -72,7 +72,7 @@ pub fn Configurator(
 
     let project_clone = project.clone();
     let mut on_app_selected = move |reverse: bool| {
-        if focus.get() != Focus::OptionList {
+        if internal_focus.get() != InternalFocus::OptionList {
             // We only want to change the app if the focus is on the option list
             return;
         }
@@ -94,31 +94,42 @@ pub fn Configurator(
 
     hooks.use_terminal_events({
         let mut on_submit = props.on_submit.take();
-        move |event| match event {
-            TerminalEvent::Key(KeyEvent {
+        move |event| {
+            if !has_focus {
+                return;
+            }
+
+            if *show_popup.read() {
+                return;
+            }
+            if let TerminalEvent::Key(KeyEvent {
                 code,
                 modifiers,
                 kind,
                 ..
-            }) if kind != KeyEventKind::Release => match code {
-                KeyCode::Tab => on_app_selected(false),
-                KeyCode::BackTab => on_app_selected(true),
-                KeyCode::Char('q') => should_exit.set(true),
-                KeyCode::Char('a') if modifiers == KeyModifiers::CONTROL => {
-                    if let Some(handler) = &mut on_submit {
-                        handler(());
+            }) = event
+            {
+                if kind != KeyEventKind::Release {
+                    match code {
+                        KeyCode::Tab => on_app_selected(false),
+                        KeyCode::BackTab => on_app_selected(true),
+                        KeyCode::Char('q') => should_exit.set(true),
+                        KeyCode::Char('a') if modifiers == KeyModifiers::CONTROL => {
+                            if let Some(handler) = &mut on_submit {
+                                handler(());
+                            }
+                        }
+                        KeyCode::Char('?') => {
+                            if !show_help.get() {
+                                show_help.set(true)
+                            } else {
+                                show_help.set(false)
+                            }
+                        }
+                        _ => {}
                     }
                 }
-                KeyCode::Char('?') => {
-                    if !show_help.get() {
-                        show_help.set(true)
-                    } else {
-                        show_help.set(false)
-                    }
-                }
-                _ => {}
-            },
-            _ => {}
+            }
         }
     });
 
@@ -178,7 +189,7 @@ pub fn Configurator(
 
                         popup_data.set(Some(PopupData::Option(option_data)));
                         show_popup.set(true);
-                        focus.set(Focus::Popup);
+                        internal_focus.set(InternalFocus::Popup);
                     }
                     _ => {
                         println!("Option {:?} not handled, yet", option_data);
@@ -197,51 +208,25 @@ pub fn Configurator(
         match data {
             PopupData::Option(option_data) => {
                 let project_for_popup = project.clone();
-                build_option_popup(project.clone(), option_data, move || {
-                    let new_options = project_for_popup
-                        .lock()
-                        .unwrap()
-                        .get_app_options()
-                        .unwrap_or_default();
-                    options.set(new_options);
+                build_option_popup(
+                    project.clone(),
+                    option_data,
+                    move || {
+                        let new_options = project_for_popup
+                            .lock()
+                            .unwrap()
+                            .get_app_options()
+                            .unwrap_or_default();
+                        options.set(new_options);
 
-                    popup_data.set(None);
-                    show_popup.set(false);
-                    focus.set(Focus::OptionList);
-                })
-            }
-        }
-    } else {
-        None
-    };
-
-    let footer = if *show_footer.read() {
-        Some(
-            element! {
-                MixedText(
-                    align: TextAlign::Center,
-                    contents: vec![
-                        MixedTextContent::new("<"),
-                        MixedTextContent::new("TAB").color(Color::Green),
-                        MixedTextContent::new("> or <"),
-                        MixedTextContent::new("SHIFT + TAB").color(Color::Green),
-                        MixedTextContent::new("> change app. "),
-                        MixedTextContent::new("<"),
-                        MixedTextContent::new("↓↑").color(Color::Green),
-                        MixedTextContent::new("> or <"),
-                        MixedTextContent::new("jk").color(Color::Green),
-                        MixedTextContent::new("> navigate option list. "),
-                        MixedTextContent::new("<"),
-                        MixedTextContent::new("ENTER").color(Color::Green),
-                        MixedTextContent::new("> change option. "),
-                        MixedTextContent::new("<"),
-                        MixedTextContent::new("CTRL + a").color(Color::Green),
-                        MixedTextContent::new("> to accept config."),
-                    ]
+                        popup_data.set(None);
+                        show_popup.set(false);
+                        internal_focus.set(InternalFocus::OptionList);
+                    },
+                    has_focus,
                 )
             }
-            .into_any(),
-        )
+        }
     } else {
         None
     };
@@ -249,7 +234,17 @@ pub fn Configurator(
     let height = if height > MAX_HEIGHT {
         MAX_HEIGHT
     } else {
-        height - 4
+        height
+    };
+
+    // Calculates the focus state based on the has_focus prop and
+    // the internal focus state
+    let get_focus = |f: InternalFocus| -> bool {
+        if has_focus {
+            *internal_focus.read() == f
+        } else {
+            false
+        }
     };
 
     element! {
@@ -267,31 +262,21 @@ pub fn Configurator(
                 justify_content: JustifyContent::Center,
             ) {
                 AppList(
-                    has_focus: focus.get() == Focus::AppList,
+                    has_focus: get_focus(InternalFocus::AppList),
                     app_list: SupportedApps::as_string_list(),
                     selected_item: selected_app.get().as_index(),
                     width: APP_LIST_WIDTH,
                     height: Some(height),
                 )
-                View(
+                AppOptionList (
+                    height: height,
                     width: option_list_width,
-                    height,
-                    border_style: BorderStyle::Round,
-                    border_color: get_focus_border_color(focus.get() == Focus::OptionList),
-                    justify_content: JustifyContent::Stretch,
-                ) {
-                    SelectableList(
-                        height: height - 2, // -2 for borders
-                        width: option_list_width - 2,
-                        has_focus: focus.get() == Focus::OptionList,
-                        on_selected: on_edit_option,
-                        data: SelectableListData::Options(options.read().clone()),
-                    )
-                }
+                    has_focus: get_focus(InternalFocus::OptionList),
+                    on_edit_option,
+                    options: options.read().clone(),
+                )
                 #(popup)
             }
-            #(footer)
-            View(height: 2)
         }
     }
 }
@@ -300,6 +285,7 @@ fn build_option_popup<F>(
     project: Arc<Mutex<Project>>,
     data: OptionData,
     on_close_requested: F,
+    has_focus: bool,
 ) -> Option<AnyElement<'static>>
 where
     F: FnOnce() + Send + 'static,
@@ -349,14 +335,14 @@ where
             Some(
                 element! {
                     Popup(
-                        has_focus: true,
+                        has_focus,
                         title: title.to_string(),
                         children: vec![
                             element! {
                                 SelectableList(
                                     height,
                                     width: Some(40),
-                                    has_focus: true,
+                                    has_focus,
                                     on_selected,
                                     data: SelectableListData::StringListItems(options),
                                 )
@@ -409,6 +395,7 @@ where
                         text: text_data,
                         max_lines: 999 as u16,
                         on_submit,
+                        has_focus,
                     )
                 }
                 .into_any(),
@@ -451,6 +438,7 @@ where
                         text: text_data.value().clone(),
                         max_lines: text_data.max_lines(),
                         on_submit,
+                        has_focus,
                     )
                 }
                 .into_any(),
@@ -524,6 +512,7 @@ where
                         text: net_address_data.value().map_or(
                             String::new(), |v| v.to_string()),
                         on_submit,
+                        has_focus,
                     )
                 }
                 .into_any(),
@@ -559,6 +548,7 @@ where
                         title,
                         value: port_data.value().clone(),
                         on_submit,
+                        has_focus,
                     )
                 }
                 .into_any(),
@@ -594,12 +584,15 @@ where
                         title,
                         value: number_data.value().clone(),
                         on_submit,
+                        has_focus,
                     )
                 }
                 .into_any(),
             )
         }
         _ => {
+            // Note, bool won't be handled here as it doesn't require a popup
+            // and is handled inline
             warn!("Option {} not handled, yet", data);
             None
         }

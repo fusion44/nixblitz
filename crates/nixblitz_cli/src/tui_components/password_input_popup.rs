@@ -17,7 +17,7 @@ pub enum PasswordInputMode {
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
-enum PopupFocus {
+enum InternalPopupFocus {
     EditPassword,
     #[default]
     EditConfirmPassword,
@@ -25,34 +25,34 @@ enum PopupFocus {
     Cancel,
 }
 
-impl PopupFocus {
+impl InternalPopupFocus {
     fn next(&self, mode: PasswordInputMode) -> Self {
         match self {
-            PopupFocus::EditPassword => {
+            InternalPopupFocus::EditPassword => {
                 if mode == PasswordInputMode::SetNewPassword {
-                    PopupFocus::EditConfirmPassword
+                    InternalPopupFocus::EditConfirmPassword
                 } else {
-                    PopupFocus::Accept
+                    InternalPopupFocus::Accept
                 }
             }
-            PopupFocus::EditConfirmPassword => PopupFocus::Accept,
-            PopupFocus::Accept => PopupFocus::Cancel,
-            PopupFocus::Cancel => PopupFocus::EditPassword,
+            InternalPopupFocus::EditConfirmPassword => InternalPopupFocus::Accept,
+            InternalPopupFocus::Accept => InternalPopupFocus::Cancel,
+            InternalPopupFocus::Cancel => InternalPopupFocus::EditPassword,
         }
     }
 
     fn previous(&self, mode: PasswordInputMode) -> Self {
         match self {
-            PopupFocus::EditPassword => PopupFocus::Cancel,
-            PopupFocus::EditConfirmPassword => PopupFocus::EditPassword,
-            PopupFocus::Accept => {
+            InternalPopupFocus::EditPassword => InternalPopupFocus::Cancel,
+            InternalPopupFocus::EditConfirmPassword => InternalPopupFocus::EditPassword,
+            InternalPopupFocus::Accept => {
                 if mode == PasswordInputMode::SetNewPassword {
-                    PopupFocus::EditConfirmPassword
+                    InternalPopupFocus::EditConfirmPassword
                 } else {
-                    PopupFocus::EditPassword
+                    InternalPopupFocus::EditPassword
                 }
             }
-            PopupFocus::Cancel => PopupFocus::Accept,
+            InternalPopupFocus::Cancel => InternalPopupFocus::Accept,
         }
     }
 }
@@ -62,6 +62,7 @@ pub struct PasswordInputPopupProps {
     pub title: &'static str,
     pub mode: PasswordInputMode,
     pub on_submit: Handler<'static, PasswordInputResult>,
+    pub has_focus: Option<bool>,
 }
 
 #[component]
@@ -69,20 +70,21 @@ pub fn PasswordInputPopup(
     props: &mut PasswordInputPopupProps,
     mut hooks: Hooks,
 ) -> impl Into<AnyElement<'static>> {
+    let has_focus = props.has_focus.unwrap_or(true);
     let mut password_value = hooks.use_state(String::new);
     let mut confirm_password_value = hooks.use_state(String::new);
-    let mut focus = hooks.use_state(|| PopupFocus::EditPassword);
+    let mut internal_focus = hooks.use_state(|| InternalPopupFocus::EditPassword);
     let mut passwords_match = hooks.use_state(|| true);
     let mut hint_text = hooks.use_state(String::new);
 
     let mode = props.mode;
 
-    let mut change_focus = move |reverse: bool| {
+    let mut change_internal_focus = move |reverse: bool| {
         let next_focus = match reverse {
-            true => focus.read().previous(mode),
-            false => focus.read().next(mode),
+            true => internal_focus.read().previous(mode),
+            false => internal_focus.read().next(mode),
         };
-        focus.set(next_focus);
+        internal_focus.set(next_focus);
     };
 
     hooks.use_memo(
@@ -107,14 +109,18 @@ pub fn PasswordInputPopup(
 
         move |event| match event {
             TerminalEvent::Key(KeyEvent { code, kind, .. }) if kind != KeyEventKind::Release => {
+                if !has_focus {
+                    return;
+                }
+
                 match code {
-                    KeyCode::Tab => change_focus(false),
-                    KeyCode::BackTab => change_focus(true),
-                    KeyCode::Enter => match *focus.read() {
-                        PopupFocus::EditPassword => {
+                    KeyCode::Tab => change_internal_focus(false),
+                    KeyCode::BackTab => change_internal_focus(true),
+                    KeyCode::Enter => match *internal_focus.read() {
+                        InternalPopupFocus::EditPassword => {
                             if mode == PasswordInputMode::GetCurrentPassword {}
                         }
-                        PopupFocus::EditConfirmPassword => {
+                        InternalPopupFocus::EditConfirmPassword => {
                             if current_password_value == current_confirm_password_value
                                 && !current_password_value.is_empty()
                             {
@@ -125,7 +131,7 @@ pub fn PasswordInputPopup(
                                 hint_text.set("Passwords do not match!".to_string());
                             }
                         }
-                        PopupFocus::Accept => match mode {
+                        InternalPopupFocus::Accept => match mode {
                             PasswordInputMode::SetNewPassword => {
                                 if current_password_value == current_confirm_password_value
                                     && !current_password_value.is_empty()
@@ -140,7 +146,7 @@ pub fn PasswordInputPopup(
                             }
                             PasswordInputMode::GetCurrentPassword => {}
                         },
-                        PopupFocus::Cancel => {
+                        InternalPopupFocus::Cancel => {
                             on_submit(PasswordInputResult::Cancelled);
                         }
                     },
@@ -154,6 +160,16 @@ pub fn PasswordInputPopup(
         }
     });
 
+    // Calculates the focus state based on the has_focus prop and
+    // the internal focus state
+    let get_focus = |f: InternalPopupFocus| -> bool {
+        if has_focus {
+            *internal_focus.read() == f
+        } else {
+            false
+        }
+    };
+
     let password_input_view = element! {
         View(
             width: 40,
@@ -164,12 +180,12 @@ pub fn PasswordInputPopup(
             View(
                 height: 1,
                 background_color: get_text_input_color(
-                    *focus.read() == PopupFocus::EditPassword, false
+                   get_focus(InternalPopupFocus::EditPassword), false
                 )
             ) {
                 CustomTextInput(
                     multiline: false,
-                    has_focus: *focus.read() == PopupFocus::EditPassword,
+                    has_focus: get_focus(InternalPopupFocus::EditPassword),
                     value: password_value.read().clone(),
                     on_change: move |new_value| {
                         password_value.set(new_value);
@@ -190,12 +206,12 @@ pub fn PasswordInputPopup(
                 View(
                     height: 1,
                     background_color: get_text_input_color(
-                        *focus.read() == PopupFocus::EditConfirmPassword, false
+                        get_focus(InternalPopupFocus::EditConfirmPassword), false
                     )
                 ) {
                     CustomTextInput(
                         multiline: false,
-                        has_focus: *focus.read() == PopupFocus::EditConfirmPassword,
+                        has_focus: get_focus(InternalPopupFocus::EditConfirmPassword),
                         value: confirm_password_value.read().clone(),
                         on_change: move |new_value| {
                             confirm_password_value.set(new_value);
@@ -221,7 +237,7 @@ pub fn PasswordInputPopup(
     let accept_button = element! {
         View(
             height: 1,
-            background_color: button_style(*focus.read() == PopupFocus::Accept, true),
+            background_color: button_style(get_focus(InternalPopupFocus::Accept), true),
             justify_content: JustifyContent::Center,
         ) {
             Text(content: "ACCEPT", color: Color::White)
@@ -231,7 +247,7 @@ pub fn PasswordInputPopup(
     let cancel_button = element! {
         View(
             height: 1,
-            background_color: button_style(*focus.read() == PopupFocus::Cancel, false),
+            background_color: button_style(get_focus(InternalPopupFocus::Cancel), false),
             justify_content: JustifyContent::Center,
         ) {
             Text(content: "CANCEL", color: Color::White)
@@ -267,7 +283,7 @@ pub fn PasswordInputPopup(
 
     element! {
         Popup(
-            has_focus: true,
+            has_focus ,
             title: props.title,
             children: vec![
                 element! {

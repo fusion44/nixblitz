@@ -1,4 +1,5 @@
 use iocraft::prelude::*;
+use log::info;
 
 use crate::tui_components::{CustomTextInput, Popup};
 
@@ -9,27 +10,27 @@ pub enum TextInputPopupResult {
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
-enum PopupFocus {
+enum InternalPopupFocus {
     #[default]
     Edit,
     Accept,
     Cancel,
 }
 
-impl PopupFocus {
+impl InternalPopupFocus {
     fn next(&self) -> Self {
         match self {
-            PopupFocus::Edit => PopupFocus::Accept,
-            PopupFocus::Accept => PopupFocus::Cancel,
-            PopupFocus::Cancel => PopupFocus::Edit,
+            InternalPopupFocus::Edit => InternalPopupFocus::Accept,
+            InternalPopupFocus::Accept => InternalPopupFocus::Cancel,
+            InternalPopupFocus::Cancel => InternalPopupFocus::Edit,
         }
     }
 
     fn previous(&self) -> Self {
         match self {
-            PopupFocus::Edit => PopupFocus::Cancel,
-            PopupFocus::Accept => PopupFocus::Edit,
-            PopupFocus::Cancel => PopupFocus::Accept,
+            InternalPopupFocus::Edit => InternalPopupFocus::Cancel,
+            InternalPopupFocus::Accept => InternalPopupFocus::Edit,
+            InternalPopupFocus::Cancel => InternalPopupFocus::Accept,
         }
     }
 }
@@ -41,6 +42,7 @@ pub struct TextInputPopupProps {
     pub text: String,
     pub on_submit: Handler<'static, TextInputPopupResult>,
     pub height: Option<u16>,
+    pub has_focus: Option<bool>,
 }
 
 #[component]
@@ -48,41 +50,56 @@ pub fn TextInputPopup(
     props: &mut TextInputPopupProps,
     mut hooks: Hooks,
 ) -> impl Into<AnyElement<'static>> {
-    let mut focus = hooks.use_state(|| PopupFocus::Edit);
+    // Holds the internal focus state, which is used to determine the focus from within the popup
+    let mut internal_focus = hooks.use_state(|| InternalPopupFocus::Edit);
     let mut initial_input_value = hooks.use_state(|| props.text.clone());
+    let has_focus = props.has_focus.unwrap_or(true);
 
     let mut change_focus = move |reverse: bool| {
         let next_focus = match reverse {
-            true => focus.read().previous(),
-            false => focus.read().next(),
+            true => internal_focus.read().previous(),
+            false => internal_focus.read().next(),
         };
-        focus.set(next_focus);
+        internal_focus.set(next_focus);
     };
 
     let is_multiline = props.max_lines > 1;
 
+    // Calculates the focus state based on the has_focus prop and
+    // the internal focus state
+    let get_focus = |f: InternalPopupFocus| -> bool {
+        if has_focus {
+            *internal_focus.read() == f
+        } else {
+            false
+        }
+    };
+
     hooks.use_terminal_events({
         let mut on_submit = props.on_submit.take();
-
         move |event| match event {
             TerminalEvent::Key(KeyEvent { code, kind, .. }) if kind != KeyEventKind::Release => {
+                if !has_focus {
+                    return;
+                }
+
                 match code {
                     KeyCode::Tab => change_focus(false),
                     KeyCode::BackTab => change_focus(true),
-                    KeyCode::Enter => match *focus.read() {
-                        PopupFocus::Edit => {
+                    KeyCode::Enter => match *internal_focus.read() {
+                        InternalPopupFocus::Edit => {
                             if !is_multiline {
                                 on_submit(TextInputPopupResult::Accepted(
                                     initial_input_value.read().clone(),
                                 ));
                             }
                         }
-                        PopupFocus::Accept => {
+                        InternalPopupFocus::Accept => {
                             on_submit(TextInputPopupResult::Accepted(
                                 initial_input_value.read().clone(),
                             ));
                         }
-                        PopupFocus::Cancel => {
+                        InternalPopupFocus::Cancel => {
                             on_submit(TextInputPopupResult::Cancelled);
                         }
                     },
@@ -106,7 +123,7 @@ pub fn TextInputPopup(
         ){
             CustomTextInput(
                 multiline: is_multiline,
-                has_focus: *focus.read() == PopupFocus::Edit,
+                has_focus: get_focus(InternalPopupFocus::Edit),
                 value: initial_input_value.read().clone(),
                 on_change: move |new_value| initial_input_value.set(new_value),
                 masked: false,
@@ -118,7 +135,7 @@ pub fn TextInputPopup(
         let accept_button = element! {
             View(
                 height: 1,
-                background_color: if *focus.read() == PopupFocus::Accept { Color::Green } else { Color::Reset },
+                background_color: if *internal_focus.read() == InternalPopupFocus::Accept { Color::Green } else { Color::Reset },
                 justify_content: JustifyContent::Center,
             ) {
                 Text(content: "ACCEPT", color: Color::White)
@@ -128,7 +145,7 @@ pub fn TextInputPopup(
         let cancel_button = element! {
             View(
                 height: 1,
-                background_color: if *focus.read() == PopupFocus::Cancel { Color::Red } else { Color::Reset },
+                background_color: if *internal_focus.read() == InternalPopupFocus::Cancel { Color::Red } else { Color::Reset },
                 justify_content: JustifyContent::Center,
             ) {
                 Text(content: "CANCEL", color: Color::White)
@@ -141,7 +158,7 @@ pub fn TextInputPopup(
 
     element! {
         Popup(
-            has_focus: true,
+            has_focus,
             title: props.title,
             children: vec![
                 element! {
