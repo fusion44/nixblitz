@@ -5,6 +5,7 @@ use log::{error, info, warn};
 use nixblitz_core::{
     OPTION_TITLES, SupportedApps,
     bool_data::BoolOptionChangeData,
+    manual_string_list_data::ManualStringListOptionChangeData,
     net_address_data::NetAddressOptionChangeData,
     number_data::NumberOptionChangeData,
     option_data::{GetOptionId, OptionData, OptionDataChangeNotification},
@@ -162,6 +163,7 @@ pub fn Configurator(
                         }
                     }
                     OptionData::StringList(_)
+                    | OptionData::ManualStringList(_)
                     | OptionData::TextEdit(_)
                     | OptionData::PasswordEdit(_)
                     | OptionData::NetAddress(_)
@@ -360,6 +362,53 @@ where
                                 )
                             }.into_any()
                         ]
+                    )
+                }
+                .into_any(),
+            )
+        }
+        OptionData::ManualStringList(string_list_data) => {
+            let id = string_list_data.id().clone();
+            let title = OPTION_TITLES.get(&id).map_or("", |v| v);
+            let on_close_requested = Arc::new(Mutex::new(Some(on_close_requested)));
+            let on_submit = move |result| {
+                match result {
+                    TextInputPopupResult::Accepted(value) => {
+                        let mut lines: Vec<String> =
+                            Vec::with_capacity(value.matches('\n').count());
+                        for line in value.lines() {
+                            lines.push(line.to_string());
+                        }
+                        let res = project.lock().unwrap().on_option_changed(
+                            OptionDataChangeNotification::ManualStringList(
+                                ManualStringListOptionChangeData::new(id.clone(), lines),
+                            ),
+                        );
+                        if let Err(e) = res {
+                            error!("Error setting option: {:?}", e);
+                        }
+                    }
+                    TextInputPopupResult::Cancelled => {}
+                };
+                if let Some(cb) = on_close_requested.lock().unwrap().take() {
+                    cb();
+                }
+            };
+
+            let height = if string_list_data.max_lines() > MAX_HEIGHT - 4 {
+                Some(MAX_HEIGHT - 4)
+            } else {
+                None
+            };
+            let text_data = string_list_data.value().join("\n");
+            Some(
+                element! {
+                    TextInputPopup(
+                        height,
+                        title,
+                        text: text_data,
+                        max_lines: 999 as u16,
+                        on_submit,
                     )
                 }
                 .into_any(),
