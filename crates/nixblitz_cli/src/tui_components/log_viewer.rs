@@ -1,5 +1,6 @@
 use iocraft::prelude::*;
 use nixblitz_core::truncate_text;
+use std::cmp::min;
 
 #[derive(Default, Props)]
 pub struct LogViewerProps {
@@ -13,28 +14,34 @@ pub struct LogViewerProps {
 }
 
 #[component]
-pub fn LogViewer(props: &mut LogViewerProps) -> impl Into<AnyElement<'static>> {
-    let height = props.max_height.unwrap_or(props.logs.len() as u16);
+pub fn LogViewer(props: &mut LogViewerProps, hooks: &mut Hooks) -> impl Into<AnyElement<'static>> {
+    let available_width = hooks.use_terminal_size().0;
+    let width = props.width.map(|w| w.min(available_width));
+    let height = props
+        .max_height
+        .unwrap_or_else(|| min(props.logs.len(), u16::MAX as usize) as u16);
+
     let view_height = (height as usize).saturating_sub(2);
     let displayed_logs = props.logs.iter().rev().take(view_height).rev();
+    let truncation_width = width.map(|v| (v as usize).saturating_sub(2));
 
-    let lines = displayed_logs.map(|l| {
-        let w: Option<usize> = props.width.map(|v| v as usize - 2); // account for borders
-        let l = truncate_text(l, None, w);
+    let lines = displayed_logs.map(|log_line| {
+        let truncated_line = truncate_text(log_line, None, truncation_width);
         element! {
             Text(
-                content: l,
+                content: truncated_line,
                 wrap: TextWrap::NoWrap,
             )
         }
     });
 
-    if let Some(width) = props.width {
+    if let Some(w) = width {
         element! {
             View (
                 border_style: BorderStyle::Round,
                 flex_direction: FlexDirection::Column,
-                width,
+                width: w,
+                height,
             ) {
                 #(lines)
             }
@@ -44,6 +51,7 @@ pub fn LogViewer(props: &mut LogViewerProps) -> impl Into<AnyElement<'static>> {
             View (
                 border_style: BorderStyle::Round,
                 flex_direction: FlexDirection::Column,
+                height,
             ) {
                 #(lines)
             }

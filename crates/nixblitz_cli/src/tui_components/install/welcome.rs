@@ -27,11 +27,53 @@ pub fn Welcome(props: &mut WelcomeProps, hooks: &mut Hooks) -> impl Into<AnyElem
     });
 
     let loading = if props.connected {
-        Some(
-            element!(Text(content: "Connected to installer engine, press Enter to continue".to_string())),
-        )
+        Some(element! {
+            View(
+                flex_direction: FlexDirection::Column,
+            ) {
+                View(
+                    width: 60,
+                    flex_direction: FlexDirection::Column,
+                    border_style: BorderStyle::Round,
+                    border_color: Color::Red,
+                ) {
+                    Text(content: "Alpha Software Warning",
+                         color: Color::Red,
+                         align: TextAlign::Center
+                    )
+                    Text(content: "This is an early version of nixblitz. It has not been extensively tested and may contain catastrophic bugs that could lead to complete data loss. Do not use this on a machine with important data. Proceed at your own risk.")
+                }
+                Text(
+                    content: "Connected to installer engine",
+                    align: TextAlign::Center,
+                    color: Color::Cyan
+                )
+                MixedText(
+                    align: TextAlign::Center,
+                    contents: vec![
+                        MixedTextContent::new("Press <"),
+                        MixedTextContent::new("ENTER").color(Color::Green),
+                        MixedTextContent::new("> to continue"),
+                    ]
+                )
+                MixedText(
+                    align: TextAlign::Center,
+                    contents: vec![
+                        MixedTextContent::new("Press <"),
+                        MixedTextContent::new("q").color(Color::Green),
+                        MixedTextContent::new("> to quit"),
+                    ]
+                )
+            }
+
+        }.into_any())
     } else {
-        Some(element!(Text(content: "Connecting to installer engine... please wait".to_string())))
+        Some(
+            element! {
+                Text(content: "Connecting to installer engine... please wait".to_string())
+            }
+            .into_any(),
+        )
     };
 
     element! {

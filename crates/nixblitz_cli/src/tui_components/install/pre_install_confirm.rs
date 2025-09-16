@@ -34,9 +34,31 @@ pub fn PreInstallConfirm(
     });
 
     let confirm_msg = if confirmed.get() {
-        "Press Enter to confirm."
+        element! {
+            MixedText(
+                align: TextAlign::Center,
+                contents: vec![
+                    MixedTextContent::new("Press <"),
+                    MixedTextContent::new("ENTER").color(Color::Green),
+                    MixedTextContent::new("> confirm"),
+                ]
+            )
+        }
+        .into_any()
     } else {
-        "Select YES to confirm and hit Enter to start the installation."
+        element! {
+            MixedText(
+                align: TextAlign::Center,
+                contents: vec![
+                    MixedTextContent::new("Select <"),
+                    MixedTextContent::new("YES").color(Color::Green),
+                    MixedTextContent::new("> to confirm and hit <"),
+                    MixedTextContent::new("ENTER").color(Color::Green),
+                    MixedTextContent::new("> to start the installation."),
+                ]
+            )
+        }
+        .into_any()
     };
     element! {
         View(flex_direction: FlexDirection::Column, align_items: AlignItems::Center) {
@@ -47,7 +69,7 @@ pub fn PreInstallConfirm(
             Text(content: format!("Disk: {}", props.data.disk))
             View(height: 1)
             ConfirmInputInView(value: confirmed.get(), on_change: move |val| confirmed.set(val))
-            Text(content: confirm_msg.to_string())
+            #(confirm_msg)
         }
     }
 }

@@ -1,7 +1,7 @@
 use iocraft::prelude::*;
 use nixblitz_core::{DiskoInstallStep, DiskoStepStatus};
 
-use crate::tui_components::{Spinner, SpinnerStyle};
+use crate::tui_components::{LogViewer, Spinner, SpinnerStyle};
 
 #[derive(Default, Props)]
 pub struct InstallingProps {
@@ -36,25 +36,26 @@ pub fn Installing(
         })
         .collect::<Vec<_>>();
 
-    let log_elements = props
+    let logs: Vec<String> = props
         .logs
         .iter()
         .rev()
-        .take(3)
-        .map(|log| element! { Text(content: log.clone(), color: Color::DarkGrey) })
-        .collect::<Vec<_>>();
+        .take(8)
+        .map(|l| l.to_string())
+        .rev()
+        .collect();
 
     element! {
-        View(flex_direction: FlexDirection::Column) {
+        View(
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center
+        ) {
             Text(content: "Installing NixBlitz...".to_string(), color: Color::Cyan)
             View(flex_direction: FlexDirection::Column) {
                 #(step_element)
             }
             View(height: 1)
-            View(flex_direction: FlexDirection::Column) {
-                Text(content: "==== Last 3 logs entries ====".to_string())
-                #(log_elements)
-            }
+            LogViewer(logs, max_height: 8, width: 80)
         }
     }
 }

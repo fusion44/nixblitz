@@ -86,7 +86,14 @@ pub fn InstallSuccess(
             View(height: 1)
             #(step_element)
             View(height: 1)
-            Text(content: "Press Enter to reboot the system.".to_string())
+            MixedText(
+                align: TextAlign::Center,
+                contents: vec![
+                    MixedTextContent::new("Press <"),
+                    MixedTextContent::new("ENTER").color(Color::Green),
+                    MixedTextContent::new("> reboot the system"),
+                ]
+            )
             #(popup)
 
         }

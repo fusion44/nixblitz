@@ -1,3 +1,4 @@
+pub mod configurator_screen;
 pub mod install_disk_selection;
 pub mod install_success;
 pub mod installing;
@@ -6,6 +7,7 @@ pub mod pre_install_confirm;
 pub mod system_check_completed;
 pub mod welcome;
 
+pub use configurator_screen::ConfiguratorScreen;
 pub use install_disk_selection::InstallDiskSelection;
 pub use install_success::InstallSuccess;
 pub use installing::Installing;

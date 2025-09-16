@@ -1,4 +1,4 @@
-use dioxus::prelude::*;
+use dioxus::{document::eval, prelude::*};
 use nixblitz_core::DiskoInstallStep;
 
 use crate::{classes::typography, components::InstallStepRow};
@@ -9,6 +9,18 @@ pub fn Installing(
     logs: Signal<Vec<String>>,
     succeeded: bool,
 ) -> Element {
+    use_effect(move || {
+        let _ = logs.read();
+        let mut eval = document::eval(
+            r#"
+                const logView = document.getElementById('log-view');
+                if (logView) {
+                    logView.scrollTop = logView.scrollHeight;
+                }
+            "#,
+        );
+    });
+
     rsx! {
         div { class: "flex flex-col space-y-8 w-full max-w-2xl mx-auto bg-zinc-900 p-8 rounded-lg border border-zinc-700 shadow-2xl",
             div { class: "text-center",
@@ -30,7 +42,9 @@ pub fn Installing(
                 h3 { class: "text-sm font-semibold text-slate-400 border-b border-zinc-700 pb-2 mb-2",
                     "Detailed Log"
                 }
-                pre { class: "w-full h-48 bg-black/50 p-4 rounded-md text-xs text-slate-300 font-mono overflow-y-scroll",
+                pre {
+                    id: "log-view",
+                    class: "w-full h-48 bg-black/50 p-4 rounded-md text-xs text-slate-300 font-mono overflow-y-scroll",
                     for log_line in logs.read().iter() {
                         div { "{log_line}" }
                     }

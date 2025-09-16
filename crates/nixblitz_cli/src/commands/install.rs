@@ -24,10 +24,9 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungsten
 use crate::{
     errors::CliError,
     tui_components::{
-        Configurator,
         install::{
-            InstallDiskSelection, InstallSuccess, Installing, PreInstallConfirm,
-            SystemCheckDisplay, Welcome,
+            ConfiguratorScreen, InstallDiskSelection, InstallSuccess, Installing,
+            PreInstallConfirm, SystemCheckDisplay, Welcome,
         },
         utils::load_or_create_project,
     },
@@ -212,7 +211,7 @@ fn InstallerTuiApp(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
                 );
             }));
             element! {
-                Configurator(on_submit)
+                ConfiguratorScreen(on_submit)
             }
             .into_any()
         }
@@ -284,9 +283,7 @@ fn InstallerTuiApp(mut hooks: Hooks) -> impl Into<AnyElement<'static>> {
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
         ){
-            View(flex_direction: FlexDirection::Column) {
-                #(body)
-            }
+            #(body)
         }
     }
 }
