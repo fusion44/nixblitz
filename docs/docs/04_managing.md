@@ -1,3 +1,10 @@
+---
+slug: /system-management
+sidebar_position: 4
+sidebar_label: System Management
+---
+
+
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
