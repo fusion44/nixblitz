@@ -8,7 +8,7 @@ sidebar_label: System Installation
 
 ## Download the ISO image
 
-Version v0.1.0: https://zipline.f44.fyi/u/250606_NIXBLITZ-x86_64-linux_0.1.0.iso
+Version v0.1.0: https://zipline.f44.fyi/u/250919_NIXBLITZ-x86_64-linux_0.1.0.iso
 
 import AsciinemaPlayerManual from '@site/src/components/AsciinemaPlayerManual';
 import Tabs from '@theme/Tabs';

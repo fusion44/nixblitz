@@ -49,8 +49,7 @@ Currently, only systems with single disks are supported. A more flexible system 
 ## Useful links
 
 - Repo - https://github.com/fusion44/nixblitz
-- Docs - https://nixblitz.f44.fyi/docs/
+- Docs - https://fusion44.github.io/nixblitz/
 - Development chat
   - Signal: https://signal.group/#CjQKIGG9LdF6UkJjYODuPAwbUWYwVMmBcbdutWJpSJenJGIWEhCiqGUMg29Dku5o61jZvEak
   - Matrix: https://matrix.to/#/#nixblitz:matrix.org
-  - Telegram: 💩
